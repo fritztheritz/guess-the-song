@@ -36,6 +36,11 @@ export interface Team {
   score: number
 }
 
+export interface GameProgress {
+  possessionIndex: number
+  completed: boolean
+}
+
 export interface Game {
   id: string
   name: string
@@ -43,6 +48,8 @@ export interface Game {
   teams: Team[]
   createdAt: string
   updatedAt: string
+  /** Absent = never played (or was reset). Presence is what tells Presentation mode to offer Continue/Restart. */
+  progress?: GameProgress
 }
 
 export const DEFAULT_CLIP_DURATIONS = [2, 4, 7, 10]

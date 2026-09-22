@@ -5,7 +5,7 @@ import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
 import Scoreboard from '../components/Scoreboard'
 
-type Phase = 'intro' | 'clue' | 'revealed' | 'final'
+type Phase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final'
 
 export default function Presentation() {
   const { gameId } = useParams()
@@ -24,7 +24,15 @@ export default function Presentation() {
 
   useEffect(() => {
     if (!gameId) return
-    setGame(getGame(gameId))
+    const loaded = getGame(gameId)
+    setGame(loaded)
+    if (loaded?.progress) {
+      setPossessionIndex(Math.min(loaded.progress.possessionIndex, Math.max(0, loaded.rounds.length - 1)))
+      setPhase('resume')
+    } else {
+      setPossessionIndex(0)
+      setPhase('intro')
+    }
   }, [gameId])
 
   const round: SongRound | undefined = game?.rounds[possessionIndex]
@@ -94,6 +102,10 @@ export default function Presentation() {
     } else {
       setLastAward(null)
     }
+    // Recorded as soon as any score changes, not just on possession advance — otherwise
+    // leaving right after awarding (before clicking "next possession") would lose the
+    // fact that this game is mid-play, and reopening would look "fresh" with stale points.
+    nextGame = { ...nextGame, progress: { possessionIndex, completed: false } }
     const saved = saveGame(nextGame)
     setGame(saved)
   }
@@ -101,22 +113,43 @@ export default function Presentation() {
   function nextPossession() {
     if (!game) return
     if (possessionIndex >= game.rounds.length - 1) {
+      setGame(saveGame({ ...game, progress: { possessionIndex, completed: true } }))
       setPhase('final')
       return
     }
-    setPossessionIndex((i) => i + 1)
+    const next = possessionIndex + 1
+    setGame(saveGame({ ...game, progress: { possessionIndex: next, completed: false } }))
+    setPossessionIndex(next)
     setPhase('clue')
     setLastAward(null)
   }
 
   function prevPossession() {
-    if (possessionIndex === 0) return
+    if (!game || possessionIndex === 0) return
     audioSourceRef.current?.stop()
     stopShotClock()
     setIsPlaying(false)
-    setPossessionIndex((i) => i - 1)
+    const prev = possessionIndex - 1
+    setGame(saveGame({ ...game, progress: { possessionIndex: prev, completed: false } }))
+    setPossessionIndex(prev)
     setPhase('clue')
     setLastAward(null)
+  }
+
+  function continueGame() {
+    if (!game?.progress) return
+    setPhase(game.progress.completed ? 'final' : 'clue')
+    setClueIndex(0)
+    setLastAward(null)
+  }
+
+  function restartGame() {
+    if (!game) return
+    const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0 })), progress: undefined })
+    setGame(reset)
+    setPossessionIndex(0)
+    setLastAward(null)
+    setPhase('intro')
   }
 
   function restartClue() {
@@ -141,6 +174,15 @@ export default function Presentation() {
   // Keyboard controls (spec §18) — active throughout presentation mode.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (phase === 'resume') {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault()
+          continueGame()
+        } else if (e.code === 'Escape') {
+          exitPresentation()
+        }
+        return
+      }
       if (phase === 'intro') {
         if (e.code === 'Space' || e.code === 'Enter') {
           e.preventDefault()
@@ -191,6 +233,32 @@ export default function Presentation() {
       <button onClick={exitPresentation} className="absolute right-4 top-4 z-10 rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
         ESC · Exit
       </button>
+
+      {phase === 'resume' && game.progress && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-pop-in">
+          <div className="font-display text-4xl tracking-wide text-hardwood-400">{game.name}</div>
+          <div className="text-sm uppercase tracking-widest text-slate-500">
+            {game.progress.completed
+              ? 'This game already finished'
+              : `In progress — Possession ${game.progress.possessionIndex + 1} of ${game.rounds.length}`}
+          </div>
+          <Scoreboard teams={game.teams} />
+          <div className="flex gap-3">
+            <button
+              onClick={continueGame}
+              className="rounded-full bg-hardwood-500 px-8 py-3 font-display text-xl tracking-wide text-arena-950 shadow-lg shadow-hardwood-500/20 hover:bg-hardwood-400"
+            >
+              {game.progress.completed ? 'VIEW FINAL SCORE' : 'CONTINUE'}
+            </button>
+            <button
+              onClick={restartGame}
+              className="rounded-full border border-arena-500 px-8 py-3 font-display text-xl tracking-wide text-slate-200 hover:border-hardwood-500"
+            >
+              RESTART GAME
+            </button>
+          </div>
+        </div>
+      )}
 
       {phase === 'intro' && (
         <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-pop-in">
@@ -322,16 +390,7 @@ export default function Presentation() {
           <div className="font-display text-lg tracking-widest text-slate-500">GAME OVER</div>
 
           <div className="flex gap-3">
-            <button
-              onClick={() => {
-                const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0 })) })
-                setGame(reset)
-                setPossessionIndex(0)
-                setLastAward(null)
-                setPhase('intro')
-              }}
-              className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400"
-            >
+            <button onClick={restartGame} className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400">
               PLAY AGAIN
             </button>
             <button onClick={() => navigate(`/games/${gameId}/edit`)} className="rounded-full border border-arena-500 px-6 py-2.5 text-slate-200 hover:border-hardwood-500">
