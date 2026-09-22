@@ -22,7 +22,7 @@ interface TrackCardProps {
 }
 
 export default function TrackCard({ track, selected, onToggleSelect, onPreview, isPreviewing, onAdd }: TrackCardProps) {
-  const badge = ACCESS_BADGE[track.access]
+  const badge = ACCESS_BADGE[track.access] ?? ACCESS_BADGE.playable
   const canPlay = track.access !== 'blocked'
 
   return (

@@ -150,7 +150,7 @@ export default function ImportSoundCloudModal({
       return
     }
     try {
-      const url = await getTrackPlayback(track.soundcloudTrackId)
+      const url = await getTrackPlayback(track.soundcloudTrackId, track.soundcloudSecretToken)
       audio.src = url
       audio.currentTime = 0
       await audio.play()

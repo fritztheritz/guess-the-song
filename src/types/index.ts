@@ -13,6 +13,8 @@ export interface SongRound {
   soundcloudTrackId?: string
   soundcloudUrn?: string
   soundcloudUrl?: string
+  /** Needed to resolve playback for tracks shared via a private link (not owned by the connected user). */
+  soundcloudSecretToken?: string
 
   /** Only set for source: "local" (dev/testing fallback). Never persisted to a shared backend. */
   localAudioUrl?: string

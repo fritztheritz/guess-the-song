@@ -2,6 +2,9 @@ import { scFetchJson } from './soundcloud-api'
 import type { SoundCloudAccess } from '../../types'
 
 // Raw shapes are intentionally partial — we only declare the fields this app reads.
+// Matches the registered-developer API's track resource (developers.soundcloud.com/docs/api/guide),
+// not the unrelated internal shape (media.transcodings) the soundcloud.com web player's
+// unofficial API uses — those are two different APIs with different response shapes.
 export interface RawSoundCloudTrack {
   id: number
   urn?: string
@@ -11,9 +14,11 @@ export interface RawSoundCloudTrack {
   duration: number // ms
   sharing: 'public' | 'private'
   streamable: boolean
-  policy?: string // 'ALLOW' | 'BLOCK' | 'SNIP' | ...
+  /** Direct classification from the API — prefer this over deriving it. */
+  access?: 'playable' | 'preview' | 'blocked'
+  /** Required as a query param to fetch/stream a private track you don't own (e.g. a shared link). */
+  secret_token?: string
   permalink_url?: string
-  media?: { transcodings: Array<{ url: string; format: { protocol: string; mime_type: string } }> }
 }
 
 export interface RawSoundCloudPlaylist {
@@ -28,6 +33,7 @@ export interface ImportableTrack {
   soundcloudTrackId: string
   soundcloudUrn?: string
   soundcloudUrl?: string
+  soundcloudSecretToken?: string
   title: string
   artist: string
   artworkUrl?: string
@@ -37,13 +43,13 @@ export interface ImportableTrack {
 }
 
 export function mapToImportableTrack(raw: RawSoundCloudTrack): ImportableTrack {
-  const hasStream = Boolean(raw.streamable && raw.media?.transcodings?.length)
-  const access: SoundCloudAccess = raw.policy === 'BLOCK' || !raw.streamable ? 'blocked' : raw.policy === 'SNIP' ? 'preview' : hasStream ? 'playable' : 'blocked'
+  const access: SoundCloudAccess = raw.access ?? (raw.streamable ? 'playable' : 'blocked')
 
   return {
     soundcloudTrackId: String(raw.id),
     soundcloudUrn: raw.urn,
     soundcloudUrl: raw.permalink_url,
+    soundcloudSecretToken: raw.secret_token,
     title: raw.title,
     artist: raw.user?.username ?? 'Unknown artist',
     artworkUrl: raw.artwork_url?.replace('-large', '-t500x500') ?? undefined,

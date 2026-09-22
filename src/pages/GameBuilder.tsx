@@ -65,6 +65,7 @@ export default function GameBuilder() {
         soundcloudTrackId: t.soundcloudTrackId,
         soundcloudUrn: t.soundcloudUrn,
         soundcloudUrl: t.soundcloudUrl,
+        soundcloudSecretToken: t.soundcloudSecretToken,
         isPrivate: t.isPrivate,
         access: t.access,
         duration: t.duration,

@@ -24,7 +24,7 @@ export class SoundCloudAudioSource extends BaseAudioSource {
     if (!this.round.soundcloudTrackId) {
       throw new Error('Round is missing a SoundCloud track id.')
     }
-    const url = await getTrackPlayback(this.round.soundcloudTrackId)
+    const url = await getTrackPlayback(this.round.soundcloudTrackId, this.round.soundcloudSecretToken)
     return { url, kind: 'soundcloud' }
   }
 }
