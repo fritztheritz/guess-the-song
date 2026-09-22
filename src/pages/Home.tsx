@@ -1,12 +1,15 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { listGames, deleteGame, saveGame } from '../lib/storage/game-repository'
+import { listGames, deleteGame, saveGame, exportAllGames, importGames } from '../lib/storage/game-repository'
+import { downloadBackupFile, parseBackupFile, BackupFileError } from '../lib/game-backup'
 import { duplicateGame, isLyricMode, type Game } from '../types'
 import SoundCloudAttribution from '../components/SoundCloudAttribution'
 
 export default function Home() {
   const navigate = useNavigate()
   const [games, setGames] = useState<Game[]>([])
+  const [backupStatus, setBackupStatus] = useState<string | null>(null)
+  const importFileInput = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     setGames(listGames())
@@ -21,6 +24,38 @@ export default function Home() {
   function handleDuplicate(game: Game) {
     const copy = saveGame(duplicateGame(game))
     navigate(`/games/${copy.id}/edit`)
+  }
+
+  function handleExportAll() {
+    const all = exportAllGames()
+    if (all.length === 0) {
+      setBackupStatus('No games to back up yet.')
+      return
+    }
+    downloadBackupFile(all)
+    setBackupStatus(`Downloaded a backup of ${all.length} game${all.length === 1 ? '' : 's'}.`)
+  }
+
+  async function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    try {
+      const text = await file.text()
+      const imported = parseBackupFile(text)
+      if (imported.length === 0) {
+        setBackupStatus('That backup file has no games in it.')
+        return
+      }
+      if (!confirm(`Restore ${imported.length} game${imported.length === 1 ? '' : 's'}? Any game already here with the same name/id will be overwritten by the backup.`)) {
+        return
+      }
+      const count = importGames(imported)
+      setGames(listGames())
+      setBackupStatus(`Restored ${count} game${count === 1 ? '' : 's'} from backup.`)
+    } catch (err) {
+      setBackupStatus(err instanceof BackupFileError ? err.message : 'Could not read that file.')
+    }
   }
 
   return (
@@ -79,7 +114,23 @@ export default function Home() {
           </div>
         )}
 
-        <div className="mt-16 flex justify-center">
+        <div className="mt-16 text-center">
+          <p className="mb-2 text-xs text-slate-500">
+            Games are stored only in this browser. Back them up before clearing site data or switching browsers/devices.
+          </p>
+          <div className="flex justify-center gap-3">
+            <button onClick={handleExportAll} className="text-sm text-slate-400 underline hover:text-hardwood-400">
+              Export all games
+            </button>
+            <button onClick={() => importFileInput.current?.click()} className="text-sm text-slate-400 underline hover:text-hardwood-400">
+              Restore from backup
+            </button>
+          </div>
+          <input ref={importFileInput} type="file" accept="application/json" className="hidden" onChange={handleImportFile} />
+          {backupStatus && <p className="mt-2 text-xs text-slate-400">{backupStatus}</p>}
+        </div>
+
+        <div className="mt-8 flex justify-center">
           <SoundCloudAttribution />
         </div>
       </div>

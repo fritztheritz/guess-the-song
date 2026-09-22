@@ -40,3 +40,22 @@ export function deleteGame(id: string) {
   delete games[id]
   writeAll(games)
 }
+
+export function exportAllGames(): Game[] {
+  return listGames()
+}
+
+/**
+ * Restores games from a backup, keyed by id — a game already present with the same id is
+ * overwritten by the backup's version. This is deliberately different from importing a
+ * single shared game link, which always assigns a fresh id so it never clobbers anything;
+ * a full-library restore is expected to reproduce exactly what was backed up.
+ */
+export function importGames(games: Game[]): number {
+  const existing = readAll()
+  for (const game of games) {
+    existing[game.id] = game
+  }
+  writeAll(existing)
+  return games.length
+}
