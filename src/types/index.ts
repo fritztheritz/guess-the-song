@@ -1,0 +1,76 @@
+export type TrackSource = 'soundcloud' | 'local'
+
+export type SoundCloudAccess = 'playable' | 'preview' | 'blocked'
+
+export interface SongRound {
+  id: string
+  source: TrackSource
+
+  title: string
+  artist: string
+  artworkUrl?: string
+
+  soundcloudTrackId?: string
+  soundcloudUrn?: string
+  soundcloudUrl?: string
+
+  /** Only set for source: "local" (dev/testing fallback). Never persisted to a shared backend. */
+  localAudioUrl?: string
+
+  isPrivate?: boolean
+  access?: SoundCloudAccess
+
+  duration?: number // seconds, full track length
+
+  clipStart: number // seconds, where all clue clips begin
+  clipDurations: number[] // e.g. [2, 4, 7, 10]
+  points: number[] // e.g. [4, 3, 2, 1], same length as clipDurations
+
+  createdAt: string
+}
+
+export interface Team {
+  id: string
+  name: string
+  color: string // tailwind-safe hex used for scoreboard styling
+  score: number
+}
+
+export interface Game {
+  id: string
+  name: string
+  rounds: SongRound[]
+  teams: Team[]
+  createdAt: string
+  updatedAt: string
+}
+
+export const DEFAULT_CLIP_DURATIONS = [2, 4, 7, 10]
+export const DEFAULT_POINTS = [4, 3, 2, 1]
+
+export function createEmptyRound(partial: Partial<SongRound> & Pick<SongRound, 'title' | 'artist' | 'source'>): SongRound {
+  return {
+    id: crypto.randomUUID(),
+    clipStart: 0,
+    clipDurations: DEFAULT_CLIP_DURATIONS,
+    points: DEFAULT_POINTS,
+    createdAt: new Date().toISOString(),
+    ...partial,
+  }
+}
+
+export function createTeam(name: string, color: string): Team {
+  return { id: crypto.randomUUID(), name, color, score: 0 }
+}
+
+export function createGame(name: string, teams: Team[]): Game {
+  const now = new Date().toISOString()
+  return {
+    id: crypto.randomUUID(),
+    name,
+    rounds: [],
+    teams,
+    createdAt: now,
+    updatedAt: now,
+  }
+}

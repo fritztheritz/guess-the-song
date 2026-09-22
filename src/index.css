@@ -1,0 +1,77 @@
+@import 'tailwindcss';
+
+@theme {
+  /* Arena palette — deep court navy + charcoal, warm hardwood accent used sparingly,
+     electric teal for secondary team color, scoreboard amber for score/points. */
+  --color-arena-950: #05060a;
+  --color-arena-900: #0b0e14;
+  --color-arena-800: #12161f;
+  --color-arena-700: #1a2030;
+  --color-arena-600: #262e44;
+  --color-arena-500: #3a4361;
+
+  --color-hardwood-500: #e8871e;
+  --color-hardwood-400: #f4a13f;
+  --color-hardwood-300: #ffc978;
+
+  --color-teal-500: #17b8a6;
+  --color-teal-400: #3fd4c2;
+
+  --color-scoreboard-500: #ff3b3b;
+  --color-scoreboard-amber: #ffb703;
+  --color-scoreboard-green: #2bd47d;
+
+  --font-display: 'Bebas Neue', 'Oswald', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    background: radial-gradient(ellipse at top, var(--color-arena-800), var(--color-arena-950) 65%);
+    color: #eef0f5;
+    font-family: var(--font-body);
+    min-height: 100svh;
+  }
+
+  #root {
+    min-height: 100svh;
+  }
+}
+
+@layer components {
+  .court-lines {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .scoreboard-digit {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes buzzer-flash {
+  0%, 100% { opacity: 0; }
+  15%, 40% { opacity: 1; }
+}
+
+.animate-buzzer-flash {
+  animation: buzzer-flash 900ms ease-out;
+}
+
+@keyframes pop-in {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-pop-in {
+  animation: pop-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}

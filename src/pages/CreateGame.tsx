@@ -1,0 +1,60 @@
+import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { createGame, createTeam } from '../types'
+import { saveGame } from '../lib/storage/game-repository'
+
+const TEAM_COLORS = ['#e8871e', '#17b8a6']
+
+export default function CreateGame() {
+  const navigate = useNavigate()
+  const [name, setName] = useState('Friday Night Music Game')
+  const [teamNames, setTeamNames] = useState(['Team Jordan', 'Team Kobe'])
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault()
+    const teams = teamNames.map((n, i) => createTeam(n.trim() || `Team ${i + 1}`, TEAM_COLORS[i]))
+    const game = createGame(name.trim() || 'Untitled Game', teams)
+    saveGame(game)
+    navigate(`/games/${game.id}/edit`)
+  }
+
+  return (
+    <div className="min-h-svh court-lines flex items-center justify-center px-6 py-16">
+      <form onSubmit={handleSubmit} className="w-full max-w-md space-y-8">
+        <div className="text-center">
+          <h1 className="font-display text-4xl tracking-wide text-white">NAME YOUR GAME</h1>
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm text-slate-400">Game name</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full rounded-lg border border-arena-600 bg-arena-800 px-4 py-3 text-lg text-slate-100 outline-none focus:border-hardwood-500"
+            autoFocus
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm text-slate-400">Choose teams</label>
+          <div className="space-y-2">
+            {teamNames.map((teamName, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: TEAM_COLORS[i] }} />
+                <input
+                  value={teamName}
+                  onChange={(e) => setTeamNames((prev) => prev.map((n, idx) => (idx === i ? e.target.value : n)))}
+                  className="w-full rounded-lg border border-arena-600 bg-arena-800 px-4 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button type="submit" className="w-full rounded-full bg-hardwood-500 py-3 text-lg font-semibold text-arena-950 hover:bg-hardwood-400">
+          ADD TRACKS →
+        </button>
+      </form>
+    </div>
+  )
+}

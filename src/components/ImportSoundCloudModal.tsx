@@ -1,0 +1,341 @@
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import TrackCard from './TrackCard'
+import SoundCloudConnectPanel from './SoundCloudConnectPanel'
+import SoundCloudAttribution from './SoundCloudAttribution'
+import { useSoundCloud } from '../state/SoundCloudContext'
+import {
+  getLikedTracks,
+  getMyTracks,
+  getPlaylists,
+  getPlaylistTracks,
+  resolveSoundCloudUrl,
+  searchTracks,
+  type ImportableTrack,
+} from '../lib/soundcloud/soundcloud-tracks'
+import { getTrackPlayback } from '../lib/soundcloud/soundcloud-playback'
+import { SoundCloudApiError, SoundCloudNotConnectedError, SoundCloudRateLimitError } from '../lib/soundcloud/soundcloud-api'
+import { TrackNotPlayableError } from '../lib/soundcloud/soundcloud-playback'
+
+type Tab = 'mine' | 'liked' | 'playlists' | 'search' | 'paste'
+
+const TABS: Array<{ id: Tab; label: string }> = [
+  { id: 'mine', label: 'My Tracks' },
+  { id: 'liked', label: 'Liked Tracks' },
+  { id: 'playlists', label: 'Playlists' },
+  { id: 'search', label: 'Search' },
+  { id: 'paste', label: 'Paste Link' },
+]
+
+interface Playlist {
+  id: string
+  title: string
+  artworkUrl?: string
+  trackCount: number
+}
+
+function errorMessage(err: unknown): string {
+  if (err instanceof SoundCloudNotConnectedError) return 'Connect SoundCloud to import tracks.'
+  if (err instanceof SoundCloudRateLimitError) return err.message
+  if (err instanceof SoundCloudApiError) return err.message
+  return err instanceof Error ? err.message : 'Something went wrong talking to SoundCloud.'
+}
+
+export default function ImportSoundCloudModal({
+  onClose,
+  onImport,
+}: {
+  onClose: () => void
+  onImport: (tracks: ImportableTrack[]) => void
+}) {
+  const { connection } = useSoundCloud()
+  const [tab, setTab] = useState<Tab>('mine')
+  const [tracks, setTracks] = useState<ImportableTrack[]>([])
+  const [playlists, setPlaylists] = useState<Playlist[]>([])
+  const [activePlaylist, setActivePlaylist] = useState<Playlist | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Map<string, ImportableTrack>>(new Map())
+  const [searchQuery, setSearchQuery] = useState('')
+  const [pasteUrl, setPasteUrl] = useState('')
+  const [resolvedTrack, setResolvedTrack] = useState<ImportableTrack | null>(null)
+  const [previewingId, setPreviewingId] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  useEffect(() => {
+    audioRef.current = new Audio()
+    return () => {
+      audioRef.current?.pause()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!connection) return
+    setError(null)
+    if (tab === 'mine') void load(getMyTracks)
+    if (tab === 'liked') void load(getLikedTracks)
+    if (tab === 'playlists') void loadPlaylists()
+    // search & paste are user-driven, no auto-load
+  }, [tab, connection])
+
+  async function load(fn: () => Promise<ImportableTrack[]>) {
+    setLoading(true)
+    setError(null)
+    try {
+      setTracks(await fn())
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function loadPlaylists() {
+    setLoading(true)
+    setError(null)
+    try {
+      setPlaylists(await getPlaylists())
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function openPlaylist(playlist: Playlist) {
+    setActivePlaylist(playlist)
+    setLoading(true)
+    setError(null)
+    try {
+      setTracks(await getPlaylistTracks(playlist.id))
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function runSearch(e: FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    try {
+      setTracks(await searchTracks(searchQuery))
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function runResolve(e: FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    setError(null)
+    setResolvedTrack(null)
+    try {
+      setResolvedTrack(await resolveSoundCloudUrl(pasteUrl))
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function togglePreview(track: ImportableTrack) {
+    const audio = audioRef.current
+    if (!audio) return
+    if (previewingId === track.soundcloudTrackId) {
+      audio.pause()
+      setPreviewingId(null)
+      return
+    }
+    try {
+      const url = await getTrackPlayback(track.soundcloudTrackId)
+      audio.src = url
+      audio.currentTime = 0
+      await audio.play()
+      setPreviewingId(track.soundcloudTrackId)
+      audio.onended = () => setPreviewingId(null)
+    } catch (err) {
+      setError(err instanceof TrackNotPlayableError ? err.message : errorMessage(err))
+    }
+  }
+
+  function toggleSelect(track: ImportableTrack) {
+    setSelected((prev) => {
+      const next = new Map(prev)
+      if (next.has(track.soundcloudTrackId)) next.delete(track.soundcloudTrackId)
+      else next.set(track.soundcloudTrackId, track)
+      return next
+    })
+  }
+
+  const selectedList = useMemo(() => Array.from(selected.values()), [selected])
+
+  function handleImportSelected() {
+    onImport(selectedList)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-arena-600 bg-arena-900 shadow-2xl">
+        <div className="flex items-start justify-between border-b border-arena-700 px-6 py-4">
+          <div>
+            <h2 className="font-display text-3xl tracking-wide text-hardwood-400">IMPORT FROM SOUNDCLOUD</h2>
+            <p className="text-sm text-slate-400">Choose tracks from your SoundCloud library to build this game.</p>
+          </div>
+          <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-arena-700 hover:text-white" aria-label="Close">
+            ✕
+          </button>
+        </div>
+
+        <div className="border-b border-arena-700 px-6 py-3">
+          <SoundCloudConnectPanel />
+        </div>
+
+        {connection && (
+          <>
+            <div className="flex gap-1 border-b border-arena-700 px-6 pt-2">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setTab(t.id)
+                    setActivePlaylist(null)
+                    setError(null)
+                  }}
+                  className={`rounded-t-lg px-4 py-2 text-sm font-medium ${
+                    tab === t.id ? 'bg-arena-800 text-hardwood-400' : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              {error && <div className="mb-4 rounded-lg bg-scoreboard-500/10 px-4 py-2 text-sm text-scoreboard-500">{error}</div>}
+
+              {tab === 'search' && (
+                <form onSubmit={runSearch} className="mb-4 flex gap-2">
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search SoundCloud…"
+                    className="flex-1 rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+                  />
+                  <button className="rounded-lg bg-hardwood-500 px-4 py-2 font-medium text-arena-950 hover:bg-hardwood-400">Search</button>
+                </form>
+              )}
+
+              {tab === 'paste' && (
+                <div className="mx-auto max-w-md space-y-4">
+                  <form onSubmit={runResolve} className="flex flex-col gap-2">
+                    <label className="text-sm text-slate-400">Paste a SoundCloud link</label>
+                    <input
+                      value={pasteUrl}
+                      onChange={(e) => setPasteUrl(e.target.value)}
+                      placeholder="https://soundcloud.com/…"
+                      className="rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+                    />
+                    <button className="rounded-lg bg-hardwood-500 py-2 font-semibold text-arena-950 hover:bg-hardwood-400">
+                      IMPORT TRACK
+                    </button>
+                  </form>
+
+                  {resolvedTrack && (
+                    <div className="rounded-xl border border-arena-600 bg-arena-800 p-4 text-center">
+                      {resolvedTrack.access === 'blocked' ? (
+                        <>
+                          <p className="font-medium text-slate-200">TRACK FOUND</p>
+                          <p className="mt-1 text-sm text-slate-400">
+                            This track is not available for playback through your current SoundCloud authorization.
+                            You can still view the available metadata.
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mb-2 font-medium text-teal-400">TRACK FOUND ✓</p>
+                      )}
+                      <div className="mx-auto max-w-[220px]">
+                        <TrackCard track={resolvedTrack} onPreview={() => togglePreview(resolvedTrack)} isPreviewing={previewingId === resolvedTrack.soundcloudTrackId} />
+                      </div>
+                      <button
+                        onClick={() => {
+                          onImport([resolvedTrack])
+                          onClose()
+                        }}
+                        className="mt-3 rounded-lg bg-hardwood-500 px-6 py-2 font-semibold text-arena-950 hover:bg-hardwood-400"
+                      >
+                        ADD TO GAME
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {tab === 'playlists' && !activePlaylist && (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                  {playlists.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => openPlaylist(p)}
+                      className="flex flex-col overflow-hidden rounded-xl border border-arena-600 bg-arena-800 text-left hover:border-hardwood-500"
+                    >
+                      <div className="aspect-square w-full bg-arena-700">
+                        {p.artworkUrl && <img src={p.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                      </div>
+                      <div className="p-3">
+                        <div className="truncate font-medium text-slate-100">{p.title}</div>
+                        <div className="text-xs text-slate-400">{p.trackCount} tracks</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {(tab === 'mine' || tab === 'liked' || tab === 'search' || (tab === 'playlists' && activePlaylist)) && (
+                <>
+                  {tab === 'playlists' && activePlaylist && (
+                    <button onClick={() => setActivePlaylist(null)} className="mb-3 text-sm text-slate-400 hover:text-slate-200">
+                      ← Back to playlists
+                    </button>
+                  )}
+                  {loading ? (
+                    <div className="py-12 text-center text-slate-400">Loading…</div>
+                  ) : tracks.length === 0 ? (
+                    <div className="py-12 text-center text-slate-500">No tracks here yet.</div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                      {tracks.map((track) => (
+                        <TrackCard
+                          key={track.soundcloudTrackId}
+                          track={track}
+                          selected={selected.has(track.soundcloudTrackId)}
+                          onToggleSelect={() => toggleSelect(track)}
+                          onPreview={() => togglePreview(track)}
+                          isPreviewing={previewingId === track.soundcloudTrackId}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-arena-700 px-6 py-3">
+              <SoundCloudAttribution />
+              <button
+                disabled={selectedList.length === 0}
+                onClick={handleImportSelected}
+                className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 disabled:cursor-not-allowed disabled:opacity-30 hover:bg-hardwood-400"
+              >
+                ADD {selectedList.length || ''} TRACK{selectedList.length === 1 ? '' : 'S'} TO GAME
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}

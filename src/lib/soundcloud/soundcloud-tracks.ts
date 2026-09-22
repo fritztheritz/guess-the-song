@@ -1,0 +1,98 @@
+import { scFetchJson } from './soundcloud-api'
+import type { SoundCloudAccess } from '../../types'
+
+// Raw shapes are intentionally partial — we only declare the fields this app reads.
+export interface RawSoundCloudTrack {
+  id: number
+  urn?: string
+  title: string
+  user?: { username: string }
+  artwork_url?: string | null
+  duration: number // ms
+  sharing: 'public' | 'private'
+  streamable: boolean
+  policy?: string // 'ALLOW' | 'BLOCK' | 'SNIP' | ...
+  permalink_url?: string
+  media?: { transcodings: Array<{ url: string; format: { protocol: string; mime_type: string } }> }
+}
+
+export interface RawSoundCloudPlaylist {
+  id: number
+  title: string
+  artwork_url?: string | null
+  track_count: number
+  tracks?: RawSoundCloudTrack[]
+}
+
+export interface ImportableTrack {
+  soundcloudTrackId: string
+  soundcloudUrn?: string
+  soundcloudUrl?: string
+  title: string
+  artist: string
+  artworkUrl?: string
+  duration: number // seconds
+  isPrivate: boolean
+  access: SoundCloudAccess
+}
+
+export function mapToImportableTrack(raw: RawSoundCloudTrack): ImportableTrack {
+  const hasStream = Boolean(raw.streamable && raw.media?.transcodings?.length)
+  const access: SoundCloudAccess = raw.policy === 'BLOCK' || !raw.streamable ? 'blocked' : raw.policy === 'SNIP' ? 'preview' : hasStream ? 'playable' : 'blocked'
+
+  return {
+    soundcloudTrackId: String(raw.id),
+    soundcloudUrn: raw.urn,
+    soundcloudUrl: raw.permalink_url,
+    title: raw.title,
+    artist: raw.user?.username ?? 'Unknown artist',
+    artworkUrl: raw.artwork_url?.replace('-large', '-t500x500') ?? undefined,
+    duration: Math.round(raw.duration / 1000),
+    isPrivate: raw.sharing === 'private',
+    access,
+  }
+}
+
+const PAGE_SIZE = 50
+
+export async function getMyTracks(): Promise<ImportableTrack[]> {
+  const tracks = await scFetchJson<RawSoundCloudTrack[]>(`/me/tracks?linked_partitioning=false&limit=${PAGE_SIZE}`)
+  return tracks.map(mapToImportableTrack)
+}
+
+export async function getLikedTracks(): Promise<ImportableTrack[]> {
+  const tracks = await scFetchJson<RawSoundCloudTrack[]>(`/me/likes/tracks?limit=${PAGE_SIZE}`)
+  return tracks.map(mapToImportableTrack)
+}
+
+export async function getPlaylists(): Promise<Array<{ id: string; title: string; artworkUrl?: string; trackCount: number }>> {
+  const playlists = await scFetchJson<RawSoundCloudPlaylist[]>(`/me/playlists?limit=${PAGE_SIZE}`)
+  return playlists.map((p) => ({
+    id: String(p.id),
+    title: p.title,
+    artworkUrl: p.artwork_url ?? undefined,
+    trackCount: p.track_count,
+  }))
+}
+
+export async function getPlaylistTracks(playlistId: string): Promise<ImportableTrack[]> {
+  const playlist = await scFetchJson<RawSoundCloudPlaylist>(`/playlists/${playlistId}?representation=full`)
+  return (playlist.tracks ?? []).map(mapToImportableTrack)
+}
+
+export async function searchTracks(query: string): Promise<ImportableTrack[]> {
+  if (!query.trim()) return []
+  const tracks = await scFetchJson<RawSoundCloudTrack[]>(`/tracks?q=${encodeURIComponent(query)}&limit=${PAGE_SIZE}`)
+  return tracks.map(mapToImportableTrack)
+}
+
+export async function getTrack(trackId: string): Promise<ImportableTrack> {
+  const track = await scFetchJson<RawSoundCloudTrack>(`/tracks/${trackId}`)
+  return mapToImportableTrack(track)
+}
+
+/** Resolves any soundcloud.com URL (track, private share link, etc.) to its API resource. */
+export async function resolveSoundCloudUrl(url: string): Promise<ImportableTrack> {
+  const track = await scFetchJson<RawSoundCloudTrack>(`/resolve?url=${encodeURIComponent(url)}`)
+  return mapToImportableTrack(track)
+}
