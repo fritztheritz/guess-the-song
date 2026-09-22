@@ -389,6 +389,17 @@ export default function Presentation() {
           <div className="relative z-10">
             <div className="font-display text-3xl text-white">{round.title}</div>
             <div className="text-slate-400">{round.artist}</div>
+            {round.soundcloudUrl && (
+              <a
+                href={round.soundcloudUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="mt-1 inline-block text-sm text-hardwood-400 hover:text-hardwood-300"
+              >
+                View on SoundCloud ↗
+              </a>
+            )}
           </div>
 
           {lastAward ? (
