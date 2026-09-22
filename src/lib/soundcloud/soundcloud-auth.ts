@@ -3,7 +3,7 @@ import {
   SOUNDCLOUD_AUTHORIZE_URL,
   SOUNDCLOUD_CLIENT_ID,
   SOUNDCLOUD_REDIRECT_URI,
-  SOUNDCLOUD_TOKEN_URL,
+  SOUNDCLOUD_TOKEN_PROXY_URL,
 } from './config'
 // Circular with soundcloud-api.ts (it imports getValidConnection/refreshAccessToken/
 // SoundCloudAuthError from here) — safe because fetchCurrentSoundCloudUser is only
@@ -102,26 +102,32 @@ export async function handleCallback(searchParams: URLSearchParams): Promise<str
     throw new SoundCloudAuthError('SoundCloud authorization response was invalid or expired. Please try connecting again.')
   }
 
-  const body = new URLSearchParams({
+  const tokens = await requestToken({
     grant_type: 'authorization_code',
-    client_id: SOUNDCLOUD_CLIENT_ID,
     redirect_uri: SOUNDCLOUD_REDIRECT_URI,
     code_verifier: pkceState.codeVerifier,
     code,
   })
-
-  const tokens = await requestToken(body)
   await establishConnection(tokens)
 
   sessionStorage.removeItem(PKCE_STORAGE_KEY)
   return pkceState.returnTo
 }
 
-async function requestToken(body: URLSearchParams): Promise<TokenResponse> {
-  const response = await fetch(SOUNDCLOUD_TOKEN_URL, {
+// Talks to our token-exchange proxy (worker/src/index.js), not SoundCloud directly —
+// SoundCloud's /oauth/token requires client_secret even for PKCE, which a static site
+// can't hold. client_id is added by the proxy, not sent from here (see worker source).
+async function requestToken(payload: Record<string, string>): Promise<TokenResponse> {
+  if (!SOUNDCLOUD_TOKEN_PROXY_URL) {
+    throw new SoundCloudAuthError(
+      'VITE_SOUNDCLOUD_TOKEN_PROXY_URL is not set. Deploy the Cloudflare Worker in /worker and point this app at it — see README.md "SoundCloud token proxy".',
+    )
+  }
+
+  const response = await fetch(`${SOUNDCLOUD_TOKEN_PROXY_URL}/token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-    body,
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(payload),
   })
 
   if (!response.ok) {
@@ -165,14 +171,11 @@ export async function refreshAccessToken(): Promise<SoundCloudConnection> {
   if (!connection) throw new SoundCloudAuthError('Not connected to SoundCloud.')
 
   refreshInFlight = (async () => {
-    const body = new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: SOUNDCLOUD_CLIENT_ID,
-      refresh_token: connection.refreshToken,
-    })
-
     try {
-      const tokens = await requestToken(body)
+      const tokens = await requestToken({
+        grant_type: 'refresh_token',
+        refresh_token: connection.refreshToken,
+      })
       const next: SoundCloudConnection = {
         ...connection,
         accessToken: tokens.access_token,

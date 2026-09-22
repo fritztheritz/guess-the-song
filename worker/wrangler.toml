@@ -1,0 +1,14 @@
+name = "guess-the-song-auth"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# Comma-separated list of origins allowed to call this proxy. Update the
+# github.io one with your actual username if it differs, and add your local
+# dev origin (Vite's default) so `npm run dev` can exercise the real flow too.
+#
+# SOUNDCLOUD_CLIENT_ID isn't secret (it's already public in the frontend bundle),
+# so it lives here. SOUNDCLOUD_CLIENT_SECRET must NEVER go in this file — set it
+# as a Worker secret instead: wrangler secret put SOUNDCLOUD_CLIENT_SECRET
+[vars]
+ALLOWED_ORIGINS = "https://fritztheritz.github.io,http://127.0.0.1:5173"
+SOUNDCLOUD_CLIENT_ID = "4RRAqFiWAlqK8OEswaRSzSgHHcZK6PrD"

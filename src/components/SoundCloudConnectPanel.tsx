@@ -6,8 +6,9 @@ export default function SoundCloudConnectPanel() {
   if (!isConfigured) {
     return (
       <div className="rounded-xl border border-scoreboard-amber/40 bg-scoreboard-amber/10 p-4 text-sm text-scoreboard-amber">
-        SoundCloud isn't configured yet. Set <code className="rounded bg-black/30 px-1">VITE_SOUNDCLOUD_CLIENT_ID</code>{' '}
-        and <code className="rounded bg-black/30 px-1">VITE_SOUNDCLOUD_REDIRECT_URI</code> in <code>.env</code> — see
+        SoundCloud isn't configured yet. Set <code className="rounded bg-black/30 px-1">VITE_SOUNDCLOUD_CLIENT_ID</code>,{' '}
+        <code className="rounded bg-black/30 px-1">VITE_SOUNDCLOUD_REDIRECT_URI</code>, and{' '}
+        <code className="rounded bg-black/30 px-1">VITE_SOUNDCLOUD_TOKEN_PROXY_URL</code> in <code>.env</code> — see
         README.md.
       </div>
     )
