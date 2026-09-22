@@ -19,6 +19,7 @@ export default function Presentation() {
   const [shotClock, setShotClock] = useState(0)
   const [playbackError, setPlaybackError] = useState<string | null>(null)
   const [lastAward, setLastAward] = useState<{ teamId: string; points: number } | null>(null)
+  const [showHelp, setShowHelp] = useState(false)
 
   const audioSourceRef = useRef<AudioSource | null>(null)
   const shotClockTimer = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -176,6 +177,15 @@ export default function Presentation() {
   // Keyboard controls (spec §18) — active throughout presentation mode.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (e.key === '?') {
+        e.preventDefault()
+        setShowHelp((v) => !v)
+        return
+      }
+      if (showHelp) {
+        if (e.code === 'Escape') setShowHelp(false)
+        return
+      }
       if (phase === 'resume') {
         if (e.code === 'Space' || e.code === 'Enter') {
           e.preventDefault()
@@ -224,7 +234,7 @@ export default function Presentation() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, clueIndex, isPlaying, possessionIndex])
+  }, [phase, clueIndex, isPlaying, possessionIndex, showHelp])
 
   const sortedFinal = useMemo(() => [...(game?.teams ?? [])].sort((a, b) => b.score - a.score), [game])
 
@@ -232,9 +242,51 @@ export default function Presentation() {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-arena-950 court-lines text-white">
-      <button onClick={exitPresentation} className="absolute right-4 top-4 z-10 rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
-        ESC · Exit
-      </button>
+      <div className="absolute right-4 top-4 z-20 flex gap-2">
+        <button
+          onClick={() => setShowHelp((v) => !v)}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-sm text-slate-300 hover:bg-black/60"
+          aria-label="Keyboard shortcuts"
+        >
+          ?
+        </button>
+        <button onClick={exitPresentation} className="rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
+          ESC · Exit
+        </button>
+      </div>
+
+      {showHelp && (
+        <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/70 px-6" onClick={() => setShowHelp(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-sm rounded-2xl border border-arena-600 bg-arena-900 p-6 shadow-2xl"
+          >
+            <div className="mb-4 font-display text-2xl tracking-wide text-hardwood-400">KEYBOARD CONTROLS</div>
+            <dl className="space-y-2 text-sm">
+              {[
+                ['Space', 'Play current clue'],
+                ['Enter', 'Reveal answer / next possession'],
+                ['→', 'Next possession'],
+                ['←', 'Previous possession'],
+                ['R', 'Restart current clue'],
+                ['Esc', 'Exit presentation'],
+                ['?', 'Toggle this help'],
+              ].map(([key, desc]) => (
+                <div key={key} className="flex items-center justify-between gap-4">
+                  <dt className="rounded bg-arena-700 px-2 py-0.5 font-mono text-xs text-slate-200">{key}</dt>
+                  <dd className="text-slate-400">{desc}</dd>
+                </div>
+              ))}
+            </dl>
+            <button
+              onClick={() => setShowHelp(false)}
+              className="mt-5 w-full rounded-full bg-hardwood-500 py-2 text-sm font-semibold text-arena-950 hover:bg-hardwood-400"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       {phase === 'resume' && game.progress && (
         <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-pop-in">
@@ -282,7 +334,7 @@ export default function Presentation() {
 
       {phase === 'clue' && round && (
         <div className="flex flex-1 flex-col items-center justify-between px-6 py-8">
-          <div className="flex w-full items-center justify-between pr-28 font-display text-lg tracking-widest text-slate-400">
+          <div className="flex w-full items-center justify-between pr-36 font-display text-lg tracking-widest text-slate-400">
             <span>{game.name.toUpperCase()}</span>
             <span>POSSESSION {possessionIndex + 1} OF {game.rounds.length}</span>
           </div>
