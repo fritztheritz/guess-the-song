@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import type { Game, SongRound, Team } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
+import { playBuzzer } from '../lib/sound-effects'
 import Scoreboard from '../components/Scoreboard'
 
 type Phase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final'
@@ -87,6 +88,7 @@ export default function Presentation() {
     stopShotClock()
     setIsPlaying(false)
     setPhase('revealed')
+    playBuzzer()
   }, [stopShotClock])
 
   function award(team: Team | null) {

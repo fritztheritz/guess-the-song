@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Game, SongRound } from '../types'
 import { createEmptyRound, createTeam, teamColorForIndex } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
+import { buildShareUrl } from '../lib/game-share'
 import ImportSoundCloudModal from '../components/ImportSoundCloudModal'
 import ClipEditor from '../components/ClipEditor'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
@@ -10,12 +11,23 @@ import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 const MIN_TEAMS = 2
 const MAX_TEAMS = 8
 
+function parseTimeToSeconds(input: string): number {
+  const trimmed = input.trim()
+  const match = trimmed.match(/^(\d+):(\d{1,2})$/)
+  if (match) return Math.max(0, parseInt(match[1], 10) * 60 + parseInt(match[2], 10))
+  const seconds = Number(trimmed)
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.floor(seconds) : 0
+}
+
 export default function GameBuilder() {
   const { gameId } = useParams()
   const navigate = useNavigate()
   const [game, setGame] = useState<Game | null>(null)
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [bulkStartInput, setBulkStartInput] = useState('0:00')
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [shareStatus, setShareStatus] = useState<string | null>(null)
   const dragIndex = useRef<number | null>(null)
   const localFileInput = useRef<HTMLInputElement | null>(null)
 
@@ -114,6 +126,29 @@ export default function GameBuilder() {
     persist({ ...game, rounds })
   }
 
+  function applyBulkStart() {
+    if (!game) return
+    const clipStart = parseTimeToSeconds(bulkStartInput)
+    persist({ ...game, rounds: game.rounds.map((r) => ({ ...r, clipStart })) })
+  }
+
+  async function handleShare() {
+    if (!game) return
+    setShareStatus('Generating link…')
+    try {
+      const url = await buildShareUrl(game)
+      setShareUrl(url)
+      try {
+        await navigator.clipboard.writeText(url)
+        setShareStatus(url.length > 6000 ? 'Link copied (it\'s long — some apps may mishandle it).' : 'Link copied to clipboard!')
+      } catch {
+        setShareStatus('Copy failed — select the link below to copy it manually.')
+      }
+    } catch {
+      setShareStatus('Could not generate a share link.')
+    }
+  }
+
   function renameTeam(id: string, name: string) {
     if (!game) return
     persist({ ...game, teams: game.teams.map((t) => (t.id === id ? { ...t, name } : t)) })
@@ -149,14 +184,39 @@ export default function GameBuilder() {
             className="bg-transparent font-display text-2xl tracking-wide text-white outline-none"
           />
         </div>
-        <button
-          disabled={game.rounds.length === 0}
-          onClick={() => navigate(`/games/${game.id}/present`)}
-          className="rounded-full bg-hardwood-500 px-6 py-2 font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
-        >
-          PRESENT ▶
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleShare}
+            className="rounded-full border border-arena-500 px-4 py-2 text-sm text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
+          >
+            Share
+          </button>
+          <button
+            disabled={game.rounds.length === 0}
+            onClick={() => navigate(`/games/${game.id}/present`)}
+            className="rounded-full bg-hardwood-500 px-6 py-2 font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
+          >
+            PRESENT ▶
+          </button>
+        </div>
       </header>
+
+      {shareStatus && (
+        <div className="border-b border-arena-700 bg-arena-900/80 px-6 py-3">
+          <p className="text-sm text-slate-300">{shareStatus}</p>
+          {shareUrl && (
+            <input
+              readOnly
+              value={shareUrl}
+              onFocus={(e) => e.currentTarget.select()}
+              className="mt-2 w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-1.5 text-xs text-slate-400 outline-none focus:border-hardwood-500"
+            />
+          )}
+          <button onClick={() => { setShareStatus(null); setShareUrl(null) }} className="mt-2 text-xs text-slate-500 hover:text-slate-300">
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         <aside className="flex w-64 shrink-0 flex-col overflow-y-auto border-r border-arena-700 bg-arena-900/60 p-3">
@@ -209,6 +269,27 @@ export default function GameBuilder() {
             </div>
             <input ref={localFileInput} type="file" accept="audio/*" className="hidden" onChange={handleAddLocalFile} />
           </div>
+
+          {game.rounds.length > 1 && (
+            <div className="mt-6 border-t border-arena-700 pt-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Auto Configure</div>
+              <label className="mb-1 block text-xs text-slate-500">Start (m:ss)</label>
+              <div className="flex gap-2">
+                <input
+                  value={bulkStartInput}
+                  onChange={(e) => setBulkStartInput(e.target.value)}
+                  placeholder="0:00"
+                  className="w-full rounded-md border border-arena-700 bg-arena-800 px-2 py-1 text-sm text-slate-100 outline-none focus:border-hardwood-500"
+                />
+              </div>
+              <button
+                onClick={applyBulkStart}
+                className="mt-2 w-full rounded-lg border border-dashed border-arena-600 py-1.5 text-xs text-slate-400 hover:border-hardwood-500 hover:text-hardwood-400"
+              >
+                Apply start to all {game.rounds.length} tracks
+              </button>
+            </div>
+          )}
 
           <div className="mt-6 border-t border-arena-700 pt-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Teams</div>

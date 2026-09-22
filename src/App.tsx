@@ -4,6 +4,7 @@ import CreateGame from './pages/CreateGame'
 import GameBuilder from './pages/GameBuilder'
 import Presentation from './pages/Presentation'
 import Callback from './pages/Callback'
+import ImportGame from './pages/ImportGame'
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
       <Route path="/games/:gameId/edit" element={<GameBuilder />} />
       <Route path="/games/:gameId/present" element={<Presentation />} />
       <Route path="/callback" element={<Callback />} />
+      <Route path="/import" element={<ImportGame />} />
     </Routes>
   )
 }
