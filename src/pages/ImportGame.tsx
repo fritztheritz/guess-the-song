@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { createGame, createTeam, type Game } from '../types'
+import { createGame, createTeam, isLyricMode, type Game } from '../types'
 import { saveGame } from '../lib/storage/game-repository'
 import { parseShareData, ShareLinkError } from '../lib/game-share'
 
@@ -24,7 +24,7 @@ export default function ImportGame() {
   function importGame() {
     if (!preview) return
     const teams = preview.teams.map((t) => createTeam(t.name, t.color))
-    const game: Game = { ...createGame(preview.name, teams), rounds: preview.rounds }
+    const game: Game = { ...createGame(preview.name, teams, preview.mode ?? 'song'), rounds: preview.rounds }
     saveGame(game)
     navigate(`/games/${game.id}/edit`, { replace: true })
   }
@@ -47,10 +47,12 @@ export default function ImportGame() {
             <p className="mb-6 text-slate-400">
               {preview.rounds.length} possession{preview.rounds.length === 1 ? '' : 's'} · {preview.teams.map((t) => t.name).join(' vs ')}
             </p>
-            <p className="mb-6 text-xs text-slate-500">
-              Private SoundCloud tracks the sender owns (not shared via a private link) may not be playable for you unless
-              your own SoundCloud account can access them.
-            </p>
+            {!isLyricMode(preview) && (
+              <p className="mb-6 text-xs text-slate-500">
+                Private SoundCloud tracks the sender owns (not shared via a private link) may not be playable for you unless
+                your own SoundCloud account can access them.
+              </p>
+            )}
             <button onClick={importGame} className="rounded-full bg-hardwood-500 px-8 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400">
               IMPORT GAME
             </button>

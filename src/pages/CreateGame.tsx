@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createGame, createTeam, teamColorForIndex } from '../types'
+import { createGame, createTeam, teamColorForIndex, type GameMode } from '../types'
 import { saveGame } from '../lib/storage/game-repository'
 
 const MIN_TEAMS = 2
@@ -9,6 +9,7 @@ const MAX_TEAMS = 8
 export default function CreateGame() {
   const navigate = useNavigate()
   const [name, setName] = useState('Friday Night Music Game')
+  const [mode, setMode] = useState<GameMode>('song')
   const [teamNames, setTeamNames] = useState(['Team Jordan', 'Team Kobe'])
 
   function addTeam() {
@@ -24,7 +25,7 @@ export default function CreateGame() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const teams = teamNames.map((n, i) => createTeam(n.trim() || `Team ${i + 1}`, teamColorForIndex(i)))
-    const game = createGame(name.trim() || 'Untitled Game', teams)
+    const game = createGame(name.trim() || 'Untitled Game', teams, mode)
     saveGame(game)
     navigate(`/games/${game.id}/edit`)
   }
@@ -34,6 +35,32 @@ export default function CreateGame() {
       <form onSubmit={handleSubmit} className="w-full max-w-md space-y-8">
         <div className="text-center">
           <h1 className="font-display text-4xl tracking-wide text-white">NAME YOUR GAME</h1>
+        </div>
+
+        <div>
+          <label className="mb-2 block text-sm text-slate-400">Game type</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setMode('song')}
+              className={`rounded-lg border px-4 py-3 text-left ${
+                mode === 'song' ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 hover:border-arena-500'
+              }`}
+            >
+              <div className="font-display text-lg tracking-wide text-white">🎵 Guess the Song</div>
+              <div className="text-xs text-slate-500">Play SoundCloud clips</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('lyric')}
+              className={`rounded-lg border px-4 py-3 text-left ${
+                mode === 'lyric' ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 hover:border-arena-500'
+              }`}
+            >
+              <div className="font-display text-lg tracking-wide text-white">📝 Guess the Lyric</div>
+              <div className="text-xs text-slate-500">Type in lyrics & hints</div>
+            </button>
+          </div>
         </div>
 
         <div>
@@ -82,7 +109,7 @@ export default function CreateGame() {
         </div>
 
         <button type="submit" className="w-full rounded-full bg-hardwood-500 py-3 text-lg font-semibold text-arena-950 hover:bg-hardwood-400">
-          ADD TRACKS →
+          {mode === 'lyric' ? 'ADD LYRIC ROUNDS →' : 'ADD TRACKS →'}
         </button>
       </form>
     </div>

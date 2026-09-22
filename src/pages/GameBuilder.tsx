@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Game, SongRound } from '../types'
-import { createEmptyRound, createTeam, teamColorForIndex } from '../types'
+import { createEmptyLyricRound, createEmptyRound, createTeam, isLyricMode, teamColorForIndex } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { buildShareUrl } from '../lib/game-share'
 import ImportSoundCloudModal from '../components/ImportSoundCloudModal'
 import ClipEditor from '../components/ClipEditor'
+import LyricEditor from '../components/LyricEditor'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 
 const MIN_TEAMS = 2
@@ -86,6 +87,13 @@ export default function GameBuilder() {
     const rounds = [...game.rounds, ...newRounds]
     persist({ ...game, rounds })
     setSelectedRoundId(newRounds[0]?.id ?? selectedRoundId)
+  }
+
+  function handleAddLyricRound() {
+    if (!game) return
+    const round = createEmptyLyricRound()
+    persist({ ...game, rounds: [...game.rounds, round] })
+    setSelectedRoundId(round.id)
   }
 
   function handleAddLocalFile(e: ChangeEvent<HTMLInputElement>) {
@@ -173,6 +181,8 @@ export default function GameBuilder() {
     )
   }
 
+  const isLyric = isLyricMode(game)
+
   return (
     <div className="flex h-svh flex-col bg-arena-950">
       <header className="flex items-center justify-between border-b border-arena-700 px-6 py-3">
@@ -251,16 +261,27 @@ export default function GameBuilder() {
           ))}
 
           <div className="mt-2 space-y-2">
-            <button
-              onClick={() => setImportOpen(true)}
-              className="w-full rounded-lg border border-dashed border-hardwood-500/50 py-2 text-sm font-medium text-hardwood-400 hover:bg-hardwood-500/10"
-            >
-              + ADD FROM SOUNDCLOUD
-            </button>
-            <div className="flex gap-2">
-              <button onClick={() => localFileInput.current?.click()} className="flex-1 rounded-lg border border-arena-600 py-1.5 text-xs text-slate-400 hover:border-arena-500">
-                + Local audio
+            {isLyric ? (
+              <button
+                onClick={handleAddLyricRound}
+                className="w-full rounded-lg border border-dashed border-hardwood-500/50 py-2 text-sm font-medium text-hardwood-400 hover:bg-hardwood-500/10"
+              >
+                + ADD LYRIC ROUND
               </button>
+            ) : (
+              <button
+                onClick={() => setImportOpen(true)}
+                className="w-full rounded-lg border border-dashed border-hardwood-500/50 py-2 text-sm font-medium text-hardwood-400 hover:bg-hardwood-500/10"
+              >
+                + ADD FROM SOUNDCLOUD
+              </button>
+            )}
+            <div className="flex gap-2">
+              {!isLyric && (
+                <button onClick={() => localFileInput.current?.click()} className="flex-1 rounded-lg border border-arena-600 py-1.5 text-xs text-slate-400 hover:border-arena-500">
+                  + Local audio
+                </button>
+              )}
               {game.rounds.length > 1 && (
                 <button onClick={shuffleRounds} className="flex-1 rounded-lg border border-arena-600 py-1.5 text-xs text-slate-400 hover:border-arena-500">
                   Shuffle
@@ -270,7 +291,7 @@ export default function GameBuilder() {
             <input ref={localFileInput} type="file" accept="audio/*" className="hidden" onChange={handleAddLocalFile} />
           </div>
 
-          {game.rounds.length > 1 && (
+          {!isLyric && game.rounds.length > 1 && (
             <div className="mt-6 border-t border-arena-700 pt-3">
               <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Auto Configure</div>
               <label className="mb-1 block text-xs text-slate-500">Start (m:ss)</label>
@@ -328,9 +349,12 @@ export default function GameBuilder() {
         <main className="flex-1 overflow-y-auto p-8">
           {!selectedRound ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-slate-400">
-              <p>No possessions yet. Import tracks from SoundCloud to get started.</p>
-              <button onClick={() => setImportOpen(true)} className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400">
-                + ADD FROM SOUNDCLOUD
+              <p>{isLyric ? 'No rounds yet. Add one and type in the clues.' : 'No possessions yet. Import tracks from SoundCloud to get started.'}</p>
+              <button
+                onClick={() => (isLyric ? handleAddLyricRound() : setImportOpen(true))}
+                className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400"
+              >
+                {isLyric ? '+ ADD LYRIC ROUND' : '+ ADD FROM SOUNDCLOUD'}
               </button>
             </div>
           ) : (
@@ -351,10 +375,14 @@ export default function GameBuilder() {
                     className="w-full bg-transparent text-slate-400 outline-none"
                   />
                   <div className="mt-1 flex items-center gap-2 text-xs">
-                    {selectedRound.source === 'soundcloud' ? (
+                    {selectedRound.source === 'soundcloud' && (
                       <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">SoundCloud</span>
-                    ) : (
+                    )}
+                    {selectedRound.source === 'local' && (
                       <span className="rounded bg-arena-600 px-2 py-0.5 text-slate-300">Local audio</span>
+                    )}
+                    {selectedRound.source === 'lyric' && (
+                      <span className="rounded bg-arena-600 px-2 py-0.5 text-slate-300">📝 Lyric round</span>
                     )}
                     {selectedRound.isPrivate && <span className="rounded bg-arena-600 px-2 py-0.5 text-slate-300">🔒 Private</span>}
                     {selectedRound.soundcloudUrl && (
@@ -366,7 +394,7 @@ export default function GameBuilder() {
                 </div>
               </div>
 
-              <ClipEditor round={selectedRound} onChange={updateRound} />
+              {isLyric ? <LyricEditor round={selectedRound} onChange={updateRound} /> : <ClipEditor round={selectedRound} onChange={updateRound} />}
             </div>
           )}
         </main>

@@ -1,6 +1,12 @@
-export type TrackSource = 'soundcloud' | 'local'
+// 'lyric' is additive — existing stored games never have this value, so every
+// `source === 'soundcloud' | 'local'` check elsewhere keeps working unchanged.
+export type TrackSource = 'soundcloud' | 'local' | 'lyric'
 
 export type SoundCloudAccess = 'playable' | 'preview' | 'blocked'
+
+// The 4 progressive clue stages for a Guess the Lyric round, in order. Fixed rather than
+// host-configurable, mirroring how Guess the Song's 4 clue slots are a fixed shape too.
+export const LYRIC_CLUE_LABELS = ['Lyric line 1', 'Lyric line 2', 'Who sang the verse?', 'What playlist is it on?'] as const
 
 export interface SongRound {
   id: string
@@ -26,7 +32,12 @@ export interface SongRound {
 
   clipStart: number // seconds, where all clue clips begin
   clipDurations: number[] // e.g. [2, 4, 7, 10]
-  points: number[] // e.g. [4, 3, 2, 1], same length as clipDurations
+  points: number[] // e.g. [4, 3, 2, 1] — canonical clue count for BOTH modes; always read this, not clipDurations.length
+
+  /** source: "lyric" only. 4 strings matching LYRIC_CLUE_LABELS' order. Absent on every existing round. */
+  lyricClues?: string[]
+  /** source: "lyric" only. Optional clickable link shown on reveal, parallel to soundcloudUrl for song rounds. */
+  playlistUrl?: string
 
   createdAt: string
 }
@@ -43,6 +54,8 @@ export interface GameProgress {
   completed: boolean
 }
 
+export type GameMode = 'song' | 'lyric'
+
 export interface Game {
   id: string
   name: string
@@ -52,6 +65,13 @@ export interface Game {
   updatedAt: string
   /** Absent = never played (or was reset). Presence is what tells Presentation mode to offer Continue/Restart. */
   progress?: GameProgress
+  /** Absent on every game created before this existed — always treat that as 'song', never assume it's set. */
+  mode?: GameMode
+}
+
+/** Every existing stored game predates `mode` — this is the one place that should ever default it. */
+export function isLyricMode(game: Pick<Game, 'mode'>): boolean {
+  return game.mode === 'lyric'
 }
 
 export const DEFAULT_CLIP_DURATIONS = [2, 4, 7, 10]
@@ -76,11 +96,20 @@ export function createEmptyRound(partial: Partial<SongRound> & Pick<SongRound, '
   }
 }
 
+export function createEmptyLyricRound(): SongRound {
+  return createEmptyRound({
+    source: 'lyric',
+    title: 'New Song',
+    artist: 'Unknown Artist',
+    lyricClues: ['', '', '', ''],
+  })
+}
+
 export function createTeam(name: string, color: string): Team {
   return { id: crypto.randomUUID(), name, color, score: 0 }
 }
 
-export function createGame(name: string, teams: Team[]): Game {
+export function createGame(name: string, teams: Team[], mode: GameMode = 'song'): Game {
   const now = new Date().toISOString()
   return {
     id: crypto.randomUUID(),
@@ -89,5 +118,6 @@ export function createGame(name: string, teams: Team[]): Game {
     teams,
     createdAt: now,
     updatedAt: now,
+    mode,
   }
 }

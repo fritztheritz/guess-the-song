@@ -1,4 +1,4 @@
-import type { Game } from '../types'
+import { isLyricMode, type Game, type GameMode } from '../types'
 
 // Shareable links carry the whole game inside the URL — there's no backend to hand back
 // a short id against. gzip (via the standard Compression Streams API) keeps a 15-20 track
@@ -11,6 +11,8 @@ interface ShareablePayload {
   name: string
   rounds: Game['rounds']
   teams: Array<{ name: string; color: string }>
+  /** Absent on links generated before this existed — ImportGame treats that as 'song'. */
+  mode?: GameMode
 }
 
 function bytesToBase64Url(bytes: Uint8Array): string {
@@ -46,6 +48,7 @@ export async function buildShareUrl(game: Game): Promise<string> {
     name: game.name,
     rounds: game.rounds,
     teams: game.teams.map((t) => ({ name: t.name, color: t.color })),
+    mode: isLyricMode(game) ? 'lyric' : 'song',
   }
   const jsonBytes = new TextEncoder().encode(JSON.stringify(payload))
 

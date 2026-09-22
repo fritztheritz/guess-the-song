@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import type { Game, SongRound, Team } from '../types'
+import { isLyricMode, LYRIC_CLUE_LABELS, type Game, type SongRound, type Team } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
 import { playBuzzer } from '../lib/sound-effects'
@@ -38,14 +38,16 @@ export default function Presentation() {
   }, [gameId])
 
   const round: SongRound | undefined = game?.rounds[possessionIndex]
+  const isLyric = game ? isLyricMode(game) : false
 
   useEffect(() => {
     audioSourceRef.current?.stop()
-    audioSourceRef.current = round ? createAudioSource(round) : null
+    audioSourceRef.current = round && !isLyric ? createAudioSource(round) : null
     setClueIndex(0)
     setIsPlaying(false)
     setShotClock(0)
     setPlaybackError(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round?.id])
 
   useEffect(() => {
@@ -167,7 +169,9 @@ export default function Presentation() {
 
   function advanceClue() {
     if (!round) return
-    if (clueIndex < round.clipDurations.length - 1) {
+    // points.length is the canonical clue count for both modes — clipDurations is unused/
+    // irrelevant for lyric rounds, but always matches it for song rounds anyway.
+    if (clueIndex < round.points.length - 1) {
       setClueIndex((i) => i + 1)
     } else {
       reveal()
@@ -210,7 +214,7 @@ export default function Presentation() {
       switch (e.code) {
         case 'Space':
           e.preventDefault()
-          if (phase === 'clue') void playClue(clueIndex)
+          if (phase === 'clue' && !isLyric) void playClue(clueIndex)
           break
         case 'Enter':
           e.preventDefault()
@@ -224,7 +228,7 @@ export default function Presentation() {
           prevPossession()
           break
         case 'KeyR':
-          if (phase === 'clue') restartClue()
+          if (phase === 'clue' && !isLyric) restartClue()
           break
         case 'Escape':
           exitPresentation()
@@ -234,7 +238,7 @@ export default function Presentation() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, clueIndex, isPlaying, possessionIndex, showHelp])
+  }, [phase, clueIndex, isPlaying, possessionIndex, showHelp, isLyric])
 
   const sortedFinal = useMemo(() => [...(game?.teams ?? [])].sort((a, b) => b.score - a.score), [game])
 
@@ -319,7 +323,7 @@ export default function Presentation() {
           <div className="font-display text-5xl tracking-wide text-hardwood-400">{game.name}</div>
           <div className="text-6xl">🏀</div>
           <div className="flex gap-8 font-display text-2xl text-slate-300">
-            <div>{game.rounds.length} TRACKS</div>
+            <div>{game.rounds.length} {isLyric ? 'LYRICS' : 'TRACKS'}</div>
             <div>{game.teams.length} TEAMS</div>
             <div>1 CHAMPION</div>
           </div>
@@ -340,31 +344,43 @@ export default function Presentation() {
           </div>
 
           <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
-            <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(shotClock)}</div>
-            <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Shot Clock</div>
+            {isLyric ? (
+              <>
+                <div className="text-xs uppercase tracking-[0.3em] text-slate-500">{LYRIC_CLUE_LABELS[clueIndex]}</div>
+                <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE SONG?</div>
+                <div className="max-w-xl rounded-2xl border-2 border-dashed border-arena-600 bg-arena-800 px-8 py-10 text-2xl italic text-hardwood-300">
+                  “{round.lyricClues?.[clueIndex] || '—'}”
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(shotClock)}</div>
+                <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Shot Clock</div>
 
-            <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE TRACK?</div>
+                <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE TRACK?</div>
 
-            <div className="flex h-40 w-40 items-center justify-center rounded-2xl border-2 border-dashed border-arena-600 bg-arena-800 text-5xl text-arena-600">
-              ?
-            </div>
+                <div className="flex h-40 w-40 items-center justify-center rounded-2xl border-2 border-dashed border-arena-600 bg-arena-800 text-5xl text-arena-600">
+                  ?
+                </div>
 
-            <div className="font-display text-2xl text-hardwood-400">{round.clipDurations[clueIndex]} SECONDS</div>
+                <div className="font-display text-2xl text-hardwood-400">{round.clipDurations[clueIndex]} SECONDS</div>
 
-            <button
-              onClick={() => playClue(clueIndex)}
-              disabled={isPlaying}
-              className="flex h-20 w-20 items-center justify-center rounded-full bg-hardwood-500 text-3xl text-arena-950 shadow-lg shadow-hardwood-500/30 disabled:opacity-50 hover:bg-hardwood-400"
-            >
-              {isPlaying ? '■' : '▶'}
-            </button>
+                <button
+                  onClick={() => playClue(clueIndex)}
+                  disabled={isPlaying}
+                  className="flex h-20 w-20 items-center justify-center rounded-full bg-hardwood-500 text-3xl text-arena-950 shadow-lg shadow-hardwood-500/30 disabled:opacity-50 hover:bg-hardwood-400"
+                >
+                  {isPlaying ? '■' : '▶'}
+                </button>
 
-            {playbackError && <div className="max-w-md text-sm text-scoreboard-500">{playbackError}</div>}
+                {playbackError && <div className="max-w-md text-sm text-scoreboard-500">{playbackError}</div>}
+              </>
+            )}
 
             <div className="flex gap-3">
-              {clueIndex < round.clipDurations.length - 1 && (
+              {clueIndex < round.points.length - 1 && (
                 <button onClick={advanceClue} disabled={isPlaying} className="rounded-full border border-arena-500 px-5 py-2 text-sm text-slate-300 hover:border-hardwood-500 disabled:opacity-40">
-                  NEXT CLUE ({round.clipDurations[clueIndex + 1]}s)
+                  {isLyric ? `NEXT: ${LYRIC_CLUE_LABELS[clueIndex + 1]}` : `NEXT CLUE (${round.clipDurations[clueIndex + 1]}s)`}
                 </button>
               )}
               <button onClick={reveal} className="rounded-full bg-scoreboard-500 px-5 py-2 text-sm font-semibold text-white hover:bg-scoreboard-500/80">
@@ -389,15 +405,15 @@ export default function Presentation() {
           <div className="relative z-10">
             <div className="font-display text-3xl text-white">{round.title}</div>
             <div className="text-slate-400">{round.artist}</div>
-            {round.soundcloudUrl && (
+            {(isLyric ? round.playlistUrl : round.soundcloudUrl) && (
               <a
-                href={round.soundcloudUrl}
+                href={isLyric ? round.playlistUrl : round.soundcloudUrl}
                 target="_blank"
                 rel="noreferrer"
                 onClick={(e) => e.stopPropagation()}
                 className="mt-1 inline-block text-sm text-hardwood-400 hover:text-hardwood-300"
               >
-                View on SoundCloud ↗
+                {isLyric ? 'View Playlist on SoundCloud ↗' : 'View on SoundCloud ↗'}
               </a>
             )}
           </div>

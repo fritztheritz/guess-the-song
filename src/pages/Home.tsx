@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listGames, deleteGame } from '../lib/storage/game-repository'
-import type { Game } from '../types'
+import { isLyricMode, type Game } from '../types'
 import SoundCloudAttribution from '../components/SoundCloudAttribution'
 
 export default function Home() {
@@ -40,7 +40,10 @@ export default function Home() {
               {games.map((game) => (
                 <div key={game.id} className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-4">
                   <div>
-                    <div className="font-semibold text-slate-100">{game.name}</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs">{isLyricMode(game) ? '📝' : '🎵'}</span>
+                      <div className="font-semibold text-slate-100">{game.name}</div>
+                    </div>
                     <div className="text-sm text-slate-500">
                       {game.rounds.length} possession{game.rounds.length === 1 ? '' : 's'} · {game.teams.map((t) => t.name).join(' vs ')}
                     </div>
