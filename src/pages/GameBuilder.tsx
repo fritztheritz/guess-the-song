@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Game, SongRound } from '../types'
-import { createEmptyRound } from '../types'
+import { createEmptyRound, createTeam, teamColorForIndex } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import ImportSoundCloudModal from '../components/ImportSoundCloudModal'
 import ClipEditor from '../components/ClipEditor'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
+
+const MIN_TEAMS = 2
+const MAX_TEAMS = 8
 
 export default function GameBuilder() {
   const { gameId } = useParams()
@@ -110,6 +113,22 @@ export default function GameBuilder() {
     persist({ ...game, rounds })
   }
 
+  function renameTeam(id: string, name: string) {
+    if (!game) return
+    persist({ ...game, teams: game.teams.map((t) => (t.id === id ? { ...t, name } : t)) })
+  }
+
+  function addTeam() {
+    if (!game || game.teams.length >= MAX_TEAMS) return
+    const team = createTeam(`Team ${game.teams.length + 1}`, teamColorForIndex(game.teams.length))
+    persist({ ...game, teams: [...game.teams, team] })
+  }
+
+  function removeTeam(id: string) {
+    if (!game || game.teams.length <= MIN_TEAMS) return
+    persist({ ...game, teams: game.teams.filter((t) => t.id !== id) })
+  }
+
   if (!game) {
     return (
       <div className="flex min-h-svh items-center justify-center text-slate-400">
@@ -188,6 +207,39 @@ export default function GameBuilder() {
               )}
             </div>
             <input ref={localFileInput} type="file" accept="audio/*" className="hidden" onChange={handleAddLocalFile} />
+          </div>
+
+          <div className="mt-6 border-t border-arena-700 pt-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Teams</div>
+            <div className="space-y-1.5">
+              {game.teams.map((team) => (
+                <div key={team.id} className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: team.color }} />
+                  <input
+                    value={team.name}
+                    onChange={(e) => renameTeam(team.id, e.target.value)}
+                    className="w-full rounded-md border border-arena-700 bg-arena-800 px-2 py-1 text-sm text-slate-100 outline-none focus:border-hardwood-500"
+                  />
+                  {game.teams.length > MIN_TEAMS && (
+                    <button
+                      onClick={() => removeTeam(team.id)}
+                      aria-label={`Remove ${team.name}`}
+                      className="shrink-0 text-xs text-slate-500 hover:text-scoreboard-500"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {game.teams.length < MAX_TEAMS && (
+              <button
+                onClick={addTeam}
+                className="mt-2 w-full rounded-lg border border-dashed border-arena-600 py-1.5 text-xs text-slate-400 hover:border-hardwood-500 hover:text-hardwood-400"
+              >
+                + Add Team
+              </button>
+            )}
           </div>
         </aside>
 

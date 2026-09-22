@@ -275,14 +275,14 @@ export default function Presentation() {
               <div className="text-sm uppercase tracking-widest text-slate-400">🏀 Bucket!</div>
             </div>
           ) : (
-            <div className="relative z-10 w-full max-w-sm space-y-2">
+            <div className="relative z-10 w-full max-w-lg space-y-2">
               <div className="text-sm uppercase tracking-widest text-slate-400">Who got the bucket?</div>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                 {game.teams.map((team) => (
                   <button
                     key={team.id}
                     onClick={() => award(team)}
-                    className="flex-1 rounded-xl border border-arena-600 bg-arena-800 py-3 font-semibold hover:border-hardwood-500"
+                    className="truncate rounded-xl border border-arena-600 bg-arena-800 px-2 py-3 font-semibold hover:border-hardwood-500"
                     style={{ color: team.color }}
                   >
                     {team.name} +{round.points[clueIndex]}

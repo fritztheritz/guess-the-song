@@ -1,18 +1,29 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createGame, createTeam } from '../types'
+import { createGame, createTeam, teamColorForIndex } from '../types'
 import { saveGame } from '../lib/storage/game-repository'
 
-const TEAM_COLORS = ['#e8871e', '#17b8a6']
+const MIN_TEAMS = 2
+const MAX_TEAMS = 8
 
 export default function CreateGame() {
   const navigate = useNavigate()
   const [name, setName] = useState('Friday Night Music Game')
   const [teamNames, setTeamNames] = useState(['Team Jordan', 'Team Kobe'])
 
+  function addTeam() {
+    if (teamNames.length >= MAX_TEAMS) return
+    setTeamNames((prev) => [...prev, `Team ${prev.length + 1}`])
+  }
+
+  function removeTeam(index: number) {
+    if (teamNames.length <= MIN_TEAMS) return
+    setTeamNames((prev) => prev.filter((_, i) => i !== index))
+  }
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    const teams = teamNames.map((n, i) => createTeam(n.trim() || `Team ${i + 1}`, TEAM_COLORS[i]))
+    const teams = teamNames.map((n, i) => createTeam(n.trim() || `Team ${i + 1}`, teamColorForIndex(i)))
     const game = createGame(name.trim() || 'Untitled Game', teams)
     saveGame(game)
     navigate(`/games/${game.id}/edit`)
@@ -40,15 +51,34 @@ export default function CreateGame() {
           <div className="space-y-2">
             {teamNames.map((teamName, i) => (
               <div key={i} className="flex items-center gap-2">
-                <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: TEAM_COLORS[i] }} />
+                <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: teamColorForIndex(i) }} />
                 <input
                   value={teamName}
                   onChange={(e) => setTeamNames((prev) => prev.map((n, idx) => (idx === i ? e.target.value : n)))}
                   className="w-full rounded-lg border border-arena-600 bg-arena-800 px-4 py-2 text-slate-100 outline-none focus:border-hardwood-500"
                 />
+                {teamNames.length > MIN_TEAMS && (
+                  <button
+                    type="button"
+                    onClick={() => removeTeam(i)}
+                    aria-label={`Remove ${teamName}`}
+                    className="shrink-0 rounded-lg px-2 py-1 text-slate-500 hover:text-scoreboard-500"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             ))}
           </div>
+          {teamNames.length < MAX_TEAMS && (
+            <button
+              type="button"
+              onClick={addTeam}
+              className="mt-2 w-full rounded-lg border border-dashed border-arena-500 py-2 text-sm text-slate-400 hover:border-hardwood-500 hover:text-hardwood-400"
+            >
+              + Add Team
+            </button>
+          )}
         </div>
 
         <button type="submit" className="w-full rounded-full bg-hardwood-500 py-3 text-lg font-semibold text-arena-950 hover:bg-hardwood-400">
