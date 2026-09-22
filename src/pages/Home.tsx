@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { listGames, deleteGame } from '../lib/storage/game-repository'
-import { isLyricMode, type Game } from '../types'
+import { Link, useNavigate } from 'react-router-dom'
+import { listGames, deleteGame, saveGame } from '../lib/storage/game-repository'
+import { duplicateGame, isLyricMode, type Game } from '../types'
 import SoundCloudAttribution from '../components/SoundCloudAttribution'
 
 export default function Home() {
+  const navigate = useNavigate()
   const [games, setGames] = useState<Game[]>([])
 
   useEffect(() => {
@@ -15,6 +16,11 @@ export default function Home() {
     if (!confirm('Delete this game? This cannot be undone.')) return
     deleteGame(id)
     setGames(listGames())
+  }
+
+  function handleDuplicate(game: Game) {
+    const copy = saveGame(duplicateGame(game))
+    navigate(`/games/${copy.id}/edit`)
   }
 
   return (
@@ -55,6 +61,14 @@ export default function Home() {
                     <Link to={`/games/${game.id}/present`} className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400">
                       Present
                     </Link>
+                    <button
+                      onClick={() => handleDuplicate(game)}
+                      className="rounded-lg px-2 text-slate-500 hover:text-slate-200"
+                      aria-label={`Duplicate ${game.name}`}
+                      title="Duplicate"
+                    >
+                      ⧉
+                    </button>
                     <button onClick={() => handleDelete(game.id)} className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500" aria-label="Delete game">
                       ✕
                     </button>

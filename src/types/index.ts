@@ -121,3 +121,17 @@ export function createGame(name: string, teams: Team[], mode: GameMode = 'song')
     mode,
   }
 }
+
+/** Clones a game as a fresh, unplayed copy — new id/round ids/team ids, scores and progress reset. */
+export function duplicateGame(game: Game): Game {
+  const now = new Date().toISOString()
+  return {
+    id: crypto.randomUUID(),
+    name: `${game.name} (Copy)`,
+    rounds: game.rounds.map((r) => ({ ...r, id: crypto.randomUUID() })),
+    teams: game.teams.map((t) => ({ ...t, id: crypto.randomUUID(), score: 0 })),
+    createdAt: now,
+    updatedAt: now,
+    mode: game.mode,
+  }
+}
