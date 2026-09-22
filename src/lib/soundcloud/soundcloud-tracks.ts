@@ -63,36 +63,43 @@ const PAGE_SIZE = 50
 
 // List endpoints wrap results as { collection: [...], next_href } rather than a bare
 // array (confirmed against a real response — a prior version of this code assumed a bare
-// array and broke every list tab with "X.map is not a function"). This app only shows the
-// first page (next_href/pagination isn't implemented), which is plenty for a game night.
+// array and broke every list tab with "X.map is not a function"). next_href is a
+// ready-to-use continuation URL (includes its own query params) for the next page.
 interface CollectionResponse<T> {
   collection: T[]
   next_href?: string
 }
 
-function unwrapCollection<T>(response: T[] | CollectionResponse<T>): T[] {
-  return Array.isArray(response) ? response : response.collection
+export interface TrackPage {
+  tracks: ImportableTrack[]
+  nextHref?: string
 }
 
-export async function getMyTracks(): Promise<ImportableTrack[]> {
-  const response = await scFetchJson<RawSoundCloudTrack[] | CollectionResponse<RawSoundCloudTrack>>(
-    `/me/tracks?linked_partitioning=true&limit=${PAGE_SIZE}`,
-  )
-  return unwrapCollection(response).map(mapToImportableTrack)
+async function fetchTrackPage(path: string): Promise<TrackPage> {
+  const response = await scFetchJson<RawSoundCloudTrack[] | CollectionResponse<RawSoundCloudTrack>>(path)
+  if (Array.isArray(response)) return { tracks: response.map(mapToImportableTrack) }
+  return { tracks: response.collection.map(mapToImportableTrack), nextHref: response.next_href }
 }
 
-export async function getLikedTracks(): Promise<ImportableTrack[]> {
-  const response = await scFetchJson<RawSoundCloudTrack[] | CollectionResponse<RawSoundCloudTrack>>(
-    `/me/likes/tracks?linked_partitioning=true&limit=${PAGE_SIZE}`,
-  )
-  return unwrapCollection(response).map(mapToImportableTrack)
+export async function getMyTracks(): Promise<TrackPage> {
+  return fetchTrackPage(`/me/tracks?linked_partitioning=true&limit=${PAGE_SIZE}`)
+}
+
+export async function getLikedTracks(): Promise<TrackPage> {
+  return fetchTrackPage(`/me/likes/tracks?linked_partitioning=true&limit=${PAGE_SIZE}`)
+}
+
+/** Follows a TrackPage's nextHref to fetch the next page, same shape as the first. */
+export async function getNextTrackPage(nextHref: string): Promise<TrackPage> {
+  return fetchTrackPage(nextHref)
 }
 
 export async function getPlaylists(): Promise<Array<{ id: string; title: string; artworkUrl?: string; trackCount: number }>> {
   const response = await scFetchJson<RawSoundCloudPlaylist[] | CollectionResponse<RawSoundCloudPlaylist>>(
     `/me/playlists?linked_partitioning=true&limit=${PAGE_SIZE}`,
   )
-  return unwrapCollection(response).map((p) => ({
+  const playlists = Array.isArray(response) ? response : response.collection
+  return playlists.map((p) => ({
     id: String(p.id),
     title: p.title,
     artworkUrl: p.artwork_url ?? undefined,
@@ -105,12 +112,9 @@ export async function getPlaylistTracks(playlistId: string): Promise<ImportableT
   return (playlist.tracks ?? []).map(mapToImportableTrack)
 }
 
-export async function searchTracks(query: string): Promise<ImportableTrack[]> {
-  if (!query.trim()) return []
-  const response = await scFetchJson<RawSoundCloudTrack[] | CollectionResponse<RawSoundCloudTrack>>(
-    `/tracks?q=${encodeURIComponent(query)}&linked_partitioning=true&limit=${PAGE_SIZE}`,
-  )
-  return unwrapCollection(response).map(mapToImportableTrack)
+export async function searchTracks(query: string): Promise<TrackPage> {
+  if (!query.trim()) return { tracks: [] }
+  return fetchTrackPage(`/tracks?q=${encodeURIComponent(query)}&linked_partitioning=true&limit=${PAGE_SIZE}`)
 }
 
 export async function getTrack(trackId: string): Promise<ImportableTrack> {

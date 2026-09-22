@@ -6,11 +6,13 @@ import { useSoundCloud } from '../state/SoundCloudContext'
 import {
   getLikedTracks,
   getMyTracks,
+  getNextTrackPage,
   getPlaylists,
   getPlaylistTracks,
   resolveSoundCloudUrl,
   searchTracks,
   type ImportableTrack,
+  type TrackPage,
 } from '../lib/soundcloud/soundcloud-tracks'
 import { getTrackPlayback } from '../lib/soundcloud/soundcloud-playback'
 import { SoundCloudApiError, SoundCloudNotConnectedError, SoundCloudRateLimitError } from '../lib/soundcloud/soundcloud-api'
@@ -50,6 +52,9 @@ export default function ImportSoundCloudModal({
   const { connection } = useSoundCloud()
   const [tab, setTab] = useState<Tab>('mine')
   const [tracks, setTracks] = useState<ImportableTrack[]>([])
+  const [nextHref, setNextHref] = useState<string | undefined>(undefined)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [filterQuery, setFilterQuery] = useState('')
   const [playlists, setPlaylists] = useState<Playlist[]>([])
   const [activePlaylist, setActivePlaylist] = useState<Playlist | null>(null)
   const [loading, setLoading] = useState(false)
@@ -71,21 +76,39 @@ export default function ImportSoundCloudModal({
   useEffect(() => {
     if (!connection) return
     setError(null)
+    setFilterQuery('')
     if (tab === 'mine') void load(getMyTracks)
     if (tab === 'liked') void load(getLikedTracks)
     if (tab === 'playlists') void loadPlaylists()
     // search & paste are user-driven, no auto-load
   }, [tab, connection])
 
-  async function load(fn: () => Promise<ImportableTrack[]>) {
+  async function load(fn: () => Promise<TrackPage>) {
     setLoading(true)
     setError(null)
     try {
-      setTracks(await fn())
+      const page = await fn()
+      setTracks(page.tracks)
+      setNextHref(page.nextHref)
     } catch (err) {
       setError(errorMessage(err))
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function loadMore() {
+    if (!nextHref) return
+    setLoadingMore(true)
+    setError(null)
+    try {
+      const page = await getNextTrackPage(nextHref)
+      setTracks((prev) => [...prev, ...page.tracks])
+      setNextHref(page.nextHref)
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -103,10 +126,12 @@ export default function ImportSoundCloudModal({
 
   async function openPlaylist(playlist: Playlist) {
     setActivePlaylist(playlist)
+    setFilterQuery('')
     setLoading(true)
     setError(null)
     try {
       setTracks(await getPlaylistTracks(playlist.id))
+      setNextHref(undefined)
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -119,7 +144,9 @@ export default function ImportSoundCloudModal({
     setLoading(true)
     setError(null)
     try {
-      setTracks(await searchTracks(searchQuery))
+      const page = await searchTracks(searchQuery)
+      setTracks(page.tracks)
+      setNextHref(page.nextHref)
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -171,6 +198,14 @@ export default function ImportSoundCloudModal({
   }
 
   const selectedList = useMemo(() => Array.from(selected.values()), [selected])
+
+  const filteredTracks = useMemo(() => {
+    const q = filterQuery.trim().toLowerCase()
+    if (!q) return tracks
+    return tracks.filter((t) => t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q))
+  }, [tracks, filterQuery])
+
+  const showsFilterBox = tab === 'mine' || tab === 'liked' || (tab === 'playlists' && activePlaylist)
 
   function handleImportSelected() {
     onImport(selectedList)
@@ -301,13 +336,25 @@ export default function ImportSoundCloudModal({
                       ← Back to playlists
                     </button>
                   )}
+
+                  {showsFilterBox && !loading && tracks.length > 0 && (
+                    <input
+                      value={filterQuery}
+                      onChange={(e) => setFilterQuery(e.target.value)}
+                      placeholder="Filter by title or artist…"
+                      className="mb-4 w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+                    />
+                  )}
+
                   {loading ? (
                     <div className="py-12 text-center text-slate-400">Loading…</div>
                   ) : tracks.length === 0 ? (
                     <div className="py-12 text-center text-slate-500">No tracks here yet.</div>
+                  ) : filteredTracks.length === 0 ? (
+                    <div className="py-12 text-center text-slate-500">No tracks match "{filterQuery}".</div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                      {tracks.map((track) => (
+                      {filteredTracks.map((track) => (
                         <TrackCard
                           key={track.soundcloudTrackId}
                           track={track}
@@ -318,6 +365,16 @@ export default function ImportSoundCloudModal({
                         />
                       ))}
                     </div>
+                  )}
+
+                  {!loading && nextHref && (tab === 'mine' || tab === 'liked' || tab === 'search') && (
+                    <button
+                      onClick={loadMore}
+                      disabled={loadingMore}
+                      className="mx-auto mt-4 block rounded-full border border-arena-500 px-6 py-2 text-sm text-slate-300 hover:border-hardwood-500 disabled:opacity-50"
+                    >
+                      {loadingMore ? 'Loading…' : 'Load more'}
+                    </button>
                   )}
                 </>
               )}
