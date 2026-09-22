@@ -14,7 +14,9 @@ export abstract class BaseAudioSource implements AudioSource {
     const source = await this.getPlaybackSource()
     const audio = new Audio(source.url)
     audio.preload = 'auto'
-    audio.crossOrigin = 'anonymous'
+    // No crossOrigin attribute: SoundCloud's signed stream URLs aren't CORS-enabled, and
+    // setting crossOrigin='anonymous' makes the browser enforce CORS on the media load,
+    // rejecting an otherwise-playable URL. Plain <audio> playback doesn't need CORS at all.
     this.audio = audio
 
     return new Promise((resolve, reject) => {
@@ -27,7 +29,15 @@ export abstract class BaseAudioSource implements AudioSource {
         }, duration * 1000)
       }
       audio.addEventListener('canplay', onCanPlay, { once: true })
-      audio.addEventListener('error', () => reject(new Error('Playback failed for this clip.')), { once: true })
+      audio.addEventListener(
+        'error',
+        () => {
+          const code = audio.error?.code
+          const detail = code ? ` (media error code ${code})` : ''
+          reject(new Error(`Playback failed for this clip${detail}.`))
+        },
+        { once: true },
+      )
     })
   }
 
