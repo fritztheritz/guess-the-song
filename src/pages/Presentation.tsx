@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { isLyricMode, LYRIC_CLUE_LABELS, type Game, type SongRound, type Team } from '../types'
+import { isLyricMode, LYRIC_HINT_LABELS, type Game, type SongRound, type Team } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
 import { playBuzzer } from '../lib/sound-effects'
@@ -346,11 +346,27 @@ export default function Presentation() {
           <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
             {isLyric ? (
               <>
-                <div className="text-xs uppercase tracking-[0.3em] text-slate-500">{LYRIC_CLUE_LABELS[clueIndex]}</div>
-                <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE SONG?</div>
-                <div className="max-w-xl rounded-2xl border-2 border-dashed border-arena-600 bg-arena-800 px-8 py-10 text-2xl italic text-hardwood-300">
-                  “{round.lyricClues?.[clueIndex] || '—'}”
+                <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Finish the lyric</div>
+                <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE NEXT LINE?</div>
+                <div className="max-w-xl rounded-2xl border-2 border-dashed border-arena-600 bg-arena-800 px-8 py-6 text-xl italic text-hardwood-300">
+                  “{round.lyricPrompt || '—'}”
                 </div>
+
+                {clueIndex === 0 ? (
+                  <div className="text-xs uppercase tracking-widest text-slate-500">No hints yet — worth {round.points[0]} pts</div>
+                ) : (
+                  <div className="w-full max-w-md space-y-1 text-left text-sm">
+                    {LYRIC_HINT_LABELS.slice(0, clueIndex).map((label, i) => {
+                      const value = i === 0 ? round.artist : i === 1 ? round.playlistHint : round.title
+                      return (
+                        <div key={label} className="flex justify-between gap-3 rounded-lg bg-arena-800 px-3 py-1.5">
+                          <span className="text-slate-500">{label}</span>
+                          <span className="text-slate-200">{value || '—'}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -380,7 +396,7 @@ export default function Presentation() {
             <div className="flex gap-3">
               {clueIndex < round.points.length - 1 && (
                 <button onClick={advanceClue} disabled={isPlaying} className="rounded-full border border-arena-500 px-5 py-2 text-sm text-slate-300 hover:border-hardwood-500 disabled:opacity-40">
-                  {isLyric ? `NEXT: ${LYRIC_CLUE_LABELS[clueIndex + 1]}` : `NEXT CLUE (${round.clipDurations[clueIndex + 1]}s)`}
+                  {isLyric ? `NEXT HINT: ${LYRIC_HINT_LABELS[clueIndex]} (${round.points[clueIndex + 1]} pts)` : `NEXT CLUE (${round.clipDurations[clueIndex + 1]}s)`}
                 </button>
               )}
               <button onClick={reveal} className="rounded-full bg-scoreboard-500 px-5 py-2 text-sm font-semibold text-white hover:bg-scoreboard-500/80">
@@ -398,25 +414,47 @@ export default function Presentation() {
           <div className="pointer-events-none absolute inset-0 bg-hardwood-500/20 animate-buzzer-flash" />
           <div className="relative z-10 font-display text-4xl tracking-widest text-scoreboard-500">BUZZER BEATER</div>
 
-          <div className="relative z-10 h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
-            {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
-          </div>
+          {isLyric ? (
+            <div className="relative z-10 max-w-xl">
+              <div className="font-display text-3xl italic text-white">“{round.lyricAnswer || '—'}”</div>
+              <div className="mt-2 text-slate-400">
+                from <span className="text-slate-200">{round.title}</span> · {round.artist}
+              </div>
+              {round.playlistUrl && (
+                <a
+                  href={round.playlistUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="mt-1 inline-block text-sm text-hardwood-400 hover:text-hardwood-300"
+                >
+                  View Playlist on SoundCloud ↗
+                </a>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="relative z-10 h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
+                {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+              </div>
 
-          <div className="relative z-10">
-            <div className="font-display text-3xl text-white">{round.title}</div>
-            <div className="text-slate-400">{round.artist}</div>
-            {(isLyric ? round.playlistUrl : round.soundcloudUrl) && (
-              <a
-                href={isLyric ? round.playlistUrl : round.soundcloudUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="mt-1 inline-block text-sm text-hardwood-400 hover:text-hardwood-300"
-              >
-                {isLyric ? 'View Playlist on SoundCloud ↗' : 'View on SoundCloud ↗'}
-              </a>
-            )}
-          </div>
+              <div className="relative z-10">
+                <div className="font-display text-3xl text-white">{round.title}</div>
+                <div className="text-slate-400">{round.artist}</div>
+                {round.soundcloudUrl && (
+                  <a
+                    href={round.soundcloudUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-1 inline-block text-sm text-hardwood-400 hover:text-hardwood-300"
+                  >
+                    View on SoundCloud ↗
+                  </a>
+                )}
+              </div>
+            </>
+          )}
 
           {lastAward ? (
             <div className="relative z-10 space-y-1">

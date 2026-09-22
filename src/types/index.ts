@@ -4,9 +4,12 @@ export type TrackSource = 'soundcloud' | 'local' | 'lyric'
 
 export type SoundCloudAccess = 'playable' | 'preview' | 'blocked'
 
-// The 4 progressive clue stages for a Guess the Lyric round, in order. Fixed rather than
-// host-configurable, mirroring how Guess the Song's 4 clue slots are a fixed shape too.
-export const LYRIC_CLUE_LABELS = ['Lyric line 1', 'Lyric line 2', 'Who sang the verse?', 'What playlist is it on?'] as const
+// Guess the Lyric is "finish the lyric": lyricPrompt (line 1) is shown constantly as the
+// question; players guess lyricAnswer (line 2). The 3 hints below are revealed one at a
+// time to help — guessing cold (no hints) is worth points[0], each hint after that maps to
+// points[1..3]. Fixed rather than host-configurable, mirroring Guess the Song's fixed
+// clue-duration slots.
+export const LYRIC_HINT_LABELS = ['Who sang the verse?', 'What playlist is it on?', "What's the song called?"] as const
 
 export interface SongRound {
   id: string
@@ -34,9 +37,15 @@ export interface SongRound {
   clipDurations: number[] // e.g. [2, 4, 7, 10]
   points: number[] // e.g. [4, 3, 2, 1] — canonical clue count for BOTH modes; always read this, not clipDurations.length
 
-  /** source: "lyric" only. 4 strings matching LYRIC_CLUE_LABELS' order. Absent on every existing round. */
-  lyricClues?: string[]
-  /** source: "lyric" only. Optional clickable link shown on reveal, parallel to soundcloudUrl for song rounds. */
+  // source: "lyric" only, below. `title`/`artist` are reused as the "song name" and "who
+  // sang it" hint content (and for display in lists elsewhere), same as for song rounds.
+  /** The first lyric line — shown constantly as the prompt, not a staged hint. */
+  lyricPrompt?: string
+  /** The second lyric line — what players are actually guessing; shown on reveal. */
+  lyricAnswer?: string
+  /** Free-text playlist hint content, e.g. "70s Classics". Distinct from playlistUrl below. */
+  playlistHint?: string
+  /** Optional clickable link shown on reveal, parallel to soundcloudUrl for song rounds. */
   playlistUrl?: string
 
   createdAt: string
@@ -101,7 +110,8 @@ export function createEmptyLyricRound(): SongRound {
     source: 'lyric',
     title: 'New Song',
     artist: 'Unknown Artist',
-    lyricClues: ['', '', '', ''],
+    lyricPrompt: '',
+    lyricAnswer: '',
   })
 }
 
