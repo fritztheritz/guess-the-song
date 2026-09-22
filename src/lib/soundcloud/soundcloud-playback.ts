@@ -2,16 +2,23 @@ import { scFetchJson, SoundCloudApiError } from './soundcloud-api'
 
 export class TrackNotPlayableError extends SoundCloudApiError {}
 
-// The registered-developer API's stream-resolution endpoint returns a flat set of
-// ready-to-use, pre-signed URLs — no further auth or redirect-following needed, so
-// these can go straight into an <audio src>. Which fields are present depends on the
-// track's access level (full URLs only for "playable", only preview_* for "preview").
+// GET /tracks/:id/streams returns a set of stream-resolution endpoints (still on
+// api.soundcloud.com, still requiring our Bearer token) — NOT final playable URLs. Each
+// one has to be GET'd again (authenticated) to get back { url: <actual signed CDN link> }.
+// Which fields are present varies per track: some have a full progressive http_mp3_128_url,
+// others only offer HLS for full playback plus a short preview_mp3_128_url snippet — since
+// this app only ever plays 2-10s clips, a preview-only track is still perfectly playable.
 interface StreamsResponse {
   http_mp3_128_url?: string
   hls_mp3_128_url?: string
+  hls_aac_160_url?: string
   hls_opus_64_url?: string
   preview_mp3_128_url?: string
   preview_hls_mp3_128_url?: string
+}
+
+interface ResolvedStream {
+  url: string
 }
 
 // Signed stream URLs expire; caching briefly avoids re-resolving on every clue
@@ -41,15 +48,16 @@ export async function getTrackPlayback(trackId: string, secretToken?: string): P
     throw err
   }
 
-  // Prefer progressive MP3 — plays directly in a plain <audio> element. HLS variants need
-  // a JS HLS player to work outside Safari, which this app doesn't include yet.
-  const url = streams.http_mp3_128_url ?? streams.preview_mp3_128_url
-  if (url) {
-    streamCache.set(trackId, { url, cachedAt: Date.now() })
-    return url
+  // Prefer a full progressive stream; fall back to the preview snippet — plenty for a
+  // 2-10s clue. HLS-only tracks (no progressive/preview url at all) aren't supported yet.
+  const resolutionUrl = streams.http_mp3_128_url ?? streams.preview_mp3_128_url
+  if (resolutionUrl) {
+    const resolved = await scFetchJson<ResolvedStream>(resolutionUrl)
+    streamCache.set(trackId, { url: resolved.url, cachedAt: Date.now() })
+    return resolved.url
   }
 
-  if (streams.hls_mp3_128_url || streams.hls_opus_64_url || streams.preview_hls_mp3_128_url) {
+  if (streams.hls_mp3_128_url || streams.hls_aac_160_url || streams.hls_opus_64_url || streams.preview_hls_mp3_128_url) {
     throw new TrackNotPlayableError(
       'This track is only available as HLS streaming, which this app doesn\'t support yet — try a different track.',
     )
