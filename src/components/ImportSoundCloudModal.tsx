@@ -77,8 +77,8 @@ export default function ImportSoundCloudModal({
     if (!connection) return
     setError(null)
     setFilterQuery('')
-    if (tab === 'mine') void load(getMyTracks)
-    if (tab === 'liked') void load(getLikedTracks)
+    if (tab === 'mine') void loadAll(getMyTracks)
+    if (tab === 'liked') void loadAll(getLikedTracks)
     if (tab === 'playlists') void loadPlaylists()
     // search & paste are user-driven, no auto-load
   }, [tab, connection])
@@ -89,6 +89,34 @@ export default function ImportSoundCloudModal({
     try {
       const page = await fn()
       setTracks(page.tracks)
+      setNextHref(page.nextHref)
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // "My Tracks" / "Liked Tracks" are your own library, not open-ended search results — the
+  // filter box only searches what's loaded, so it needs the whole library up front rather
+  // than requiring a manual "Load more" before a track becomes findable. Capped at 10 pages
+  // (~500 tracks) so someone with a huge library doesn't trigger an unbounded fetch loop;
+  // "Load more" still appears as a manual fallback past that cap.
+  const AUTO_LOAD_PAGE_CAP = 10
+
+  async function loadAll(fn: () => Promise<TrackPage>) {
+    setLoading(true)
+    setError(null)
+    setTracks([])
+    try {
+      let page = await fn()
+      setTracks(page.tracks)
+      let pages = 1
+      while (page.nextHref && pages < AUTO_LOAD_PAGE_CAP) {
+        page = await getNextTrackPage(page.nextHref)
+        setTracks((prev) => [...prev, ...page.tracks])
+        pages++
+      }
       setNextHref(page.nextHref)
     } catch (err) {
       setError(errorMessage(err))
@@ -141,17 +169,7 @@ export default function ImportSoundCloudModal({
 
   async function runSearch(e: FormEvent) {
     e.preventDefault()
-    setLoading(true)
-    setError(null)
-    try {
-      const page = await searchTracks(searchQuery)
-      setTracks(page.tracks)
-      setNextHref(page.nextHref)
-    } catch (err) {
-      setError(errorMessage(err))
-    } finally {
-      setLoading(false)
-    }
+    await load(() => searchTracks(searchQuery))
   }
 
   async function runResolve(e: FormEvent) {
@@ -337,7 +355,7 @@ export default function ImportSoundCloudModal({
                     </button>
                   )}
 
-                  {showsFilterBox && !loading && tracks.length > 0 && (
+                  {showsFilterBox && tracks.length > 0 && (
                     <input
                       value={filterQuery}
                       onChange={(e) => setFilterQuery(e.target.value)}
@@ -346,7 +364,7 @@ export default function ImportSoundCloudModal({
                     />
                   )}
 
-                  {loading ? (
+                  {loading && tracks.length === 0 ? (
                     <div className="py-12 text-center text-slate-400">Loading…</div>
                   ) : tracks.length === 0 ? (
                     <div className="py-12 text-center text-slate-500">No tracks here yet.</div>
@@ -365,6 +383,10 @@ export default function ImportSoundCloudModal({
                         />
                       ))}
                     </div>
+                  )}
+
+                  {loading && tracks.length > 0 && (
+                    <div className="py-3 text-center text-xs text-slate-500">Loading more of your library… ({tracks.length} so far)</div>
                   )}
 
                   {!loading && nextHref && (tab === 'mine' || tab === 'liked' || tab === 'search') && (
