@@ -42,7 +42,7 @@ async function gunzip(bytes: Uint8Array<ArrayBufferLike>): Promise<Uint8Array<Ar
   return new Uint8Array(await new Response(stream).arrayBuffer())
 }
 
-/** Builds a self-contained shareable URL for a game (`#/import?data=...`). */
+/** Builds a self-contained shareable URL for a game (`/import?data=...`). */
 export async function buildShareUrl(game: Game): Promise<string> {
   const payload: ShareablePayload = {
     name: game.name,
@@ -59,8 +59,8 @@ export async function buildShareUrl(game: Game): Promise<string> {
   combined[0] = canCompress ? GZIP_MARKER : RAW_MARKER
   combined.set(bodyBytes, 1)
 
-  const base = `${window.location.origin}${import.meta.env.BASE_URL}`
-  return `${base}#/import?data=${bytesToBase64Url(combined)}`
+  const base = `${window.location.origin}${import.meta.env.BASE_URL}`.replace(/\/$/, '')
+  return `${base}/import?data=${bytesToBase64Url(combined)}`
 }
 
 export class ShareLinkError extends Error {}

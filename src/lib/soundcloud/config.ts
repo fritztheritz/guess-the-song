@@ -6,8 +6,8 @@ export const SOUNDCLOUD_CLIENT_ID = import.meta.env.VITE_SOUNDCLOUD_CLIENT_ID ??
 // Points at the app's ROOT, not a "/callback" path: GitHub Pages (and the Vite dev
 // server) only guarantee index.html is served at the base path itself. A full-page
 // OAuth redirect to a nonexistent static path would 404. The root index.html loads,
-// and main.tsx's bootstrap rewrites ?code=...&state=... into the #/callback hash
-// route before the router mounts, so HashRouter still sees it.
+// and main.tsx's bootstrap rewrites ?code=...&state=... into the /callback route
+// (a plain history.replaceState, no reload) before the router mounts.
 export const SOUNDCLOUD_REDIRECT_URI =
   import.meta.env.VITE_SOUNDCLOUD_REDIRECT_URI ?? `${window.location.origin}${import.meta.env.BASE_URL}`
 

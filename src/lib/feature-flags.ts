@@ -1,7 +1,7 @@
 // Feature flags for testing new features in prod before rolling them out to everyone.
 // Flags live in this one array — add an entry here, then gate the new code behind
 // `isFlagEnabled('your-key')` (or the `useFeatureFlag` hook in a component). Toggle it
-// on for yourself from /#/admin without touching code. Once you're happy with a
+// on for yourself from /admin without touching code. Once you're happy with a
 // feature, ask to have the flag removed: delete its entry here and replace the
 // `isFlagEnabled(...)` check at each call site with the feature just always running —
 // that's what unblocks it for everyone.

@@ -30,7 +30,11 @@ export function SoundCloudProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const connect = useCallback(async () => {
-    await connectSoundCloud(window.location.hash.slice(1) || '/')
+    // Strip the base path so `returnTo` is an app-relative path — Callback.tsx hands this
+    // straight to React Router's navigate(), which re-adds the basename itself.
+    const base = import.meta.env.BASE_URL.replace(/\/$/, '')
+    const path = window.location.pathname.slice(base.length) || '/'
+    await connectSoundCloud(path)
   }, [])
 
   const disconnect = useCallback(() => {

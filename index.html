@@ -13,6 +13,24 @@
     <meta name="theme-color" content="#0b0e14" />
     <title>Guess the Track — Friday Night Music Game</title>
     <meta name="description" content="A basketball-themed music guessing game built from your SoundCloud library." />
+    <script type="text/javascript">
+      // Other half of the GitHub Pages SPA fallback started in 404.html — decodes the
+      // encoded path back into a real URL (history.replaceState, no reload) before React
+      // Router mounts below, so a direct load of e.g. /guess-the-song/admin ends up with
+      // the URL bar showing /guess-the-song/admin, not the intermediate ?/admin form.
+      ;(function (l) {
+        if (l.search[1] === '/') {
+          var decoded = l.search
+            .slice(1)
+            .split('&')
+            .map(function (s) {
+              return s.replace(/~and~/g, '&')
+            })
+            .join('?')
+          window.history.replaceState(null, '', l.pathname.slice(0, -1) + decoded + l.hash)
+        }
+      })(window.location)
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -13,8 +13,12 @@ The app itself is a **static single-page app** — deployable straight to GitHub
 one small serverless piece needed only because SoundCloud requires it (see below).
 
 - **Vite + React + TypeScript + Tailwind CSS v4**
-- **React Router (`HashRouter`)** — every route lives under the same `index.html`, so GitHub
-  Pages needs no server-side rewrite rules.
+- **React Router (`BrowserRouter`)** — real paths (`/admin`, not `/#/admin`). Since GitHub
+  Pages can't do server-side rewrites, a direct load of a deep path is handled by the
+  standard SPA-on-GitHub-Pages trick: `public/404.html` (which GH Pages serves for any
+  unrecognized path) redirects back to `index.html` with the original path encoded in a
+  query string, and a small restore script in `index.html` decodes it back into the URL bar
+  before React Router mounts. See `src/main.tsx`, `public/404.html`.
 - **SoundCloud auth**: OAuth **Authorization Code + PKCE**. The `/authorize` redirect and PKCE
   challenge happen entirely in the browser, same as a public client. The one exception:
   SoundCloud's `/oauth/token` endpoint requires a `client_secret` in the request body even
@@ -52,7 +56,7 @@ registered app before anything here will work.
 1. Go to SoundCloud's developer portal and register a new application.
 2. Add a **redirect URI**. It points at the app's *root* (not a `/callback` path — GitHub
    Pages only guarantees `index.html` at the base path itself; the app moves the OAuth
-   response into its internal `#/callback` route client-side, see `src/main.tsx`). Must
+   response into its internal `/callback` route client-side, see `src/main.tsx`). Must
    match exactly, trailing slash included:
    - Local dev: `http://127.0.0.1:5173/guess-the-song/`
    - Production: `https://<your-github-username>.github.io/guess-the-song/`

@@ -1,31 +1,34 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { HashRouter } from 'react-router-dom'
+import { BrowserRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { SoundCloudProvider } from './state/SoundCloudContext.tsx'
 import { FeatureFlagsProvider } from './state/FeatureFlagsContext.tsx'
 
-// HashRouter avoids the GitHub Pages "no server-side rewrite" problem entirely —
-// every route lives under the same static index.html, no 404.html fallback trick needed.
-//
-// The one wrinkle: SoundCloud's OAuth redirect is a full-page navigation to the app's
-// root (see soundcloud/config.ts), landing the response as ?code=...&state=... in
-// location.search — but HashRouter only reads routes from location.hash. Move it
-// into the hash before the router mounts, so it reaches the /callback route.
+// Real paths (no #) on GitHub Pages need the 404.html/index.html SPA-fallback trick
+// (public/404.html + the restore script in index.html) since GH Pages can't do
+// server-side rewrites — a direct load of /guess-the-song/admin has to round-trip
+// through 404.html, which encodes the path and bounces back to index.html, which
+// decodes it back into the URL bar before React Router ever sees it.
+const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, '')
+
+// SoundCloud's OAuth redirect is a full-page navigation to the app's root (see
+// soundcloud/config.ts) — GitHub Pages only guarantees index.html at the base path
+// itself, so the redirect_uri can't point at /callback directly. Move the response
+// into the /callback route client-side before the router mounts.
 if (window.location.search.includes('code=') || window.location.search.includes('error=')) {
-  const target = `${window.location.pathname}#/callback${window.location.search}`
-  window.history.replaceState(null, '', target)
+  window.history.replaceState(null, '', `${BASENAME}/callback${window.location.search}`)
 }
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <HashRouter>
+    <BrowserRouter basename={BASENAME}>
       <FeatureFlagsProvider>
         <SoundCloudProvider>
           <App />
         </SoundCloudProvider>
       </FeatureFlagsProvider>
-    </HashRouter>
+    </BrowserRouter>
   </StrictMode>,
 )
