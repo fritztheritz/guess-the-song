@@ -1,16 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { isLyricMode, LYRIC_HINT_LABELS, type Game, type SongRound, type Team } from '../types'
+import { isLyricMode, isTierGuessMode, LYRIC_HINT_LABELS, type Game, type SongRound, type Team } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
 import { playBuzzer } from '../lib/sound-effects'
+import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import Scoreboard from '../components/Scoreboard'
 
 type Phase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final'
 
+// Fixed, not host-editable — matches the spec this mode was built to (tier match always
+// worth 1, closest position always worth 2), same "fixed slots" philosophy as Guess the
+// Lyric's hint points.
+const TIER_GUESS_TIER_POINTS = 1
+const TIER_GUESS_POSITION_POINTS = 2
+
 export default function Presentation() {
   const { gameId } = useParams()
   const navigate = useNavigate()
+  const tierListsEnabled = useFeatureFlag('tier-lists')
   const [game, setGame] = useState<Game | null>(null)
   const [phase, setPhase] = useState<Phase>('intro')
   const [possessionIndex, setPossessionIndex] = useState(0)
@@ -19,6 +27,8 @@ export default function Presentation() {
   const [shotClock, setShotClock] = useState(0)
   const [playbackError, setPlaybackError] = useState<string | null>(null)
   const [lastAward, setLastAward] = useState<{ teamId: string; points: number } | null>(null)
+  const [tierCredits, setTierCredits] = useState<Set<string>>(new Set())
+  const [positionCredits, setPositionCredits] = useState<Set<string>>(new Set())
   const [showHelp, setShowHelp] = useState(false)
 
   const audioSourceRef = useRef<AudioSource | null>(null)
@@ -27,6 +37,11 @@ export default function Presentation() {
   useEffect(() => {
     if (!gameId) return
     const loaded = getGame(gameId)
+    // Tier Guess rides on the tier-lists flag — see the matching check in GameBuilder.
+    if (loaded && isTierGuessMode(loaded) && !tierListsEnabled) {
+      navigate('/', { replace: true })
+      return
+    }
     setGame(loaded)
     if (loaded?.progress) {
       setPossessionIndex(Math.min(loaded.progress.possessionIndex, Math.max(0, loaded.rounds.length - 1)))
@@ -35,18 +50,22 @@ export default function Presentation() {
       setPossessionIndex(0)
       setPhase('intro')
     }
-  }, [gameId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gameId, tierListsEnabled])
 
   const round: SongRound | undefined = game?.rounds[possessionIndex]
+  const isTierGuess = game ? isTierGuessMode(game) : false
   const isLyric = game ? isLyricMode(game) : false
 
   useEffect(() => {
     audioSourceRef.current?.stop()
-    audioSourceRef.current = round && !isLyric ? createAudioSource(round) : null
+    audioSourceRef.current = round && !isLyric && !isTierGuess ? createAudioSource(round) : null
     setClueIndex(0)
     setIsPlaying(false)
     setShotClock(0)
     setPlaybackError(null)
+    setTierCredits(new Set())
+    setPositionCredits(new Set())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round?.id])
 
@@ -112,6 +131,41 @@ export default function Presentation() {
     // fact that this game is mid-play, and reopening would look "fresh" with stale points.
     nextGame = { ...nextGame, progress: { possessionIndex, completed: false } }
     const saved = saveGame(nextGame)
+    setGame(saved)
+  }
+
+  // Tier Guess scoring is unlike award() above: any number of teams can independently earn
+  // each credit (everyone who got the tier right, everyone tied for closest position), so
+  // these are toggles the host can tap on and back off, not a single pick-a-winner action.
+  function toggleTierCredit(team: Team) {
+    if (!game) return
+    const isOn = tierCredits.has(team.id)
+    const delta = isOn ? -TIER_GUESS_TIER_POINTS : TIER_GUESS_TIER_POINTS
+    const next = new Set(tierCredits)
+    if (isOn) next.delete(team.id)
+    else next.add(team.id)
+    setTierCredits(next)
+    const saved = saveGame({
+      ...game,
+      teams: game.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + delta } : t)),
+      progress: { possessionIndex, completed: false },
+    })
+    setGame(saved)
+  }
+
+  function togglePositionCredit(team: Team) {
+    if (!game) return
+    const isOn = positionCredits.has(team.id)
+    const delta = isOn ? -TIER_GUESS_POSITION_POINTS : TIER_GUESS_POSITION_POINTS
+    const next = new Set(positionCredits)
+    if (isOn) next.delete(team.id)
+    else next.add(team.id)
+    setPositionCredits(next)
+    const saved = saveGame({
+      ...game,
+      teams: game.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + delta } : t)),
+      progress: { possessionIndex, completed: false },
+    })
     setGame(saved)
   }
 
@@ -225,7 +279,7 @@ export default function Presentation() {
       switch (e.code) {
         case 'Space':
           e.preventDefault()
-          if (phase === 'clue' && !isLyric) void playClue(clueIndex)
+          if (phase === 'clue' && !isLyric && !isTierGuess) void playClue(clueIndex)
           break
         case 'Enter':
           e.preventDefault()
@@ -239,7 +293,7 @@ export default function Presentation() {
           prevPossession()
           break
         case 'KeyR':
-          if (phase === 'clue' && !isLyric) restartClue()
+          if (phase === 'clue' && !isLyric && !isTierGuess) restartClue()
           break
         case 'Escape':
           exitPresentation()
@@ -249,7 +303,7 @@ export default function Presentation() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, clueIndex, isPlaying, possessionIndex, showHelp, isLyric])
+  }, [phase, clueIndex, isPlaying, possessionIndex, showHelp, isLyric, isTierGuess])
 
   const sortedFinal = useMemo(() => [...(game?.teams ?? [])].sort((a, b) => b.score - a.score), [game])
 
@@ -334,7 +388,7 @@ export default function Presentation() {
           <div className="font-display text-5xl tracking-wide text-hardwood-400">{game.name}</div>
           <div className="text-6xl">🏀</div>
           <div className="flex gap-8 font-display text-2xl text-slate-300">
-            <div>{game.rounds.length} {isLyric ? 'LYRICS' : 'TRACKS'}</div>
+            <div>{game.rounds.length} {isLyric ? 'LYRICS' : isTierGuess ? 'SONGS' : 'TRACKS'}</div>
             <div>{game.teams.length} TEAMS</div>
             <div>1 CHAMPION</div>
           </div>
@@ -379,6 +433,31 @@ export default function Presentation() {
                   </div>
                 )}
               </>
+            ) : isTierGuess ? (
+              <>
+                <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Guess the ranking</div>
+                <div className="font-display text-3xl tracking-wide text-white">WHERE DID WE RANK THIS?</div>
+
+                <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
+                  {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                </div>
+
+                <div>
+                  <div className="font-display text-2xl text-white">{round.title}</div>
+                  <div className="text-slate-400">{round.artist}</div>
+                  {round.soundcloudUrl && (
+                    <a
+                      href={round.soundcloudUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="mt-1 inline-block text-sm text-hardwood-400 hover:text-hardwood-300"
+                    >
+                      Listen on SoundCloud ↗
+                    </a>
+                  )}
+                </div>
+              </>
             ) : (
               <>
                 <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(shotClock)}</div>
@@ -405,7 +484,7 @@ export default function Presentation() {
             )}
 
             <div className="flex gap-3">
-              {clueIndex < round.points.length - 1 && (
+              {!isTierGuess && clueIndex < round.points.length - 1 && (
                 <button onClick={advanceClue} disabled={isPlaying} className="rounded-full border border-arena-500 px-5 py-2 text-sm text-slate-300 hover:border-hardwood-500 disabled:opacity-40">
                   {isLyric ? `NEXT HINT: ${LYRIC_HINT_LABELS[clueIndex]} (${round.points[clueIndex + 1]} pts)` : `NEXT CLUE (${round.clipDurations[clueIndex + 1]}s)`}
                 </button>
@@ -443,6 +522,47 @@ export default function Presentation() {
                 </a>
               )}
             </div>
+          ) : isTierGuess ? (
+            <>
+              <div className="relative z-10 h-32 w-32 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
+                {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+              </div>
+
+              <div className="relative z-10">
+                <div className="font-display text-2xl text-white">{round.title}</div>
+                <div className="text-slate-400">{round.artist}</div>
+                {round.soundcloudUrl && (
+                  <a
+                    href={round.soundcloudUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-1 inline-block text-sm text-hardwood-400 hover:text-hardwood-300"
+                  >
+                    View on SoundCloud ↗
+                  </a>
+                )}
+              </div>
+
+              {(() => {
+                const tier = game.tierListTiers?.find((t) => t.id === round.tierId)
+                return (
+                  <div className="relative z-10 flex items-center gap-3">
+                    <span
+                      className="rounded-full px-4 py-1.5 font-display text-lg text-arena-950"
+                      style={{ background: tier?.color ?? '#888' }}
+                    >
+                      {tier?.name ?? 'Unranked'}
+                    </span>
+                    {round.tierPosition !== undefined && (
+                      <span className="font-display text-xl text-white">
+                        #{round.tierPosition + 1} of {round.tierSize ?? '?'}
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
+            </>
           ) : (
             <>
               <div className="relative z-10 h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
@@ -467,7 +587,50 @@ export default function Presentation() {
             </>
           )}
 
-          {lastAward ? (
+          {isTierGuess ? (
+            <div className="relative z-10 w-full max-w-lg space-y-3">
+              <div>
+                <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
+                  Got the tier right? (+{TIER_GUESS_TIER_POINTS})
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {game.teams.map((team) => (
+                    <button
+                      key={team.id}
+                      onClick={() => toggleTierCredit(team)}
+                      className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
+                        tierCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
+                      }`}
+                      style={{ color: team.color }}
+                    >
+                      {tierCredits.has(team.id) ? '✓ ' : ''}
+                      {team.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
+                  Closest on position? (+{TIER_GUESS_POSITION_POINTS})
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {game.teams.map((team) => (
+                    <button
+                      key={team.id}
+                      onClick={() => togglePositionCredit(team)}
+                      className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
+                        positionCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
+                      }`}
+                      style={{ color: team.color }}
+                    >
+                      {positionCredits.has(team.id) ? '✓ ' : ''}
+                      {team.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : lastAward ? (
             <div className="relative z-10 space-y-1">
               <div className="font-display text-5xl text-scoreboard-green">+{lastAward.points}</div>
               <div className="text-sm uppercase tracking-widest text-slate-400">🏀 Bucket!</div>

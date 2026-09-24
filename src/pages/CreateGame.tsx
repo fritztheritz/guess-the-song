@@ -2,12 +2,14 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createGame, createTeam, teamColorForIndex, type GameMode } from '../types'
 import { saveGame } from '../lib/storage/game-repository'
+import { useFeatureFlag } from '../state/FeatureFlagsContext'
 
 const MIN_TEAMS = 2
 const MAX_TEAMS = 8
 
 export default function CreateGame() {
   const navigate = useNavigate()
+  const tierListsEnabled = useFeatureFlag('tier-lists')
   const [name, setName] = useState('Friday Night Music Game')
   const [mode, setMode] = useState<GameMode>('song')
   const [teamNames, setTeamNames] = useState(['Team Jordan', 'Team Kobe'])
@@ -60,6 +62,18 @@ export default function CreateGame() {
               <div className="font-display text-lg tracking-wide text-white">📝 Guess the Lyric</div>
               <div className="text-xs text-slate-500">Type in lyrics & hints</div>
             </button>
+            {tierListsEnabled && (
+              <button
+                type="button"
+                onClick={() => setMode('tierguess')}
+                className={`col-span-2 rounded-lg border px-4 py-3 text-left ${
+                  mode === 'tierguess' ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 hover:border-arena-500'
+                }`}
+              >
+                <div className="font-display text-lg tracking-wide text-white">🎯 Guess the Ranking</div>
+                <div className="text-xs text-slate-500">Built from one of your tier lists — guess where each song landed</div>
+              </button>
+            )}
           </div>
         </div>
 
@@ -109,7 +123,7 @@ export default function CreateGame() {
         </div>
 
         <button type="submit" className="w-full rounded-full bg-hardwood-500 py-3 text-lg font-semibold text-arena-950 hover:bg-hardwood-400">
-          {mode === 'lyric' ? 'ADD LYRIC ROUNDS →' : 'ADD TRACKS →'}
+          {mode === 'lyric' ? 'ADD LYRIC ROUNDS →' : mode === 'tierguess' ? 'PICK YOUR TIER LIST →' : 'ADD TRACKS →'}
         </button>
       </form>
     </div>

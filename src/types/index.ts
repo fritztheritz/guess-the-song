@@ -1,3 +1,5 @@
+import type { TierDef, TierListSong } from './tierlist'
+
 // 'lyric' is additive — existing stored games never have this value, so every
 // `source === 'soundcloud' | 'local'` check elsewhere keeps working unchanged.
 export type TrackSource = 'soundcloud' | 'local' | 'lyric'
@@ -48,6 +50,17 @@ export interface SongRound {
   /** Optional clickable link shown on reveal, parallel to soundcloudUrl for song rounds. */
   playlistUrl?: string
 
+  // mode: "tierguess" only, below. source stays "soundcloud" (it genuinely is one) — these
+  // are snapshotted from the source TierList at import time, same one-time-copy convention
+  // as every other import in this app, so they stay stable even if that tier list changes
+  // or is deleted afterward.
+  /** The song's real tier id at import time — references Game.tierListTiers, not TierList.tiers. */
+  tierId?: string
+  /** 0-indexed position within that tier at import time (0 = ranked first/best). */
+  tierPosition?: number
+  /** How many songs were in that tier at import time, for a "#N of M" display. */
+  tierSize?: number
+
   createdAt: string
 }
 
@@ -63,7 +76,7 @@ export interface GameProgress {
   completed: boolean
 }
 
-export type GameMode = 'song' | 'lyric'
+export type GameMode = 'song' | 'lyric' | 'tierguess'
 
 export interface Game {
   id: string
@@ -76,11 +89,23 @@ export interface Game {
   progress?: GameProgress
   /** Absent on every game created before this existed — always treat that as 'song', never assume it's set. */
   mode?: GameMode
+  /** mode: "tierguess" only — snapshot of the source tier list's tier defs (id/name/color)
+   *  at import time, so "guess the tier" always has a stable set of options even if the
+   *  source tier list is edited or deleted afterward. */
+  tierListTiers?: TierDef[]
+  /** mode: "tierguess" only — which TierList this game was built from. Provenance/display
+   *  only (e.g. so the builder knows which list "+ Add More Songs" should pull from) —
+   *  never read live for round data, same as every other import in this app. */
+  sourceTierListId?: string
 }
 
 /** Every existing stored game predates `mode` — this is the one place that should ever default it. */
 export function isLyricMode(game: Pick<Game, 'mode'>): boolean {
   return game.mode === 'lyric'
+}
+
+export function isTierGuessMode(game: Pick<Game, 'mode'>): boolean {
+  return game.mode === 'tierguess'
 }
 
 export const DEFAULT_CLIP_DURATIONS = [2, 4, 7, 10]
@@ -115,6 +140,26 @@ export function createEmptyLyricRound(): SongRound {
   })
 }
 
+/** Builds a tierguess round from a ranked TierListSong — a one-time snapshot, same as
+ *  every other import in this app. `tierSize` is the count of songs in that tier at
+ *  import time (the caller computes it from the source TierList, since a TierListSong
+ *  alone doesn't know its tier's total size). */
+export function createTierGuessRound(song: TierListSong, tierSize: number): SongRound {
+  return createEmptyRound({
+    source: 'soundcloud',
+    title: song.title,
+    artist: song.artist,
+    artworkUrl: song.artworkUrl,
+    soundcloudTrackId: song.soundcloudTrackId,
+    soundcloudUrn: song.soundcloudUrn,
+    soundcloudUrl: song.soundcloudUrl,
+    soundcloudSecretToken: song.soundcloudSecretToken,
+    tierId: song.tierId ?? undefined,
+    tierPosition: song.order,
+    tierSize,
+  })
+}
+
 export function createTeam(name: string, color: string): Team {
   return { id: crypto.randomUUID(), name, color, score: 0 }
 }
@@ -143,5 +188,7 @@ export function duplicateGame(game: Game): Game {
     createdAt: now,
     updatedAt: now,
     mode: game.mode,
+    tierListTiers: game.tierListTiers,
+    sourceTierListId: game.sourceTierListId,
   }
 }

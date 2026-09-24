@@ -24,7 +24,11 @@ export default function ImportGame() {
   function importGame() {
     if (!preview) return
     const teams = preview.teams.map((t) => createTeam(t.name, t.color))
-    const game: Game = { ...createGame(preview.name, teams, preview.mode ?? 'song'), rounds: preview.rounds }
+    const game: Game = {
+      ...createGame(preview.name, teams, preview.mode ?? 'song'),
+      rounds: preview.rounds,
+      tierListTiers: preview.tierListTiers,
+    }
     saveGame(game)
     navigate(`/games/${game.id}/edit`, { replace: true })
   }
