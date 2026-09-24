@@ -9,8 +9,11 @@ import {
   getNextTrackPage,
   getPlaylists,
   getPlaylistTracks,
+  getUserTracks,
   resolveSoundCloudUrl,
   searchTracks,
+  searchUsers,
+  type ImportableArtist,
   type ImportableTrack,
   type TrackPage,
 } from '../lib/soundcloud/soundcloud-tracks'
@@ -61,6 +64,9 @@ export default function ImportSoundCloudModal({
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Map<string, ImportableTrack>>(new Map())
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResolvedTrack, setSearchResolvedTrack] = useState<ImportableTrack | null>(null)
+  const [artists, setArtists] = useState<ImportableArtist[]>([])
+  const [activeArtist, setActiveArtist] = useState<ImportableArtist | null>(null)
   const [pasteUrl, setPasteUrl] = useState('')
   const [resolvedTrack, setResolvedTrack] = useState<ImportableTrack | null>(null)
   const [previewingId, setPreviewingId] = useState<string | null>(null)
@@ -167,8 +173,54 @@ export default function ImportSoundCloudModal({
     }
   }
 
+  function looksLikeUrl(value: string): boolean {
+    return /^https?:\/\//i.test(value) || value.includes('soundcloud.com/')
+  }
+
   async function runSearch(e: FormEvent) {
     e.preventDefault()
+    const query = searchQuery.trim()
+    if (!query) return
+
+    setActiveArtist(null)
+    setArtists([])
+    setSearchResolvedTrack(null)
+
+    // A pasted link isn't a keyword — running it through /tracks?q= returns nothing useful.
+    // Resolve it directly instead, same as the dedicated Paste Link tab.
+    if (looksLikeUrl(query)) {
+      setLoading(true)
+      setError(null)
+      setTracks([])
+      try {
+        setSearchResolvedTrack(await resolveSoundCloudUrl(query))
+      } catch (err) {
+        setError(errorMessage(err))
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
+    await load(() => searchTracks(query))
+    // SoundCloud's track search only matches title/tags, not the uploader's name — search
+    // users separately so searching an artist by name still finds their tracks. Best-effort:
+    // an error here shouldn't block the track results that already loaded above.
+    try {
+      setArtists(await searchUsers(query))
+    } catch {
+      setArtists([])
+    }
+  }
+
+  async function openArtist(artist: ImportableArtist) {
+    setActiveArtist(artist)
+    setFilterQuery('')
+    await load(() => getUserTracks(artist.id))
+  }
+
+  async function backToSearchResults() {
+    setActiveArtist(null)
     await load(() => searchTracks(searchQuery))
   }
 
@@ -270,6 +322,9 @@ export default function ImportSoundCloudModal({
                   onClick={() => {
                     setTab(t.id)
                     setActivePlaylist(null)
+                    setActiveArtist(null)
+                    setArtists([])
+                    setSearchResolvedTrack(null)
                     setError(null)
                   }}
                   className={`rounded-t-lg px-4 py-2 text-sm font-medium ${
@@ -285,15 +340,76 @@ export default function ImportSoundCloudModal({
               {error && <div className="mb-4 rounded-lg bg-scoreboard-500/10 px-4 py-2 text-sm text-scoreboard-500">{error}</div>}
 
               {tab === 'search' && (
-                <form onSubmit={runSearch} className="mb-4 flex gap-2">
-                  <input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search SoundCloud…"
-                    className="flex-1 rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
-                  />
-                  <button className="rounded-lg bg-hardwood-500 px-4 py-2 font-medium text-arena-950 hover:bg-hardwood-400">Search</button>
-                </form>
+                <>
+                  <form onSubmit={runSearch} className="mb-4 flex gap-2">
+                    <input
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search by title, artist, or paste a SoundCloud link…"
+                      className="flex-1 rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+                    />
+                    <button className="rounded-lg bg-hardwood-500 px-4 py-2 font-medium text-arena-950 hover:bg-hardwood-400">Search</button>
+                  </form>
+
+                  {searchResolvedTrack && (
+                    <div className="mx-auto mb-4 max-w-md rounded-xl border border-arena-600 bg-arena-800 p-4 text-center">
+                      {searchResolvedTrack.access === 'blocked' ? (
+                        <>
+                          <p className="font-medium text-slate-200">TRACK FOUND</p>
+                          <p className="mt-1 text-sm text-slate-400">
+                            This track is not available for playback through your current SoundCloud authorization.
+                            You can still view the available metadata.
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mb-2 font-medium text-teal-400">TRACK FOUND ✓</p>
+                      )}
+                      <div className="mx-auto max-w-[220px]">
+                        <TrackCard
+                          track={searchResolvedTrack}
+                          onPreview={() => togglePreview(searchResolvedTrack)}
+                          isPreviewing={previewingId === searchResolvedTrack.soundcloudTrackId}
+                        />
+                      </div>
+                      <button
+                        onClick={() => {
+                          onImport([searchResolvedTrack])
+                          onClose()
+                        }}
+                        className="mt-3 rounded-lg bg-hardwood-500 px-6 py-2 font-semibold text-arena-950 hover:bg-hardwood-400"
+                      >
+                        ADD TO GAME
+                      </button>
+                    </div>
+                  )}
+
+                  {activeArtist ? (
+                    <button onClick={backToSearchResults} className="mb-3 text-sm text-slate-400 hover:text-slate-200">
+                      ← Back to search results
+                    </button>
+                  ) : (
+                    artists.length > 0 &&
+                    !searchResolvedTrack && (
+                      <div className="mb-4">
+                        <div className="mb-2 text-xs font-medium uppercase tracking-widest text-slate-500">Artists</div>
+                        <div className="flex flex-wrap gap-2">
+                          {artists.map((artist) => (
+                            <button
+                              key={artist.id}
+                              onClick={() => openArtist(artist)}
+                              className="flex items-center gap-2 rounded-full border border-arena-600 bg-arena-800 py-1 pl-1 pr-3 text-sm text-slate-200 hover:border-hardwood-500"
+                            >
+                              <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-arena-700 text-xs text-arena-500">
+                                {artist.avatarUrl ? <img src={artist.avatarUrl} alt="" className="h-full w-full object-cover" /> : '♪'}
+                              </span>
+                              {artist.username}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </>
               )}
 
               {tab === 'paste' && (
@@ -361,7 +477,10 @@ export default function ImportSoundCloudModal({
                 </div>
               )}
 
-              {(tab === 'mine' || tab === 'liked' || tab === 'search' || (tab === 'playlists' && activePlaylist)) && (
+              {(tab === 'mine' ||
+                tab === 'liked' ||
+                (tab === 'search' && !searchResolvedTrack) ||
+                (tab === 'playlists' && activePlaylist)) && (
                 <>
                   {tab === 'playlists' && activePlaylist && (
                     <button onClick={() => setActivePlaylist(null)} className="mb-3 text-sm text-slate-400 hover:text-slate-200">

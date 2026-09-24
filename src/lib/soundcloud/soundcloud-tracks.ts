@@ -29,6 +29,29 @@ export interface RawSoundCloudPlaylist {
   tracks?: RawSoundCloudTrack[]
 }
 
+export interface RawSoundCloudUser {
+  id: number
+  username: string
+  avatar_url?: string | null
+  permalink_url?: string
+}
+
+export interface ImportableArtist {
+  id: string
+  username: string
+  avatarUrl?: string
+  profileUrl?: string
+}
+
+function mapToImportableArtist(raw: RawSoundCloudUser): ImportableArtist {
+  return {
+    id: String(raw.id),
+    username: raw.username,
+    avatarUrl: raw.avatar_url ?? undefined,
+    profileUrl: raw.permalink_url,
+  }
+}
+
 export interface ImportableTrack {
   soundcloudTrackId: string
   soundcloudUrn?: string
@@ -115,6 +138,23 @@ export async function getPlaylistTracks(playlistId: string): Promise<ImportableT
 export async function searchTracks(query: string): Promise<TrackPage> {
   if (!query.trim()) return { tracks: [] }
   return fetchTrackPage(`/tracks?q=${encodeURIComponent(query)}&linked_partitioning=true&limit=${PAGE_SIZE}`)
+}
+
+// SoundCloud's /tracks search only matches title/tags/description — it does not match
+// the uploader's username, so searching an artist's name there often returns nothing even
+// though they have tracks. /users search is the separate, correct way to find an artist by
+// name; the caller then drills into that artist's own track list below.
+export async function searchUsers(query: string): Promise<ImportableArtist[]> {
+  if (!query.trim()) return []
+  const response = await scFetchJson<RawSoundCloudUser[] | CollectionResponse<RawSoundCloudUser>>(
+    `/users?q=${encodeURIComponent(query)}&linked_partitioning=true&limit=10`,
+  )
+  const users = Array.isArray(response) ? response : response.collection
+  return users.map(mapToImportableArtist)
+}
+
+export async function getUserTracks(userId: string): Promise<TrackPage> {
+  return fetchTrackPage(`/users/${userId}/tracks?linked_partitioning=true&limit=${PAGE_SIZE}`)
 }
 
 export async function getTrack(trackId: string): Promise<ImportableTrack> {
