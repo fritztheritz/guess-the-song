@@ -20,13 +20,27 @@ export abstract class BaseAudioSource implements AudioSource {
     this.audio = audio
 
     return new Promise((resolve, reject) => {
-      const onCanPlay = () => {
-        audio.currentTime = startTime
+      const startPlayback = () => {
         audio.play().catch(reject)
         this.stopTimer = setTimeout(() => {
           this.stop()
           resolve()
         }, duration * 1000)
+      }
+
+      const onCanPlay = () => {
+        if (startTime <= 0) {
+          // Seeking to 0 when currentTime is already 0 is a no-op — some browsers never
+          // fire 'seeked' for it, so waiting on that event here would hang forever.
+          startPlayback()
+          return
+        }
+        // Setting currentTime kicks off an async seek (often a new network request for a
+        // streamed clip); calling play() before it resolves raced the seek and either
+        // silently played from wherever the seek hadn't reached yet, or didn't play at all
+        // — this was the actual bug for any clip with a non-zero start time.
+        audio.addEventListener('seeked', startPlayback, { once: true })
+        audio.currentTime = startTime
       }
       audio.addEventListener('canplay', onCanPlay, { once: true })
       audio.addEventListener(
