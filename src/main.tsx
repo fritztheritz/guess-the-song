@@ -5,6 +5,8 @@ import './index.css'
 import App from './App.tsx'
 import { SoundCloudProvider } from './state/SoundCloudContext.tsx'
 import { FeatureFlagsProvider } from './state/FeatureFlagsContext.tsx'
+import { ConfirmProvider } from './state/ConfirmContext.tsx'
+import { ToastProvider } from './state/ToastContext.tsx'
 
 // Real paths (no #) on GitHub Pages need the 404.html/index.html SPA-fallback trick
 // (public/404.html + the restore script in index.html) since GH Pages can't do
@@ -26,7 +28,11 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter basename={BASENAME}>
       <FeatureFlagsProvider>
         <SoundCloudProvider>
-          <App />
+          <ConfirmProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </ConfirmProvider>
         </SoundCloudProvider>
       </FeatureFlagsProvider>
     </BrowserRouter>

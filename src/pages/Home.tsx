@@ -6,10 +6,14 @@ import { downloadBackupFile, parseBackupFile, BackupFileError } from '../lib/gam
 import { duplicateGame, isLyricMode, isTierGuessMode, type Game } from '../types'
 import { duplicateTierList, type TierList } from '../types/tierlist'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
+import { useConfirm } from '../state/ConfirmContext'
+import { useToast } from '../state/ToastContext'
 import SoundCloudAttribution from '../components/SoundCloudAttribution'
 
 export default function Home() {
   const navigate = useNavigate()
+  const confirm = useConfirm()
+  const showToast = useToast()
   const tierListsEnabled = useFeatureFlag('tier-lists')
   const [games, setGames] = useState<Game[]>([])
   const [tierLists, setTierLists] = useState<TierList[]>([])
@@ -21,10 +25,11 @@ export default function Home() {
     if (tierListsEnabled) setTierLists(listTierLists())
   }, [tierListsEnabled])
 
-  function handleDeleteTierList(id: string) {
-    if (!confirm('Delete this tier list? This cannot be undone.')) return
+  async function handleDeleteTierList(id: string) {
+    if (!(await confirm('Delete this tier list? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
     deleteTierList(id)
     setTierLists(listTierLists())
+    showToast('Tier list deleted')
   }
 
   function handleDuplicateTierList(list: TierList) {
@@ -32,10 +37,11 @@ export default function Home() {
     navigate(`/tierlists/${copy.id}/edit`)
   }
 
-  function handleDelete(id: string) {
-    if (!confirm('Delete this game? This cannot be undone.')) return
+  async function handleDelete(id: string) {
+    if (!(await confirm('Delete this game? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
     deleteGame(id)
     setGames(listGames())
+    showToast('Game deleted')
   }
 
   function handleDuplicate(game: Game) {
@@ -68,9 +74,11 @@ export default function Home() {
         setBackupStatus('That backup file has no games in it.')
         return
       }
-      if (!confirm(`Restore ${imported.length} game${imported.length === 1 ? '' : 's'}? Any game already here with the same name/id will be overwritten by the backup.`)) {
-        return
-      }
+      const ok = await confirm(
+        `Restore ${imported.length} game${imported.length === 1 ? '' : 's'}? Any game already here with the same name/id will be overwritten by the backup.`,
+        { confirmLabel: 'Restore' },
+      )
+      if (!ok) return
       const count = importGames(imported)
       setGames(listGames())
       setBackupStatus(`Restored ${count} game${count === 1 ? '' : 's'} from backup.`)

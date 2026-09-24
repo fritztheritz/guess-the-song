@@ -14,6 +14,8 @@ import ImportFromTierListModal from '../components/ImportFromTierListModal'
 import AnswerKeyModal from '../components/AnswerKeyModal'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
+import { useConfirm } from '../state/ConfirmContext'
+import { useToast } from '../state/ToastContext'
 
 const MIN_TEAMS = 2
 const MAX_TEAMS = 8
@@ -29,6 +31,8 @@ function parseTimeToSeconds(input: string): number {
 export default function GameBuilder() {
   const { gameId } = useParams()
   const navigate = useNavigate()
+  const confirm = useConfirm()
+  const showToast = useToast()
   const [game, setGame] = useState<Game | null>(null)
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
@@ -39,7 +43,8 @@ export default function GameBuilder() {
   const [tierListPickerOpen, setTierListPickerOpen] = useState(false)
   const [tierGuessImportOpen, setTierGuessImportOpen] = useState(false)
   const [pickedTierList, setPickedTierList] = useState<TierList | null>(null)
-  const dragIndex = useRef<number | null>(null)
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const localFileInput = useRef<HTMLInputElement | null>(null)
   const tierListsEnabled = useFeatureFlag('tier-lists')
 
@@ -71,11 +76,17 @@ export default function GameBuilder() {
     persist({ ...game, rounds: game.rounds.map((r) => (r.id === updated.id ? updated : r)) })
   }
 
-  function removeRound(id: string) {
+  async function removeRound(id: string) {
     if (!game) return
+    const round = game.rounds.find((r) => r.id === id)
+    if (!round) return
+    const label = round.title.trim() || (round.source === 'lyric' ? 'this lyric round' : 'this round')
+    const ok = await confirm(`Remove "${label}" from the game? This cannot be undone.`, { danger: true, confirmLabel: 'Remove' })
+    if (!ok) return
     const rounds = game.rounds.filter((r) => r.id !== id)
     persist({ ...game, rounds })
     if (selectedRoundId === id) setSelectedRoundId(rounds[0]?.id ?? null)
+    showToast('Round removed')
   }
 
   function duplicateRound(round: SongRound) {
@@ -107,6 +118,7 @@ export default function GameBuilder() {
     const rounds = [...game.rounds, ...newRounds]
     persist({ ...game, rounds })
     setSelectedRoundId(newRounds[0]?.id ?? selectedRoundId)
+    showToast(`Added ${newRounds.length} track${newRounds.length === 1 ? '' : 's'}`)
   }
 
   function handleAddLyricRound() {
@@ -150,6 +162,7 @@ export default function GameBuilder() {
       tierListTiers: pickedTierList.tiers,
     })
     setSelectedRoundId(newRounds[0]?.id ?? selectedRoundId)
+    showToast(`Added ${newRounds.length} song${newRounds.length === 1 ? '' : 's'}`)
   }
 
   function handleAddLocalFile(e: ChangeEvent<HTMLInputElement>) {
@@ -194,6 +207,7 @@ export default function GameBuilder() {
     if (!game) return
     const clipStart = parseTimeToSeconds(bulkStartInput)
     persist({ ...game, rounds: game.rounds.map((r) => ({ ...r, clipStart })) })
+    showToast(`Start time applied to ${game.rounds.length} track${game.rounds.length === 1 ? '' : 's'}`)
   }
 
   async function handleShare() {
@@ -299,15 +313,33 @@ export default function GameBuilder() {
             <div
               key={round.id}
               draggable
-              onDragStart={() => (dragIndex.current = i)}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => {
-                if (dragIndex.current !== null && dragIndex.current !== i) reorder(dragIndex.current, i)
-                dragIndex.current = null
+              onDragStart={(e) => {
+                e.dataTransfer.effectAllowed = 'move'
+                setDraggingIndex(i)
+              }}
+              onDragEnd={() => {
+                setDraggingIndex(null)
+                setDragOverIndex(null)
+              }}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setDragOverIndex((prev) => (prev === i ? prev : i))
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                if (draggingIndex !== null && draggingIndex !== i) reorder(draggingIndex, i)
+                setDraggingIndex(null)
+                setDragOverIndex(null)
               }}
               onClick={() => setSelectedRoundId(round.id)}
-              className={`group mb-2 flex cursor-pointer items-center gap-2 rounded-lg border p-2 ${
-                selectedRoundId === round.id ? 'border-hardwood-500 bg-arena-800' : 'border-arena-700 hover:border-arena-600'
+              className={`group mb-2 flex cursor-grab items-center gap-2 rounded-lg border p-2 transition-colors active:cursor-grabbing ${
+                draggingIndex === i
+                  ? 'border-hardwood-500 opacity-30'
+                  : dragOverIndex === i && draggingIndex !== null
+                    ? 'border-hardwood-500 bg-hardwood-500/10'
+                    : selectedRoundId === round.id
+                      ? 'border-hardwood-500 bg-arena-800'
+                      : 'border-arena-700 hover:border-arena-600'
               }`}
             >
               <span className="w-5 text-center text-xs text-slate-500">{i + 1}</span>

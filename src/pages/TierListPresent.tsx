@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import type { TierList, TierListSong } from '../types/tierlist'
 import { getTierList, saveTierList } from '../lib/storage/tierlist-repository'
 import { moveSong, songsInGroup } from '../lib/tierlist-ranking'
+import { useConfirm } from '../state/ConfirmContext'
+import { useToast } from '../state/ToastContext'
 
 // Sentinel for "currently dragging over the Unranked pool" — distinct from tier ids
 // (real uuids) and from `null` (no drag in progress), so the two are never confused.
@@ -114,6 +116,8 @@ function DropZone({
 
 export default function TierListPresent() {
   const { tierListId } = useParams()
+  const confirm = useConfirm()
+  const showToast = useToast()
   const [list, setList] = useState<TierList | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverZone, setDragOverZone] = useState<string | null>(null)
@@ -152,10 +156,11 @@ export default function TierListPresent() {
     setDragOverZone((prev) => (prev === zoneId ? prev : zoneId))
   }
 
-  function resetRankings() {
+  async function resetRankings() {
     if (!list) return
-    if (!confirm('Move every song back to Unranked?')) return
+    if (!(await confirm('Move every song back to Unranked?', { danger: true, confirmLabel: 'Reset' }))) return
     persist({ ...list, songs: list.songs.map((s, i) => ({ ...s, tierId: null, order: i })) })
+    showToast('All songs moved to Unranked')
   }
 
   if (!list) {

@@ -6,6 +6,7 @@ import { createAudioSource, type AudioSource } from '../lib/audio'
 import { playBuzzer } from '../lib/sound-effects'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import { presentationChannelName, type PresentationMessage, type PresentationSnapshot, type TierGuessStage } from '../lib/presentation-sync'
+import { useConfirm } from '../state/ConfirmContext'
 import Scoreboard from '../components/Scoreboard'
 
 type Phase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final'
@@ -18,6 +19,7 @@ const TIER_GUESS_POSITION_POINTS = 2
 
 export default function HostController({ gameId }: { gameId: string }) {
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const tierListsEnabled = useFeatureFlag('tier-lists')
   const [game, setGame] = useState<Game | null>(null)
   const [phase, setPhase] = useState<Phase>('intro')
@@ -290,14 +292,18 @@ export default function HostController({ gameId }: { gameId: string }) {
     void playClue(clueIndex)
   }
 
-  function exitPresentation() {
+  async function exitPresentation() {
     // Once the game has reached its final screen, every answer this playthrough has
     // already been shown on screen — no confirmation needed, and the editor is a fine
     // place to land. Before that, exiting is confirmed, and lands on Home rather than the
     // editor: the editor lists every round's title/artist/answer up front, which would
     // hand anyone still watching the remaining answers for the rest of the game.
     if (phase !== 'final') {
-      if (!confirm("Exit presentation now? Make sure everyone's done watching — the game isn't finished yet.")) return
+      const ok = await confirm("Exit presentation now? Make sure everyone's done watching — the game isn't finished yet.", {
+        danger: true,
+        confirmLabel: 'Exit',
+      })
+      if (!ok) return
       audioSourceRef.current?.stop()
       navigate('/')
       return
@@ -320,6 +326,10 @@ export default function HostController({ gameId }: { gameId: string }) {
   // Keyboard controls (spec §18) — active throughout presentation mode.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      // The exit-confirmation dialog has its own Escape/Enter handling — without this guard,
+      // this handler's own Escape/Enter cases would fire on the same keypress and immediately
+      // reopen (or fight over) the dialog it's meant to be waiting on.
+      if (document.querySelector('[role="alertdialog"]')) return
       if (e.key === '?') {
         e.preventDefault()
         setShowHelp((v) => !v)

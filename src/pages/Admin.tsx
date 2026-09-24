@@ -1,8 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useFeatureFlags } from '../state/FeatureFlagsContext'
+import { useConfirm } from '../state/ConfirmContext'
+import { useToast } from '../state/ToastContext'
 
 export default function Admin() {
   const { flags, setOverride, resetOverride, refresh } = useFeatureFlags()
+  const confirm = useConfirm()
+  const showToast = useToast()
 
   return (
     <div className="min-h-svh court-lines">
@@ -69,10 +73,11 @@ export default function Admin() {
 
             <div className="pt-2 text-center">
               <button
-                onClick={() => {
-                  if (!confirm('Reset every flag on this device back to its default?')) return
+                onClick={async () => {
+                  if (!(await confirm('Reset every flag on this device back to its default?', { confirmLabel: 'Reset' }))) return
                   flags.forEach((f) => f.overridden && resetOverride(f.key))
                   refresh()
+                  showToast('Flags reset to defaults')
                 }}
                 className="text-xs text-slate-500 underline hover:text-slate-300"
               >
