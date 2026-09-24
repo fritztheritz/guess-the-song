@@ -173,8 +173,17 @@ export default function ImportSoundCloudModal({
     }
   }
 
-  function looksLikeUrl(value: string): boolean {
-    return /^https?:\/\//i.test(value) || value.includes('soundcloud.com/')
+  // Pasting from SoundCloud's mobile share sheet often copies more than the bare link —
+  // e.g. "Track Name by Artist\nhttps://soundcloud.com/artist/track" — so this pulls just
+  // the URL out of whatever was pasted rather than assuming the whole field is a clean URL.
+  // Handles a link with no scheme too ("soundcloud.com/..." or "on.soundcloud.com/...").
+  function extractSoundCloudUrl(value: string): string | null {
+    const stripTrailingPunctuation = (s: string) => s.replace(/[.,;:!?)\]]+$/, '')
+    const withScheme = value.match(/https?:\/\/\S+/i)
+    if (withScheme) return stripTrailingPunctuation(withScheme[0])
+    const bare = value.match(/(?:[\w-]+\.)?soundcloud\.com\/\S+/i)
+    if (bare) return `https://${stripTrailingPunctuation(bare[0])}`
+    return null
   }
 
   async function runSearch(e: FormEvent) {
@@ -188,12 +197,13 @@ export default function ImportSoundCloudModal({
 
     // A pasted link isn't a keyword — running it through /tracks?q= returns nothing useful.
     // Resolve it directly instead, same as the dedicated Paste Link tab.
-    if (looksLikeUrl(query)) {
+    const url = extractSoundCloudUrl(query)
+    if (url) {
       setLoading(true)
       setError(null)
       setTracks([])
       try {
-        setSearchResolvedTrack(await resolveSoundCloudUrl(query))
+        setSearchResolvedTrack(await resolveSoundCloudUrl(url))
       } catch (err) {
         setError(errorMessage(err))
       } finally {
@@ -229,8 +239,11 @@ export default function ImportSoundCloudModal({
     setLoading(true)
     setError(null)
     setResolvedTrack(null)
+    // Falls back to the raw trimmed input if nothing URL-shaped was found in it, rather
+    // than blocking outright — resolveSoundCloudUrl will just surface a clear error.
+    const url = extractSoundCloudUrl(pasteUrl.trim()) ?? pasteUrl.trim()
     try {
-      setResolvedTrack(await resolveSoundCloudUrl(pasteUrl))
+      setResolvedTrack(await resolveSoundCloudUrl(url))
     } catch (err) {
       setError(errorMessage(err))
     } finally {
