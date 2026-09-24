@@ -6,6 +6,10 @@ import Presentation from './pages/Presentation'
 import Callback from './pages/Callback'
 import ImportGame from './pages/ImportGame'
 import Admin from './pages/Admin'
+import CreateTierList from './pages/CreateTierList'
+import TierListBuilder from './pages/TierListBuilder'
+import TierListPresent from './pages/TierListPresent'
+import RequireFlag from './components/RequireFlag'
 
 export default function App() {
   return (
@@ -17,6 +21,30 @@ export default function App() {
       <Route path="/callback" element={<Callback />} />
       <Route path="/import" element={<ImportGame />} />
       <Route path="/admin" element={<Admin />} />
+      <Route
+        path="/tierlists/new"
+        element={
+          <RequireFlag flag="tier-lists">
+            <CreateTierList />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/tierlists/:tierListId/edit"
+        element={
+          <RequireFlag flag="tier-lists">
+            <TierListBuilder />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/tierlists/:tierListId/present"
+        element={
+          <RequireFlag flag="tier-lists">
+            <TierListPresent />
+          </RequireFlag>
+        }
+      />
     </Routes>
   )
 }

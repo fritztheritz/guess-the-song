@@ -223,6 +223,20 @@ export default function ImportSoundCloudModal({
     return tracks.filter((t) => t.title.toLowerCase().includes(q) || t.artist.toLowerCase().includes(q))
   }, [tracks, filterQuery])
 
+  const allFilteredSelected = filteredTracks.length > 0 && filteredTracks.every((t) => selected.has(t.soundcloudTrackId))
+
+  function toggleSelectAllFiltered() {
+    setSelected((prev) => {
+      const next = new Map(prev)
+      if (allFilteredSelected) {
+        filteredTracks.forEach((t) => next.delete(t.soundcloudTrackId))
+      } else {
+        filteredTracks.forEach((t) => next.set(t.soundcloudTrackId, t))
+      }
+      return next
+    })
+  }
+
   const showsFilterBox = tab === 'mine' || tab === 'liked' || (tab === 'playlists' && activePlaylist)
 
   function handleImportSelected() {
@@ -360,8 +374,21 @@ export default function ImportSoundCloudModal({
                       value={filterQuery}
                       onChange={(e) => setFilterQuery(e.target.value)}
                       placeholder="Filter by title or artist…"
-                      className="mb-4 w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+                      className="mb-2 w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
                     />
+                  )}
+
+                  {filteredTracks.length > 0 && (
+                    <div className="mb-4 flex justify-end">
+                      <button
+                        onClick={toggleSelectAllFiltered}
+                        className="text-sm text-hardwood-400 underline hover:text-hardwood-300"
+                      >
+                        {allFilteredSelected
+                          ? `Deselect all ${filteredTracks.length}`
+                          : `Select all ${filteredTracks.length}${filterQuery ? ' (filtered)' : ''}`}
+                      </button>
+                    </div>
                   )}
 
                   {loading && tracks.length === 0 ? (

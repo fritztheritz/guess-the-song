@@ -1,19 +1,36 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listGames, deleteGame, saveGame, exportAllGames, importGames } from '../lib/storage/game-repository'
+import { listTierLists, deleteTierList, saveTierList } from '../lib/storage/tierlist-repository'
 import { downloadBackupFile, parseBackupFile, BackupFileError } from '../lib/game-backup'
 import { duplicateGame, isLyricMode, type Game } from '../types'
+import { duplicateTierList, type TierList } from '../types/tierlist'
+import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import SoundCloudAttribution from '../components/SoundCloudAttribution'
 
 export default function Home() {
   const navigate = useNavigate()
+  const tierListsEnabled = useFeatureFlag('tier-lists')
   const [games, setGames] = useState<Game[]>([])
+  const [tierLists, setTierLists] = useState<TierList[]>([])
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
   const importFileInput = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
     setGames(listGames())
-  }, [])
+    if (tierListsEnabled) setTierLists(listTierLists())
+  }, [tierListsEnabled])
+
+  function handleDeleteTierList(id: string) {
+    if (!confirm('Delete this tier list? This cannot be undone.')) return
+    deleteTierList(id)
+    setTierLists(listTierLists())
+  }
+
+  function handleDuplicateTierList(list: TierList) {
+    const copy = saveTierList(duplicateTierList(list))
+    navigate(`/tierlists/${copy.id}/edit`)
+  }
 
   function handleDelete(id: string) {
     if (!confirm('Delete this game? This cannot be undone.')) return
@@ -66,12 +83,22 @@ export default function Home() {
           <h1 className="font-display text-6xl tracking-wide text-white">GUESS THE TRACK</h1>
           <p className="mt-2 text-slate-400">A music guessing game built from your SoundCloud library.</p>
 
-          <Link
-            to="/new"
-            className="mt-8 inline-block rounded-full bg-hardwood-500 px-10 py-3 text-lg font-semibold text-arena-950 shadow-lg shadow-hardwood-500/20 hover:bg-hardwood-400"
-          >
-            + CREATE GAME
-          </Link>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <Link
+              to="/new"
+              className="inline-block rounded-full bg-hardwood-500 px-10 py-3 text-lg font-semibold text-arena-950 shadow-lg shadow-hardwood-500/20 hover:bg-hardwood-400"
+            >
+              + CREATE GAME
+            </Link>
+            {tierListsEnabled && (
+              <Link
+                to="/tierlists/new"
+                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
+              >
+                + CREATE TIER LIST
+              </Link>
+            )}
+          </div>
         </div>
 
         {games.length > 0 && (
@@ -110,6 +137,59 @@ export default function Home() {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {tierListsEnabled && tierLists.length > 0 && (
+          <div className="mt-16">
+            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TIER LISTS</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {tierLists.map((list) => {
+                const ranked = list.songs.filter((s) => s.tierId !== null).length
+                return (
+                  <div key={list.id} className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-4">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs">🏆</span>
+                        <div className="font-semibold text-slate-100">{list.name}</div>
+                      </div>
+                      <div className="text-sm text-slate-500">
+                        {list.songs.length} song{list.songs.length === 1 ? '' : 's'} · {ranked} ranked · {list.tiers.length} tiers
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/tierlists/${list.id}/edit`}
+                        className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-200 hover:border-hardwood-500"
+                      >
+                        Edit
+                      </Link>
+                      <Link
+                        to={`/tierlists/${list.id}/present`}
+                        className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                      >
+                        Present
+                      </Link>
+                      <button
+                        onClick={() => handleDuplicateTierList(list)}
+                        className="rounded-lg px-2 text-slate-500 hover:text-slate-200"
+                        aria-label={`Duplicate ${list.name}`}
+                        title="Duplicate"
+                      >
+                        ⧉
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTierList(list.id)}
+                        className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
+                        aria-label="Delete tier list"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}

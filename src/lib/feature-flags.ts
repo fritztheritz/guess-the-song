@@ -13,7 +13,14 @@ export interface FeatureFlagDef {
   default: boolean
 }
 
-export const FEATURE_FLAGS: FeatureFlagDef[] = []
+export const FEATURE_FLAGS: FeatureFlagDef[] = [
+  {
+    key: 'tier-lists',
+    label: 'SoundCloud Tier Lists',
+    description: 'Build a tier list from SoundCloud tracks, then rank them live with drag-and-drop on a shared screen.',
+    default: false,
+  },
+]
 
 const STORAGE_KEY = 'gts.flags.v1'
 
