@@ -11,6 +11,7 @@ import ClipEditor from '../components/ClipEditor'
 import LyricEditor from '../components/LyricEditor'
 import TierListPickerModal from '../components/TierListPickerModal'
 import ImportFromTierListModal from '../components/ImportFromTierListModal'
+import AnswerKeyModal from '../components/AnswerKeyModal'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 
@@ -34,6 +35,7 @@ export default function GameBuilder() {
   const [bulkStartInput, setBulkStartInput] = useState('0:00')
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [shareStatus, setShareStatus] = useState<string | null>(null)
+  const [answerKeyOpen, setAnswerKeyOpen] = useState(false)
   const [tierListPickerOpen, setTierListPickerOpen] = useState(false)
   const [tierGuessImportOpen, setTierGuessImportOpen] = useState(false)
   const [pickedTierList, setPickedTierList] = useState<TierList | null>(null)
@@ -251,6 +253,13 @@ export default function GameBuilder() {
           />
         </div>
         <div className="flex items-center gap-2">
+          <button
+            disabled={game.rounds.length === 0}
+            onClick={() => setAnswerKeyOpen(true)}
+            className="rounded-full border border-arena-500 px-4 py-2 text-sm text-slate-300 disabled:opacity-30 hover:border-hardwood-500 hover:text-hardwood-400"
+          >
+            Answer Key
+          </button>
           <button
             onClick={handleShare}
             className="rounded-full border border-arena-500 px-4 py-2 text-sm text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
@@ -519,6 +528,8 @@ export default function GameBuilder() {
           onImport={handleImportTierGuessSongs}
         />
       )}
+
+      {answerKeyOpen && <AnswerKeyModal game={game} onClose={() => setAnswerKeyOpen(false)} />}
     </div>
   )
 }
