@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listGames, deleteGame, saveGame, exportAllGames, importGames } from '../lib/storage/game-repository'
 import { listTierLists, deleteTierList, saveTierList } from '../lib/storage/tierlist-repository'
@@ -18,6 +18,7 @@ export default function Home() {
   const [games, setGames] = useState<Game[]>([])
   const [tierLists, setTierLists] = useState<TierList[]>([])
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
+  const [activeTags, setActiveTags] = useState<string[]>([])
   const importFileInput = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -51,7 +52,27 @@ export default function Home() {
 
   // Tier Guess rides on the tier-lists flag — fully hidden when it's off, same as the tier
   // lists section below, rather than just blocking its Edit/Present links.
-  const visibleGames = tierListsEnabled ? games : games.filter((g) => !isTierGuessMode(g))
+  const modeVisibleGames = tierListsEnabled ? games : games.filter((g) => !isTierGuessMode(g))
+
+  // Shared tag vocabulary across both games and tier lists — one filter bar organizes both
+  // sections at once, since a tag like "Friday Night" is just as meaningful for either.
+  const allTags = useMemo(() => {
+    const set = new Set<string>()
+    modeVisibleGames.forEach((g) => (g.tags ?? []).forEach((t) => set.add(t)))
+    if (tierListsEnabled) tierLists.forEach((l) => (l.tags ?? []).forEach((t) => set.add(t)))
+    return Array.from(set).sort()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modeVisibleGames, tierLists, tierListsEnabled])
+
+  function toggleTag(tag: string) {
+    setActiveTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
+  }
+
+  // OR semantics: matches any selected tag, not all — the more forgiving default when
+  // someone's just narrowing down a long list rather than building a precise query.
+  const matchesActiveTags = (tags?: string[]) => activeTags.length === 0 || (tags ?? []).some((t) => activeTags.includes(t))
+  const visibleGames = modeVisibleGames.filter((g) => matchesActiveTags(g.tags))
+  const visibleTierLists = tierLists.filter((l) => matchesActiveTags(l.tags))
 
   function handleExportAll() {
     const all = exportAllGames()
@@ -113,9 +134,36 @@ export default function Home() {
           </div>
         </div>
 
-        {visibleGames.length > 0 && (
+        {allTags.length > 0 && (
+          <div className="mx-auto mt-12 flex max-w-2xl flex-wrap items-center justify-center gap-2">
+            <span className="text-xs uppercase tracking-widest text-slate-500">Tags</span>
+            {allTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => toggleTag(tag)}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  activeTags.includes(tag)
+                    ? 'bg-hardwood-500 text-arena-950'
+                    : 'border border-arena-600 text-slate-300 hover:border-hardwood-500'
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+            {activeTags.length > 0 && (
+              <button onClick={() => setActiveTags([])} className="text-xs text-slate-500 underline hover:text-slate-300">
+                Clear
+              </button>
+            )}
+          </div>
+        )}
+
+        {modeVisibleGames.length > 0 && (
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR GAMES</h2>
+            {visibleGames.length === 0 ? (
+              <p className="text-sm text-slate-500">No games match the selected tags.</p>
+            ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {visibleGames.map((game) => (
                 <div key={game.id} className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-4">
@@ -127,6 +175,15 @@ export default function Home() {
                     <div className="text-sm text-slate-500">
                       {game.rounds.length} possession{game.rounds.length === 1 ? '' : 's'} · {game.teams.map((t) => t.name).join(' vs ')}
                     </div>
+                    {game.tags && game.tags.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {game.tags.map((tag) => (
+                          <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-[10px] text-slate-400">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Link to={`/games/${game.id}/edit`} className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-200 hover:border-hardwood-500">
@@ -150,14 +207,18 @@ export default function Home() {
                 </div>
               ))}
             </div>
+            )}
           </div>
         )}
 
         {tierListsEnabled && tierLists.length > 0 && (
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TIER LISTS</h2>
+            {visibleTierLists.length === 0 ? (
+              <p className="text-sm text-slate-500">No tier lists match the selected tags.</p>
+            ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {tierLists.map((list) => {
+              {visibleTierLists.map((list) => {
                 const ranked = list.songs.filter((s) => s.tierId !== null).length
                 return (
                   <div key={list.id} className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-4">
@@ -169,6 +230,15 @@ export default function Home() {
                       <div className="text-sm text-slate-500">
                         {list.songs.length} song{list.songs.length === 1 ? '' : 's'} · {ranked} ranked · {list.tiers.length} tiers
                       </div>
+                      {list.tags && list.tags.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {list.tags.map((tag) => (
+                            <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-[10px] text-slate-400">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Link
@@ -203,6 +273,7 @@ export default function Home() {
                 )
               })}
             </div>
+            )}
           </div>
         )}
 

@@ -1,15 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { createTierDef, MAX_TIERS, MIN_TIERS, type TierList, type TierListSong } from '../types/tierlist'
-import { getTierList, saveTierList } from '../lib/storage/tierlist-repository'
+import { getTierList, listTierLists, saveTierList } from '../lib/storage/tierlist-repository'
 import { generatePlaceholderArtwork } from '../lib/placeholder-artwork'
 import ImportSoundCloudModal from '../components/ImportSoundCloudModal'
+import TagInput from '../components/TagInput'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 
 export default function TierListBuilder() {
   const { tierListId } = useParams()
   const [list, setList] = useState<TierList | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const tagSuggestions = useMemo(() => Array.from(new Set(listTierLists().flatMap((l) => l.tags ?? []))).sort(), [])
 
   useEffect(() => {
     if (!tierListId) return
@@ -70,6 +72,11 @@ export default function TierListBuilder() {
     })
   }
 
+  function updateTags(tags: string[]) {
+    if (!list) return
+    persist({ ...list, tags })
+  }
+
   if (!list) {
     return (
       <div className="flex min-h-svh items-center justify-center text-slate-400">
@@ -93,6 +100,9 @@ export default function TierListBuilder() {
               onChange={(e) => persist({ ...list, name: e.target.value })}
               className="mt-1 w-full bg-transparent font-display text-3xl tracking-wide text-white outline-none"
             />
+            <div className="mt-2 max-w-sm">
+              <TagInput tags={list.tags ?? []} onChange={updateTags} suggestions={tagSuggestions} listId="tierlist-tag-suggestions" />
+            </div>
           </div>
           <Link
             to={`/tierlists/${list.id}/present`}

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Game, SongRound } from '../types'
 import { createEmptyLyricRound, createEmptyRound, createTeam, createTierGuessRound, isLyricMode, isTierGuessMode, teamColorForIndex } from '../types'
 import type { TierList, TierListSong } from '../types/tierlist'
-import { getGame, saveGame } from '../lib/storage/game-repository'
+import { getGame, listGames, saveGame } from '../lib/storage/game-repository'
 import { getTierList, listTierLists } from '../lib/storage/tierlist-repository'
 import { buildShareUrl } from '../lib/game-share'
 import ImportSoundCloudModal from '../components/ImportSoundCloudModal'
@@ -12,6 +12,7 @@ import LyricEditor from '../components/LyricEditor'
 import TierListPickerModal from '../components/TierListPickerModal'
 import ImportFromTierListModal from '../components/ImportFromTierListModal'
 import AnswerKeyModal from '../components/AnswerKeyModal'
+import TagInput from '../components/TagInput'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import { useConfirm } from '../state/ConfirmContext'
@@ -45,6 +46,9 @@ export default function GameBuilder() {
   const [pickedTierList, setPickedTierList] = useState<TierList | null>(null)
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
+  // Computed once at mount, not kept live — it only feeds the tag autocomplete, so it's fine
+  // if a tag added to another game mid-session doesn't show up here until next visit.
+  const tagSuggestions = useMemo(() => Array.from(new Set(listGames().flatMap((g) => g.tags ?? []))).sort(), [])
   const localFileInput = useRef<HTMLInputElement | null>(null)
   const tierListsEnabled = useFeatureFlag('tier-lists')
 
@@ -241,6 +245,11 @@ export default function GameBuilder() {
   function removeTeam(id: string) {
     if (!game || game.teams.length <= MIN_TEAMS) return
     persist({ ...game, teams: game.teams.filter((t) => t.id !== id) })
+  }
+
+  function updateTags(tags: string[]) {
+    if (!game) return
+    persist({ ...game, tags })
   }
 
   if (!game) {
@@ -447,6 +456,11 @@ export default function GameBuilder() {
                 + Add Team
               </button>
             )}
+          </div>
+
+          <div className="mt-6 border-t border-arena-700 pt-3">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Tags</div>
+            <TagInput tags={game.tags ?? []} onChange={updateTags} suggestions={tagSuggestions} listId="game-tag-suggestions" />
           </div>
         </aside>
 

@@ -35,6 +35,9 @@ export interface TierList {
   songs: TierListSong[]
   createdAt: string
   updatedAt: string
+  /** Free-form, host-assigned labels for organizing the Home page once there are lots of
+   *  tier lists. Absent/empty on every tier list predating this. */
+  tags?: string[]
 }
 
 export const MIN_TIERS = 2
@@ -69,5 +72,6 @@ export function duplicateTierList(list: TierList): TierList {
     songs: list.songs.map((s) => ({ ...s, id: crypto.randomUUID(), tierId: s.tierId ? (tierIdMap.get(s.tierId) ?? null) : null })),
     createdAt: now,
     updatedAt: now,
+    tags: list.tags,
   }
 }

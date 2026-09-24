@@ -97,6 +97,9 @@ export interface Game {
    *  only (e.g. so the builder knows which list "+ Add More Songs" should pull from) —
    *  never read live for round data, same as every other import in this app. */
   sourceTierListId?: string
+  /** Free-form, host-assigned labels for organizing the Home page once there are lots of
+   *  games — e.g. "Friday Night", "90s Hip-Hop". Absent/empty on every game predating this. */
+  tags?: string[]
 }
 
 /** Every existing stored game predates `mode` — this is the one place that should ever default it. */
@@ -190,5 +193,6 @@ export function duplicateGame(game: Game): Game {
     mode: game.mode,
     tierListTiers: game.tierListTiers,
     sourceTierListId: game.sourceTierListId,
+    tags: game.tags,
   }
 }
