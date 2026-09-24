@@ -13,6 +13,7 @@ export default function ImportFromTierListModal({
   onImport: (songs: TierListSong[]) => void
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [randomCount, setRandomCount] = useState('')
 
   // Grouped by tier, ranked songs only — an unranked song has no tier/position to guess.
   const groups = useMemo(() => {
@@ -42,6 +43,17 @@ export default function ImportFromTierListModal({
     setSelected(allSelected ? new Set() : new Set(allAvailable.map((s) => s.id)))
   }
 
+  function pickRandom() {
+    const n = Math.max(0, Math.min(allAvailable.length, Math.floor(Number(randomCount) || 0)))
+    if (n === 0) return
+    const shuffled = [...allAvailable]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    setSelected(new Set(shuffled.slice(0, n).map((s) => s.id)))
+  }
+
   function handleImport() {
     onImport(allAvailable.filter((s) => selected.has(s.id)))
     onClose()
@@ -67,7 +79,26 @@ export default function ImportFromTierListModal({
             </div>
           ) : (
             <>
-              <div className="mb-3 flex justify-end">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-sm text-slate-400">
+                  <span>Randomly pick</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={allAvailable.length}
+                    value={randomCount}
+                    onChange={(e) => setRandomCount(e.target.value)}
+                    placeholder="e.g. 10"
+                    className="w-20 rounded-md border border-arena-600 bg-arena-800 px-2 py-1 text-center text-slate-100 outline-none focus:border-hardwood-500"
+                  />
+                  <button
+                    onClick={pickRandom}
+                    disabled={!randomCount || Number(randomCount) < 1}
+                    className="rounded-md border border-arena-500 px-3 py-1 text-xs text-slate-300 hover:border-hardwood-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Pick
+                  </button>
+                </div>
                 <button onClick={toggleAll} className="text-sm text-hardwood-400 underline hover:text-hardwood-300">
                   {allSelected ? `Deselect all ${allAvailable.length}` : `Select all ${allAvailable.length}`}
                 </button>
