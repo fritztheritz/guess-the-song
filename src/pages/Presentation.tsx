@@ -29,9 +29,11 @@ export default function Presentation() {
   const [lastAward, setLastAward] = useState<{ teamId: string; points: number } | null>(null)
   const [tierCredits, setTierCredits] = useState<Set<string>>(new Set())
   const [positionCredits, setPositionCredits] = useState<Set<string>>(new Set())
-  // tierguess only: splits the reveal into two slides — tier first, then position —
-  // instead of dumping both answers on screen at once.
-  const [tierGuessStage, setTierGuessStage] = useState<'tier' | 'position'>('tier')
+  // tierguess only: splits the reveal into three slides instead of dumping both answers on
+  // screen at once — tier revealed+scored, then a "guessPosition" beat (tier is now known,
+  // so players get a moment to actually guess where within it before that's revealed too),
+  // then position revealed+scored.
+  const [tierGuessStage, setTierGuessStage] = useState<'tier' | 'guessPosition' | 'position'>('tier')
   const [showHelp, setShowHelp] = useState(false)
 
   const audioSourceRef = useRef<AudioSource | null>(null)
@@ -174,10 +176,14 @@ export default function Presentation() {
     setGame(saved)
   }
 
-  // tierguess only: the "next" action on the reveal screen advances tier -> position slide
-  // before it actually advances to the next possession.
+  // tierguess only: the "next" action on the reveal screen steps tier -> guessPosition ->
+  // position before it actually advances to the next possession.
   function tierGuessAdvance() {
     if (tierGuessStage === 'tier') {
+      setTierGuessStage('guessPosition')
+      return
+    }
+    if (tierGuessStage === 'guessPosition') {
       setTierGuessStage('position')
       return
     }
@@ -451,7 +457,7 @@ export default function Presentation() {
             ) : isTierGuess ? (
               <>
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Guess the ranking</div>
-                <div className="font-display text-3xl tracking-wide text-white">WHERE DID WE RANK THIS?</div>
+                <div className="font-display text-3xl tracking-wide text-white">WHAT TIER IS IT IN?</div>
 
                 <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
                   {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
@@ -505,7 +511,7 @@ export default function Presentation() {
                 </button>
               )}
               <button onClick={reveal} className="rounded-full bg-scoreboard-500 px-5 py-2 text-sm font-semibold text-white hover:bg-scoreboard-500/80">
-                REVEAL ANSWER
+                {isTierGuess ? 'REVEAL TIER' : 'REVEAL ANSWER'}
               </button>
             </div>
           </div>
@@ -516,8 +522,14 @@ export default function Presentation() {
 
       {phase === 'revealed' && round && (
         <div className="relative flex flex-1 flex-col items-center justify-center gap-5 px-6 py-8 text-center">
-          <div className="pointer-events-none absolute inset-0 bg-hardwood-500/20 animate-buzzer-flash" />
-          <div className="relative z-10 font-display text-4xl tracking-widest text-scoreboard-500">BUZZER BEATER</div>
+          {/* guessPosition is a thinking beat, not a reveal moment — tier is already known and
+              nothing new has been shown yet, so the flash/banner would be misleading here. */}
+          {!(isTierGuess && tierGuessStage === 'guessPosition') && (
+            <>
+              <div className="pointer-events-none absolute inset-0 bg-hardwood-500/20 animate-buzzer-flash" />
+              <div className="relative z-10 font-display text-4xl tracking-widest text-scoreboard-500">BUZZER BEATER</div>
+            </>
+          )}
 
           {isLyric ? (
             <div className="relative z-10 max-w-xl">
@@ -574,6 +586,24 @@ export default function Presentation() {
                     </div>
                   )
                 }
+                if (tierGuessStage === 'guessPosition') {
+                  return (
+                    <div className="relative z-10 space-y-3">
+                      <span
+                        className="inline-block rounded-full px-3 py-1 font-display text-sm text-arena-950"
+                        style={{ background: tier?.color ?? '#888' }}
+                      >
+                        {tier?.name ?? 'Unranked'}
+                      </span>
+                      <div className="font-display text-3xl tracking-wide text-white">WHAT POSITION IS IT IN?</div>
+                      {round.tierSize !== undefined && (
+                        <div className="text-sm text-slate-400">
+                          {round.tierSize} song{round.tierSize === 1 ? '' : 's'} in {tier?.name ?? 'this tier'}
+                        </div>
+                      )}
+                    </div>
+                  )
+                }
                 return (
                   <div className="relative z-10 space-y-1.5">
                     <div className="flex items-center justify-center gap-2">
@@ -622,51 +652,53 @@ export default function Presentation() {
           )}
 
           {isTierGuess ? (
-            <div className="relative z-10 w-full max-w-lg space-y-3">
-              {tierGuessStage === 'tier' ? (
-                <div>
-                  <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
-                    Got the tier right? (+{TIER_GUESS_TIER_POINTS})
+            tierGuessStage === 'guessPosition' ? null : (
+              <div className="relative z-10 w-full max-w-lg space-y-3">
+                {tierGuessStage === 'tier' ? (
+                  <div>
+                    <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
+                      Got the tier right? (+{TIER_GUESS_TIER_POINTS})
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {game.teams.map((team) => (
+                        <button
+                          key={team.id}
+                          onClick={() => toggleTierCredit(team)}
+                          className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
+                            tierCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
+                          }`}
+                          style={{ color: team.color }}
+                        >
+                          {tierCredits.has(team.id) ? '✓ ' : ''}
+                          {team.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {game.teams.map((team) => (
-                      <button
-                        key={team.id}
-                        onClick={() => toggleTierCredit(team)}
-                        className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
-                          tierCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
-                        }`}
-                        style={{ color: team.color }}
-                      >
-                        {tierCredits.has(team.id) ? '✓ ' : ''}
-                        {team.name}
-                      </button>
-                    ))}
+                ) : (
+                  <div>
+                    <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
+                      Closest to position? (+{TIER_GUESS_POSITION_POINTS})
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {game.teams.map((team) => (
+                        <button
+                          key={team.id}
+                          onClick={() => togglePositionCredit(team)}
+                          className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
+                            positionCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
+                          }`}
+                          style={{ color: team.color }}
+                        >
+                          {positionCredits.has(team.id) ? '✓ ' : ''}
+                          {team.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div>
-                  <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
-                    Closest on position? (+{TIER_GUESS_POSITION_POINTS})
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {game.teams.map((team) => (
-                      <button
-                        key={team.id}
-                        onClick={() => togglePositionCredit(team)}
-                        className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
-                          positionCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
-                        }`}
-                        style={{ color: team.color }}
-                      >
-                        {positionCredits.has(team.id) ? '✓ ' : ''}
-                        {team.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )
           ) : lastAward ? (
             <div className="relative z-10 space-y-1">
               <div className="font-display text-5xl text-scoreboard-green">+{lastAward.points}</div>
@@ -700,10 +732,12 @@ export default function Presentation() {
             className="relative z-10 mt-2 rounded-full bg-hardwood-500 px-8 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400"
           >
             {isTierGuess && tierGuessStage === 'tier'
-              ? 'NEXT: POSITION →'
-              : possessionIndex >= game.rounds.length - 1
-                ? 'FINAL SCORE →'
-                : 'NEXT POSSESSION →'}
+              ? 'NEXT: GUESS POSITION →'
+              : isTierGuess && tierGuessStage === 'guessPosition'
+                ? 'REVEAL POSITION →'
+                : possessionIndex >= game.rounds.length - 1
+                  ? 'FINAL SCORE →'
+                  : 'NEXT POSSESSION →'}
           </button>
         </div>
       )}
