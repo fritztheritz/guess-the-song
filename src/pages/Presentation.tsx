@@ -163,6 +163,17 @@ export default function Presentation() {
   }
 
   function exitPresentation() {
+    // Once the game has reached its final screen, every answer this playthrough has
+    // already been shown on screen — no confirmation needed, and the editor is a fine
+    // place to land. Before that, exiting is confirmed, and lands on Home rather than the
+    // editor: the editor lists every round's title/artist/answer up front, which would
+    // hand anyone still watching the remaining answers for the rest of the game.
+    if (phase !== 'final') {
+      if (!confirm("Exit presentation now? Make sure everyone's done watching — the game isn't finished yet.")) return
+      audioSourceRef.current?.stop()
+      navigate('/')
+      return
+    }
     audioSourceRef.current?.stop()
     navigate(`/games/${gameId}/edit`)
   }
