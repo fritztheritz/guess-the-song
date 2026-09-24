@@ -4,6 +4,7 @@ import { HashRouter } from 'react-router-dom'
 import './index.css'
 import App from './App.tsx'
 import { SoundCloudProvider } from './state/SoundCloudContext.tsx'
+import { FeatureFlagsProvider } from './state/FeatureFlagsContext.tsx'
 
 // HashRouter avoids the GitHub Pages "no server-side rewrite" problem entirely —
 // every route lives under the same static index.html, no 404.html fallback trick needed.
@@ -20,9 +21,11 @@ if (window.location.search.includes('code=') || window.location.search.includes(
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <HashRouter>
-      <SoundCloudProvider>
-        <App />
-      </SoundCloudProvider>
+      <FeatureFlagsProvider>
+        <SoundCloudProvider>
+          <App />
+        </SoundCloudProvider>
+      </FeatureFlagsProvider>
     </HashRouter>
   </StrictMode>,
 )

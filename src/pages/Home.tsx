@@ -130,8 +130,11 @@ export default function Home() {
           {backupStatus && <p className="mt-2 text-xs text-slate-400">{backupStatus}</p>}
         </div>
 
-        <div className="mt-8 flex justify-center">
+        <div className="mt-8 flex flex-col items-center gap-2">
           <SoundCloudAttribution />
+          <Link to="/admin" className="text-xs text-slate-600 hover:text-slate-400">
+            Feature flags
+          </Link>
         </div>
       </div>
     </div>
