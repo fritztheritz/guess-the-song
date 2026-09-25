@@ -17,7 +17,7 @@ import Scoreboard from '../components/Scoreboard'
 import BuzzerPanel from '../components/BuzzerPanel'
 import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
 import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
-import type { BuzzState, BuzzerPlayer, BuzzerWinner } from '../lib/buzzer/protocol'
+import type { BuzzState, BuzzerPlayer, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
 
 type Phase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final'
 
@@ -197,6 +197,39 @@ export default function HostController({ gameId }: { gameId: string }) {
     buzzerSocketRef.current.sendAndRemember(phase === 'clue' ? { type: 'open' } : { type: 'close' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, buzzerConnected])
+
+  // Phone-only mode: pushes a phone-safe summary of what's on screen (never the answer
+  // before it's actually revealed) down to every connected player, so a group can follow
+  // the game entirely off their phones with no shared screen. Keyed on a score-inclusive
+  // team key (unlike teamsKey above) since players should see live scores, not just names.
+  const teamsWithScoreKey = game?.teams.map((t) => `${t.id}:${t.name}:${t.color}:${t.score}`).join('|') ?? ''
+  useEffect(() => {
+    if (!buzzerSocketRef.current || !game) return
+    const clueText = isLyric && phase === 'clue' ? (round?.lyricPrompt ?? null) : null
+    const revealed: PhoneRoundState['revealed'] =
+      phase === 'revealed' && round
+        ? {
+            title: round.title,
+            artist: round.artist,
+            artworkUrl: round.artworkUrl,
+            lyricAnswer: isLyric ? round.lyricAnswer : undefined,
+          }
+        : null
+    buzzerSocketRef.current.sendAndRemember({
+      type: 'sync-round',
+      state: {
+        gameName: game.name,
+        possessionIndex,
+        totalPossessions: game.rounds.length,
+        phase,
+        mode: game.mode ?? 'song',
+        clueText,
+        revealed,
+        teams: game.teams.map((t) => ({ id: t.id, name: t.name, color: t.color, score: t.score })),
+      },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, possessionIndex, round?.id, teamsWithScoreKey, buzzerConnected])
 
   useEffect(() => {
     audioSourceRef.current?.stop()

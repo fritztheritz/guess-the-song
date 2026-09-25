@@ -16,6 +16,10 @@ export class BuzzerRoom {
     this.env = env
     this.hostSocket = null
     this.teams = []
+    /** Every connected player socket, joined or not — broadcasts (teams/state/round) go to
+     *  all of them, since a phone still on the name/team picker should still see live game
+     *  info. `players` below is the smaller, joined-only subset with name/team identity. */
+    this.playerSockets = new Set()
     /** @type {Map<WebSocket, {connId: string, name: string, teamId: string}>} */
     this.players = new Map()
     this.buzzState = 'closed' // 'closed' | 'open' | 'locked'
@@ -32,6 +36,9 @@ export class BuzzerRoom {
      *  ice would cover every team, it clears instead, so the race opens back up rather
      *  than staying locked until the next possession. */
     this.iced = new Set()
+    /** Latest phone-safe round summary (see PhoneRoundState in protocol.ts) — relayed to
+     *  players as-is; the Worker never inspects its contents, just carries it. */
+    this.roundState = null
   }
 
   async fetch(request) {
@@ -74,8 +81,10 @@ export class BuzzerRoom {
   }
 
   attachPlayer(socket) {
+    this.playerSockets.add(socket)
     this.send(socket, { type: 'teams', teams: this.teams })
     this.send(socket, this.stateMessage())
+    if (this.roundState) this.send(socket, { type: 'round', state: this.roundState })
 
     socket.addEventListener('message', (event) => this.onPlayerMessage(socket, event))
     socket.addEventListener('close', () => this.removePlayer(socket))
@@ -92,6 +101,9 @@ export class BuzzerRoom {
     if (msg.type === 'sync-teams' && Array.isArray(msg.teams)) {
       this.teams = msg.teams
       this.broadcastToPlayers({ type: 'teams', teams: this.teams })
+    } else if (msg.type === 'sync-round' && msg.state) {
+      this.roundState = msg.state
+      this.broadcastToPlayers({ type: 'round', state: this.roundState })
     } else if (msg.type === 'open') {
       this.buzzState = 'open'
       this.winner = null
@@ -153,6 +165,7 @@ export class BuzzerRoom {
   }
 
   removePlayer(socket) {
+    this.playerSockets.delete(socket)
     if (this.players.delete(socket)) {
       this.broadcastToHost({ type: 'roster', players: this.rosterList() })
     }
@@ -175,7 +188,7 @@ export class BuzzerRoom {
   }
 
   broadcastToPlayers(msg) {
-    for (const socket of this.players.keys()) this.send(socket, msg)
+    for (const socket of this.playerSockets) this.send(socket, msg)
   }
 
   broadcastAll(msg) {

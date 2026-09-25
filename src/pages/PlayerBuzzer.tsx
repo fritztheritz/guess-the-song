@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
-import type { BuzzState, BuzzerTeam, BuzzerWinner } from '../lib/buzzer/protocol'
+import type { BuzzState, BuzzerTeam, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
+
+const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
+  song: '🎧 Listen up!',
+  year: '🎧 Listen up — when’s this from?',
+  tierguess: '🎯 Guess the ranking!',
+  lyric: '📝 Finish the lyric',
+}
 
 function storageKey(code: string) {
   return `gts.buzzer.player.${code.toUpperCase()}`
@@ -47,6 +54,7 @@ export default function PlayerBuzzer() {
   const [winner, setWinner] = useState<BuzzerWinner | null>(null)
   const [iced, setIced] = useState<string[]>([])
   const [myConnId, setMyConnId] = useState<string | null>(null)
+  const [roundState, setRoundState] = useState<PhoneRoundState | null>(null)
   const socketRef = useRef<BuzzerSocket | null>(null)
 
   const activeCode = params.code?.toUpperCase() ?? null
@@ -71,6 +79,8 @@ export default function PlayerBuzzer() {
       } else if (msg.type === 'joined') {
         setMyConnId(msg.connId)
         setConnected(true)
+      } else if (msg.type === 'round') {
+        setRoundState(msg.state)
       }
     })
     socket.connect()
@@ -128,7 +138,53 @@ export default function PlayerBuzzer() {
 
   return (
     <div className="flex min-h-svh flex-col items-center justify-center court-lines px-6 py-10 text-center">
-      <div className="mb-6 text-xs uppercase tracking-widest text-slate-500">Room {activeCode}</div>
+      <div className="mb-4 text-xs uppercase tracking-widest text-slate-500">Room {activeCode}</div>
+
+      {/* Phone-only mode: a phone-safe mirror of what the host has on screen, so the room
+          can play with no shared TV/laptop at all — visible even before joining/buzzing. */}
+      {roundState && (
+        <div className="mb-3 w-full max-w-xs rounded-xl border border-arena-700 bg-arena-800/60 p-3 text-left">
+          <div className="mb-1 text-[11px] uppercase tracking-widest text-slate-500">
+            {roundState.gameName}
+            {roundState.phase === 'clue' || roundState.phase === 'revealed' ? (
+              <> · Round {roundState.possessionIndex + 1}/{roundState.totalPossessions}</>
+            ) : null}
+          </div>
+          {roundState.phase === 'clue' && (
+            <div className="text-sm text-hardwood-300">
+              {roundState.clueText ? `“${roundState.clueText}”` : MODE_CLUE_LABEL[roundState.mode]}
+            </div>
+          )}
+          {roundState.phase === 'revealed' && roundState.revealed && (
+            <div>
+              <div className="font-semibold text-white">{roundState.revealed.title}</div>
+              <div className="text-sm text-slate-400">{roundState.revealed.artist}</div>
+              {roundState.revealed.lyricAnswer && (
+                <div className="mt-1 text-sm italic text-hardwood-300">“{roundState.revealed.lyricAnswer}”</div>
+              )}
+            </div>
+          )}
+          {(roundState.phase === 'intro' || roundState.phase === 'resume') && (
+            <div className="text-sm text-slate-400">Get ready…</div>
+          )}
+          {roundState.phase === 'final' && (
+            <div className="text-sm text-slate-300">
+              🏆 {[...roundState.teams].sort((a, b) => b.score - a.score)[0]?.name ?? '—'} wins!
+            </div>
+          )}
+        </div>
+      )}
+      {roundState && roundState.teams.length > 0 && (
+        <div className="mb-6 flex w-full max-w-xs flex-wrap justify-center gap-1.5">
+          {[...roundState.teams]
+            .sort((a, b) => b.score - a.score)
+            .map((t) => (
+              <span key={t.id} className="rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: `${t.color}22`, color: t.color }}>
+                {t.name} {t.score}
+              </span>
+            ))}
+        </div>
+      )}
 
       {!connected && !identity ? (
         <div className="w-full max-w-xs">
