@@ -20,7 +20,20 @@ export abstract class BaseAudioSource implements AudioSource {
     this.audio = audio
 
     return new Promise((resolve, reject) => {
+      let started = false
+      let watchdog: ReturnType<typeof setTimeout> | null = null
+
+      // Two earlier attempts at this same bug both gated playback on some seek-related event
+      // (canplay, seeked, durationchange) that turned out not to fire reliably for every
+      // browser/track combination — leaving playback hung forever with no sound and no
+      // error. Rather than chase the exact event sequence a third time, a watchdog guarantees
+      // we start SOMETHING audible within 1.5s no matter which event never shows up: correct
+      // position if the seek did land in time, current position otherwise. Silence is worse
+      // than an occasionally-late seek.
       const startPlayback = () => {
+        if (started) return
+        started = true
+        if (watchdog) clearTimeout(watchdog)
         audio.play().catch(reject)
         this.stopTimer = setTimeout(() => {
           this.stop()
@@ -28,14 +41,17 @@ export abstract class BaseAudioSource implements AudioSource {
         }, duration * 1000)
       }
 
+      watchdog = setTimeout(startPlayback, 1500)
+
       const seekTo = (time: number) => {
         // Chrome/Firefox report duration (and therefore the seekable range) as Infinity for
         // a freshly-loaded blob: MP3 — our clips are always fetched into a blob first (see
         // soundcloud-playback.ts) rather than streamed — until a seek has touched the real
         // end of the file once. Before that, setting currentTime to anything is a silent
-        // no-op: no 'seeked' event ever fires, so the clip just plays nothing forever. The
-        // standard workaround is to seek near the end once, wait for the browser to resolve
-        // the real duration (surfaced as a 'durationchange'/'timeupdate'), then seek again.
+        // no-op: no 'seeked' event ever fires. The standard workaround is to seek near the
+        // end once, wait for the browser to resolve the real duration, then seek again — but
+        // the watchdog above is what actually guarantees we don't hang if even this doesn't
+        // pan out for a given track/browser.
         if (audio.duration === Infinity || Number.isNaN(audio.duration)) {
           const onFixed = () => {
             audio.removeEventListener('timeupdate', onFixed)
@@ -57,15 +73,13 @@ export abstract class BaseAudioSource implements AudioSource {
           startPlayback()
           return
         }
-        // Setting currentTime kicks off an async seek; calling play() before it resolves
-        // raced the seek and either silently played from wherever the seek hadn't reached
-        // yet, or didn't play at all — this was the original bug for a non-zero start time.
         seekTo(startTime)
       }
       audio.addEventListener('canplay', onCanPlay, { once: true })
       audio.addEventListener(
         'error',
         () => {
+          if (watchdog) clearTimeout(watchdog)
           const code = audio.error?.code
           const detail = code ? ` (media error code ${code})` : ''
           reject(new Error(`Playback failed for this clip${detail}.`))
