@@ -22,4 +22,8 @@ class_name = "BuzzerRoom"
 
 [[migrations]]
 tag = "v1"
-new_classes = ["BuzzerRoom"]
+# Free-plan accounts require Durable Objects to be SQLite-backed (new_sqlite_classes)
+# even though BuzzerRoom never touches ctx.storage — its state is deliberately plain
+# in-memory fields (see the comment in buzzer-room.js), this is just what Cloudflare
+# requires to provision the class at all on this plan.
+new_sqlite_classes = ["BuzzerRoom"]
