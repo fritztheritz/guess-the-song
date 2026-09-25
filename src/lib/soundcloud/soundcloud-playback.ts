@@ -1,4 +1,5 @@
 import { scFetch, scFetchJson, SoundCloudApiError } from './soundcloud-api'
+import type { SoundCloudAccess } from '../../types'
 
 export class TrackNotPlayableError extends SoundCloudApiError {}
 
@@ -25,18 +26,10 @@ interface StreamsResponse {
 const streamCache = new Map<string, { url: string; cachedAt: number }>()
 const CACHE_TTL_MS = 4 * 60 * 1000
 
-/** Resolves the authorized, playable stream URL for a track. Throws TrackNotPlayableError if blocked. */
-export async function getTrackPlayback(trackId: string, secretToken?: string): Promise<string> {
-  const cached = streamCache.get(trackId)
-  if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
-    return cached.url
-  }
-
+async function fetchStreams(trackId: string, secretToken?: string): Promise<StreamsResponse> {
   const query = secretToken ? `?secret_token=${encodeURIComponent(secretToken)}` : ''
-
-  let streams: StreamsResponse
   try {
-    streams = await scFetchJson<StreamsResponse>(`/tracks/${trackId}/streams${query}`)
+    return await scFetchJson<StreamsResponse>(`/tracks/${trackId}/streams${query}`)
   } catch (err) {
     if (err instanceof SoundCloudApiError && (err.status === 403 || err.status === 404)) {
       throw new TrackNotPlayableError(
@@ -45,6 +38,32 @@ export async function getTrackPlayback(trackId: string, secretToken?: string): P
     }
     throw err
   }
+}
+
+// The track resource's own `access` field (imported alongside title/artist) reflects
+// general listenability on SoundCloud, not whether OUR app's API credentials get handed a
+// full progressive stream or just a ~30s preview — private/secret-token tracks in
+// particular often report 'playable' there while /streams only ever offers the preview
+// field. This is the only way to know for sure which one a track will actually get.
+export async function checkStreamAccess(trackId: string, secretToken?: string): Promise<SoundCloudAccess> {
+  try {
+    const streams = await fetchStreams(trackId, secretToken)
+    if (streams.http_mp3_128_url) return 'playable'
+    if (streams.preview_mp3_128_url) return 'preview'
+    return 'blocked'
+  } catch {
+    return 'blocked'
+  }
+}
+
+/** Resolves the authorized, playable stream URL for a track. Throws TrackNotPlayableError if blocked. */
+export async function getTrackPlayback(trackId: string, secretToken?: string): Promise<string> {
+  const cached = streamCache.get(trackId)
+  if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+    return cached.url
+  }
+
+  const streams = await fetchStreams(trackId, secretToken)
 
   // Prefer a full progressive stream; fall back to the preview snippet — plenty for a
   // 2-10s clue. HLS-only tracks (no progressive/preview url at all) aren't supported yet.

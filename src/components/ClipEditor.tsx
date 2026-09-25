@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { SongRound } from '../types'
 import { createAudioSource } from '../lib/audio'
+import { checkStreamAccess } from '../lib/soundcloud/soundcloud-playback'
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -25,6 +26,25 @@ export default function ClipEditor({ round, onChange }: { round: SongRound; onCh
   const duration = isPreviewOnly ? Math.min(fullDuration, PREVIEW_CAP_SECONDS) : fullDuration
   const longestClueEnd = round.clipStart + Math.max(0, ...round.clipDurations)
   const runsPastPreview = isPreviewOnly && longestClueEnd > PREVIEW_CAP_SECONDS
+
+  // The track's `access` field (set at import time from its own metadata) reflects general
+  // listenability, not whether this app's API credentials actually get a full stream —
+  // private/secret-token tracks especially often report 'playable' there while only ever
+  // handing back a 30s preview. Re-check against the real stream response once per round
+  // (skipped once we already know it's 'preview'/'blocked') and persist the correction, so
+  // the cap above reflects reality instead of stale/optimistic import-time metadata.
+  useEffect(() => {
+    if (round.source !== 'soundcloud' || !round.soundcloudTrackId) return
+    if (round.access === 'preview' || round.access === 'blocked') return
+    let active = true
+    checkStreamAccess(round.soundcloudTrackId, round.soundcloudSecretToken).then((access) => {
+      if (active && access !== round.access) onChange({ ...round, access })
+    })
+    return () => {
+      active = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [round.id])
 
   async function preview(index: number) {
     setPlayingIndex(index)
