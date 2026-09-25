@@ -1,8 +1,8 @@
 import type { TierDef, TierListSong } from './tierlist'
 
-// 'lyric' is additive — existing stored games never have this value, so every
+// 'lyric'/'spotify' are additive — existing stored games never have these values, so every
 // `source === 'soundcloud' | 'local'` check elsewhere keeps working unchanged.
-export type TrackSource = 'soundcloud' | 'local' | 'lyric'
+export type TrackSource = 'soundcloud' | 'local' | 'lyric' | 'spotify'
 
 export type SoundCloudAccess = 'playable' | 'preview' | 'blocked'
 
@@ -26,6 +26,12 @@ export interface SongRound {
   soundcloudUrl?: string
   /** Needed to resolve playback for tracks shared via a private link (not owned by the connected user). */
   soundcloudSecretToken?: string
+
+  /** source: "spotify" only. spotifyUri (e.g. "spotify:track:...") is what actually gets
+   *  played via the Web Playback SDK; spotifyTrackId/spotifyUrl are for display/linking. */
+  spotifyTrackId?: string
+  spotifyUri?: string
+  spotifyUrl?: string
 
   /** Only set for source: "local" (dev/testing fallback). Never persisted to a shared backend. */
   localAudioUrl?: string

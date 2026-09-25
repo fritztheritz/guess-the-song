@@ -16,6 +16,7 @@ import { getGame, listGames, saveGame } from '../lib/storage/game-repository'
 import { getTierList, listTierLists } from '../lib/storage/tierlist-repository'
 import { buildShareUrl } from '../lib/game-share'
 import ImportSoundCloudModal from '../components/ImportSoundCloudModal'
+import ImportSpotifyModal from '../components/ImportSpotifyModal'
 import ClipEditor from '../components/ClipEditor'
 import LyricEditor from '../components/LyricEditor'
 import TierListPickerModal from '../components/TierListPickerModal'
@@ -23,6 +24,8 @@ import ImportFromTierListModal from '../components/ImportFromTierListModal'
 import AnswerKeyModal from '../components/AnswerKeyModal'
 import TagInput from '../components/TagInput'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
+import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
+import { isSpotifyConfigured } from '../lib/spotify/config'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import { useConfirm } from '../state/ConfirmContext'
 import { useToast } from '../state/ToastContext'
@@ -51,6 +54,8 @@ export default function GameBuilder() {
   const [game, setGame] = useState<Game | null>(null)
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null)
   const [importOpen, setImportOpen] = useState(false)
+  const [spotifyImportOpen, setSpotifyImportOpen] = useState(false)
+  const spotifyImportEnabled = useFeatureFlag('spotify-import') && isSpotifyConfigured()
   const [bulkStartInput, setBulkStartInput] = useState('0:00')
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [shareStatus, setShareStatus] = useState<string | null>(null)
@@ -130,6 +135,26 @@ export default function GameBuilder() {
         soundcloudSecretToken: t.soundcloudSecretToken,
         isPrivate: t.isPrivate,
         access: t.access,
+        duration: t.duration,
+      }),
+    )
+    const rounds = [...game.rounds, ...newRounds]
+    persist({ ...game, rounds })
+    setSelectedRoundId(newRounds[0]?.id ?? selectedRoundId)
+    showToast(`Added ${newRounds.length} track${newRounds.length === 1 ? '' : 's'}`)
+  }
+
+  function handleSpotifyImport(tracks: ImportableSpotifyTrack[]) {
+    if (!game) return
+    const newRounds = tracks.map((t) =>
+      createEmptyRound({
+        source: 'spotify',
+        title: t.title,
+        artist: t.artist,
+        artworkUrl: t.artworkUrl,
+        spotifyTrackId: t.spotifyTrackId,
+        spotifyUri: t.spotifyUri,
+        spotifyUrl: t.spotifyUrl,
         duration: t.duration,
       }),
     )
@@ -397,12 +422,22 @@ export default function GameBuilder() {
                 + ADD SONGS FROM TIER LIST
               </button>
             ) : (
-              <button
-                onClick={() => setImportOpen(true)}
-                className="w-full rounded-lg border border-dashed border-hardwood-500/50 py-2 text-sm font-medium text-hardwood-400 hover:bg-hardwood-500/10"
-              >
-                + ADD FROM SOUNDCLOUD
-              </button>
+              <>
+                <button
+                  onClick={() => setImportOpen(true)}
+                  className="w-full rounded-lg border border-dashed border-hardwood-500/50 py-2 text-sm font-medium text-hardwood-400 hover:bg-hardwood-500/10"
+                >
+                  + ADD FROM SOUNDCLOUD
+                </button>
+                {spotifyImportEnabled && (
+                  <button
+                    onClick={() => setSpotifyImportOpen(true)}
+                    className="mt-2 w-full rounded-lg border border-dashed border-[#1DB954]/50 py-2 text-sm font-medium text-[#1ed760] hover:bg-[#1DB954]/10"
+                  >
+                    + ADD FROM SPOTIFY
+                  </button>
+                )}
+              </>
             )}
             <div className="flex gap-2">
               {!isLyric && !isTierGuess && (
@@ -527,6 +562,8 @@ export default function GameBuilder() {
                       <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">📅 Guess the Year</span>
                     ) : selectedRound.source === 'soundcloud' ? (
                       <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">SoundCloud</span>
+                    ) : selectedRound.source === 'spotify' ? (
+                      <span className="rounded bg-[#1DB954]/15 px-2 py-0.5 text-[#1ed760]">Spotify</span>
                     ) : null}
                     {selectedRound.source === 'local' && (
                       <span className="rounded bg-arena-600 px-2 py-0.5 text-slate-300">Local audio</span>
@@ -538,6 +575,11 @@ export default function GameBuilder() {
                     {selectedRound.soundcloudUrl && (
                       <a href={selectedRound.soundcloudUrl} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-hardwood-400">
                         View on SoundCloud ↗
+                      </a>
+                    )}
+                    {selectedRound.spotifyUrl && (
+                      <a href={selectedRound.spotifyUrl} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-[#1ed760]">
+                        View on Spotify ↗
                       </a>
                     )}
                   </div>
@@ -622,6 +664,8 @@ export default function GameBuilder() {
       </div>
 
       {importOpen && <ImportSoundCloudModal onClose={() => setImportOpen(false)} onImport={handleImport} />}
+
+      {spotifyImportOpen && <ImportSpotifyModal onClose={() => setSpotifyImportOpen(false)} onImport={handleSpotifyImport} />}
 
       {tierListPickerOpen && (
         <TierListPickerModal tierLists={listTierLists()} onClose={() => setTierListPickerOpen(false)} onPick={handlePickTierList} />

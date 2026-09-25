@@ -1,20 +1,31 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { handleCallback } from '../lib/soundcloud/soundcloud-auth'
+import { handleCallback as handleSoundCloudCallback } from '../lib/soundcloud/soundcloud-auth'
+import { handleCallback as handleSpotifyCallback, isSpotifyState } from '../lib/spotify/spotify-auth'
 import { refreshSoundCloudContext } from '../state/SoundCloudContext'
+import { refreshSpotifyContext } from '../state/SpotifyContext'
 
 export default function Callback() {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
+  const [provider, setProvider] = useState<'SoundCloud' | 'Spotify'>('SoundCloud')
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.hash.split('?')[1] ?? window.location.search)
-    handleCallback(params)
+    // Both providers land here (see main.tsx) — `state`'s prefix, set when the connect
+    // flow started (spotify-auth.ts's STATE_PREFIX / soundcloud-auth.ts's generateState
+    // call), is what tells us which one this redirect belongs to.
+    const isSpotify = isSpotifyState(params.get('state'))
+    setProvider(isSpotify ? 'Spotify' : 'SoundCloud')
+    const handler = isSpotify ? handleSpotifyCallback : handleSoundCloudCallback
+    const refreshContext = isSpotify ? refreshSpotifyContext : refreshSoundCloudContext
+
+    handler(params)
       .then((returnTo) => {
-        refreshSoundCloudContext()
+        refreshContext()
         navigate(returnTo || '/', { replace: true })
       })
-      .catch((err) => setError(err instanceof Error ? err.message : 'SoundCloud connection failed.'))
+      .catch((err) => setError(err instanceof Error ? err.message : `${isSpotify ? 'Spotify' : 'SoundCloud'} connection failed.`))
   }, [navigate])
 
   return (
@@ -33,7 +44,7 @@ export default function Callback() {
       ) : (
         <div className="space-y-3">
           <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-arena-600 border-t-hardwood-500" />
-          <p className="text-slate-300">Connecting to SoundCloud…</p>
+          <p className="text-slate-300">Connecting to {provider}…</p>
         </div>
       )}
     </div>

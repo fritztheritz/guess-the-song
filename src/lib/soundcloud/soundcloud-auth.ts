@@ -1,4 +1,4 @@
-import { generateCodeChallenge, generateCodeVerifier, generateState } from './pkce'
+import { generateCodeChallenge, generateCodeVerifier, generateState } from '../pkce'
 import {
   SOUNDCLOUD_AUTHORIZE_URL,
   SOUNDCLOUD_CLIENT_ID,
@@ -69,7 +69,7 @@ export function disconnectSoundCloud() {
 export async function connectSoundCloud(returnTo: string) {
   const codeVerifier = generateCodeVerifier()
   const codeChallenge = await generateCodeChallenge(codeVerifier)
-  const oauthState = generateState()
+  const oauthState = generateState('sc')
 
   const pkceState: PkceState = { codeVerifier, oauthState, returnTo }
   sessionStorage.setItem(PKCE_STORAGE_KEY, JSON.stringify(pkceState))

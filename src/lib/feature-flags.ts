@@ -27,6 +27,13 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
       "Players buzz in from their own phones instead of the host picking a team — first buzz locks in that team, host still judges correct/incorrect. Needs the Cloudflare Worker's buzzer route configured; only affects Song/Lyric/Year rounds.",
     default: false,
   },
+  {
+    key: 'spotify-import',
+    label: 'Spotify Import',
+    description:
+      'Search and import tracks from Spotify alongside SoundCloud. Playback goes through the Web Playback SDK and requires the host to connect a Spotify Premium account — needs VITE_SPOTIFY_CLIENT_ID configured.',
+    default: false,
+  },
 ]
 
 const STORAGE_KEY = 'gts.flags.v1'

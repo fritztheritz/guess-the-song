@@ -32,19 +32,26 @@ one small serverless piece needed only because SoundCloud requires it (see below
   if you want that.
 - **Audio playback**: an `AudioSource` abstraction (`src/lib/audio`) decouples the game engine
   from where the audio comes from. `SoundCloudAudioSource` streams authorized SoundCloud
-  tracks; `LocalAudioSource` is a dev/testing fallback for local files. Clips are played by
-  seeking an `<audio>` element and auto-stopping after N seconds — nothing is ever downloaded
-  or saved to disk.
+  tracks by seeking an `<audio>` element and auto-stopping after N seconds; `SpotifyAudioSource`
+  (behind the "Spotify Import" flag) instead delegates to one page-lifetime Web Playback SDK
+  player, since Spotify has no fetchable clip URL to seek within; `LocalAudioSource` is a
+  dev/testing fallback for local files. Nothing is ever downloaded or saved to disk.
+- **Spotify import (optional)**: OAuth Authorization Code + PKCE too, but unlike SoundCloud,
+  Spotify's PKCE flow is designed for a plain public client — no client secret, no Worker
+  involved, token exchange happens straight from the browser. See "Spotify setup" below,
+  including why this isn't SoundCloud's `preview_url`-based approach.
 
 ```
 src/
   lib/soundcloud/   auth (PKCE), API client, track browsing, stream resolution
-  lib/audio/        AudioSource abstraction + SoundCloud/local implementations
+  lib/spotify/      auth (PKCE), API client, search, Web Playback SDK wrapper
+  lib/pkce.ts        shared PKCE (RFC 7636) helpers used by both providers
+  lib/audio/        AudioSource abstraction + SoundCloud/Spotify/local implementations
   lib/storage/      localStorage-backed game repository
   types/            Game / Team / SongRound data model
-  state/            SoundCloud connection context
+  state/            SoundCloud/Spotify connection contexts
   pages/            Home, CreateGame, GameBuilder, Presentation, Callback
-  components/       TrackCard, ClipEditor, ImportSoundCloudModal, Scoreboard, ...
+  components/       TrackCard, ClipEditor, ImportSoundCloudModal, ImportSpotifyModal, Scoreboard, ...
 worker/             Cloudflare Worker: SoundCloud token exchange/refresh proxy,
                     plus the Phone Buzz-In WebSocket relay (Durable Object)
 ```
@@ -95,11 +102,53 @@ That's your `VITE_SOUNDCLOUD_TOKEN_PROXY_URL` — set it in `.env` for local dev
 Variable for production (see below). The Worker only ever forwards to
 `secure.soundcloud.com/oauth/token`; it never logs the secret or your tokens.
 
+## Spotify setup (optional — Spotify Import feature flag)
+
+Behind the "Spotify Import" flag (`/admin`), games can also pull tracks from Spotify. This
+is a fundamentally different integration from SoundCloud, worth understanding before turning
+it on:
+
+- **Playback needs the Web Playback SDK, which needs Premium.** Spotify restricted
+  `preview_url` (30-second clip URLs) for newly-registered apps in November 2024 — a fresh
+  app today gets `null` for most tracks, the same restriction that already limits some
+  SoundCloud tracks in this app. Rather than build on a preview API likely to return nothing,
+  Spotify import uses the **Web Playback SDK** instead: it plays full tracks through one
+  managed player connected to whoever authenticated, and Spotify requires that account to
+  have **Premium**. That's the host's account, not each player's — only the person who
+  connects Spotify needs Premium, and playback happens through their account regardless of
+  who's in the room.
+- **New Spotify apps start in Development Mode**, which only works for up to 25 accounts
+  you've explicitly added as testers in the app's dashboard (Spotify's own "Extended Quota
+  Mode" review is needed to lift that). If Spotify import doesn't work for a friend, check
+  whether their account is on that list.
+- **No Worker involved.** Unlike SoundCloud, Spotify's Authorization Code with PKCE flow is
+  designed to be called directly from a browser — their own docs demonstrate a client-side
+  `fetch()` to the token endpoint. Token exchange/refresh happen straight from `src/lib/spotify`,
+  no client secret anywhere.
+
+Setup:
+
+1. Go to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and
+   create an app.
+2. Add a **Redirect URI** — same "points at the app's root" reasoning as SoundCloud's, must
+   match exactly:
+   - Local dev: `http://127.0.0.1:5173/guess-the-song/`
+   - Production: `https://<your-github-username>.github.io/guess-the-song/`
+3. Under the app's settings, enable the **Web Playback SDK** / Web API as needed, and add
+   your own Spotify account's email under **Users and Access** so you can actually authorize
+   (Development Mode's tester allowlist above).
+4. Copy the **Client ID** — there's no secret to copy; Spotify's PKCE flow never needs one.
+5. Set `VITE_SPOTIFY_CLIENT_ID` and `VITE_SPOTIFY_REDIRECT_URI` in `.env` (local) or as repo
+   Variables (production — same place as the SoundCloud ones, see "Where credentials go").
+6. Turn on the "Spotify Import" flag at `/admin` and connect from the GameBuilder's
+   "+ ADD FROM SPOTIFY" button.
+
 ## Local development
 
 ```bash
 npm install
 cp .env.example .env   # fill in VITE_SOUNDCLOUD_CLIENT_ID, VITE_SOUNDCLOUD_REDIRECT_URI, VITE_SOUNDCLOUD_TOKEN_PROXY_URL
+                        # (and the VITE_SPOTIFY_* ones too, only if you're setting up Spotify Import)
 npm run dev
 ```
 
@@ -112,6 +161,8 @@ Open the printed `http://127.0.0.1:5173/guess-the-song/` URL.
 | Client ID | `.env` → `VITE_SOUNDCLOUD_CLIENT_ID` | Repo **Variable** — Settings → Secrets and variables → Actions → Variables | Also set in `worker/wrangler.toml`. Bundled into public JS either way; not confidential. |
 | Token proxy URL | `.env` → `VITE_SOUNDCLOUD_TOKEN_PROXY_URL` | Repo **Variable**, same name | The Worker's `*.workers.dev` URL from `wrangler deploy`. |
 | Client secret | **nowhere in this repo** | **nowhere in this repo** | Set once via `wrangler secret put SOUNDCLOUD_CLIENT_SECRET` — lives only in Cloudflare's encrypted secret store for the Worker. |
+| Spotify Client ID | `.env` → `VITE_SPOTIFY_CLIENT_ID` | Repo **Variable** | No secret to set — Spotify's PKCE flow doesn't use one. |
+| Spotify redirect URI | `.env` → `VITE_SPOTIFY_REDIRECT_URI` | Repo **Variable** | Same "points at the app root" URI as SoundCloud's, registered separately on the Spotify app. |
 
 ## Deploying to GitHub Pages
 
@@ -128,6 +179,9 @@ Open the printed `http://127.0.0.1:5173/guess-the-song/` URL.
    step 4 is registered there too — SoundCloud rejects callbacks to unregistered URIs. Also
    double check `worker/wrangler.toml`'s `ALLOWED_ORIGINS` includes this production URL,
    then re-run `npx wrangler deploy` if you changed it.
+7. If you're also setting up Spotify Import: add `VITE_SPOTIFY_CLIENT_ID` and
+   `VITE_SPOTIFY_REDIRECT_URI` as repo Variables too, and register the production redirect
+   URI on the Spotify app the same way as step 6.
 
 ## Known trade-offs of this architecture
 
@@ -146,6 +200,9 @@ Open the printed `http://127.0.0.1:5173/guess-the-song/` URL.
 - SoundCloud's documented **15,000 stream-resolution requests per client ID per 24h** limit
   applies per app, not per user — the playback layer (`soundcloud-playback.ts`) caches
   resolved stream URLs for a few minutes to avoid re-resolving on every clue replay.
+- **Spotify import requires the host to have Premium** and, until Spotify approves Extended
+  Quota Mode for the app, only works for accounts added as testers in the dashboard — see
+  "Spotify setup" above.
 
 ## Gameplay
 
