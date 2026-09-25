@@ -21,9 +21,11 @@ export class BuzzerRoom {
     this.buzzState = 'closed' // 'closed' | 'open' | 'locked'
     this.winner = null
     this.order = []
-    /** Team ids the host has marked wrong for the current clue — blocked from re-buzzing
-     *  until the next 'open' (a fresh possession), so the race continues among whoever's
-     *  left instead of the same team locking it right back up. */
+    /** Team ids the host has marked wrong for the current clue, blocked from re-buzzing —
+     *  but only until every other team has also had (and missed) a turn. The point is
+     *  "let someone else try first", not "you're out for the rest of this clue": once the
+     *  ice would cover every team, it clears instead, so the race opens back up rather
+     *  than staying locked until the next possession. */
     this.iced = new Set()
   }
 
@@ -96,8 +98,14 @@ export class BuzzerRoom {
       this.broadcastAll(this.stateMessage())
     } else if (msg.type === 'wrong' && typeof msg.teamId === 'string') {
       // The host judged the team that just buzzed as wrong: ice them out and reopen for
-      // everyone else, without touching the winner history (order) already recorded.
+      // everyone else, without touching the winner history (order) already recorded. Once
+      // every team on the roster has been iced this way, the ice clears instead of leaving
+      // no one able to buzz — that means everyone's had (and missed) a turn, so it's a
+      // fresh round for this same clue rather than a dead end until the next possession.
       this.iced.add(msg.teamId)
+      if (this.teams.length > 0 && this.iced.size >= this.teams.length) {
+        this.iced = new Set()
+      }
       this.winner = null
       this.buzzState = 'open'
       this.broadcastAll(this.stateMessage())
