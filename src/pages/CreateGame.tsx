@@ -62,6 +62,16 @@ export default function CreateGame() {
               <div className="font-display text-lg tracking-wide text-white">📝 Guess the Lyric</div>
               <div className="text-xs text-slate-500">Type in lyrics & hints</div>
             </button>
+            <button
+              type="button"
+              onClick={() => setMode('year')}
+              className={`col-span-2 rounded-lg border px-4 py-3 text-left ${
+                mode === 'year' ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 hover:border-arena-500'
+              }`}
+            >
+              <div className="font-display text-lg tracking-wide text-white">📅 Guess the Year</div>
+              <div className="text-xs text-slate-500">Play a clip, then guess the release year, then the month</div>
+            </button>
             {tierListsEnabled && (
               <button
                 type="button"

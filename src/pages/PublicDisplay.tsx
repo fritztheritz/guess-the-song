@@ -1,8 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { isLyricMode, isTierGuessMode, LYRIC_HINT_LABELS, type Game, type SongRound } from '../types'
+import { isLyricMode, isTierGuessMode, isYearMode, LYRIC_HINT_LABELS, type Game, type SongRound } from '../types'
 import { getGame } from '../lib/storage/game-repository'
 import { presentationChannelName, type PresentationMessage, type PresentationSnapshot } from '../lib/presentation-sync'
 import Scoreboard from '../components/Scoreboard'
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
 
 // The companion half of Host Controller mode — a read-only mirror meant for a TV/projector.
 // Never plays audio, never mutates game state, and only ever shows what the host has
@@ -70,7 +75,8 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
   const round: SongRound | undefined = game.rounds[snapshot.possessionIndex]
   const isLyric = isLyricMode(game)
   const isTierGuess = isTierGuessMode(game)
-  const { phase, clueIndex, tierGuessStage } = snapshot
+  const isYear = isYearMode(game)
+  const { phase, clueIndex, tierGuessStage, yearGuessStage, wager } = snapshot
   const sortedFinal = [...game.teams].sort((a, b) => b.score - a.score)
 
   return (
@@ -84,14 +90,19 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
       )}
 
       {phase === 'clue' && round && (
-        <div className="flex flex-1 flex-col items-center justify-between px-6 py-8">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-between px-6 py-8">
           <div className="flex w-full items-center justify-between font-display text-lg tracking-widest text-slate-400">
             <span>{game.name.toUpperCase()}</span>
             <span>POSSESSION {snapshot.possessionIndex + 1} OF {game.rounds.length}</span>
           </div>
 
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center">
-            {isLyric ? (
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto text-center">
+            {round.wager && !wager ? (
+              <>
+                <div className="text-xs uppercase tracking-[0.3em] text-scoreboard-amber">⭐ Wager Round</div>
+                <div className="font-display text-3xl tracking-wide text-white">THE HOST IS SETTING UP A WAGER…</div>
+              </>
+            ) : isLyric ? (
               <>
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Finish the lyric</div>
                 <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE NEXT LINE?</div>
@@ -128,9 +139,14 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
               </>
             ) : (
               <>
+                {wager && (
+                  <div className="rounded-full bg-scoreboard-amber/15 px-4 py-1.5 text-sm font-semibold text-scoreboard-amber">
+                    ⭐ {wager.teamName} wagering {wager.amount} pts
+                  </div>
+                )}
                 <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(remaining)}</div>
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Shot Clock</div>
-                <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE TRACK?</div>
+                <div className="font-display text-3xl tracking-wide text-white">{isYear ? 'WHAT YEAR IS IT FROM?' : "WHAT'S THE TRACK?"}</div>
                 <div className="flex h-40 w-40 items-center justify-center rounded-2xl border-2 border-dashed border-arena-600 bg-arena-800 text-5xl text-arena-600">
                   {snapshot.playing ? '♪' : '?'}
                 </div>
@@ -144,8 +160,8 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
       )}
 
       {phase === 'revealed' && round && (
-        <div className="relative flex flex-1 flex-col items-center justify-center gap-5 px-6 py-8 text-center">
-          {!(isTierGuess && tierGuessStage === 'guessPosition') && (
+        <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-6 py-8 text-center">
+          {!(isTierGuess && tierGuessStage === 'guessPosition') && !(isYear && yearGuessStage === 'guessMonth') && (
             <>
               <div className="pointer-events-none absolute inset-0 bg-hardwood-500/20 animate-buzzer-flash" />
               <div className="relative z-10 font-display text-4xl tracking-widest text-scoreboard-500">BUZZER BEATER</div>
@@ -213,6 +229,40 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                   </div>
                 )
               })()}
+            </>
+          ) : isYear ? (
+            <>
+              <div className="relative z-10 h-32 w-32 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
+                {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+              </div>
+              <div className="relative z-10">
+                <div className="font-display text-2xl text-white">{round.title}</div>
+                <div className="text-slate-400">{round.artist}</div>
+              </div>
+
+              {yearGuessStage === 'year' ? (
+                <div className="relative z-10 space-y-1.5">
+                  <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Released in</div>
+                  <span className="inline-block rounded-full bg-hardwood-500 px-5 py-2 font-display text-2xl text-arena-950">
+                    {round.releaseYear ?? '—'}
+                  </span>
+                </div>
+              ) : yearGuessStage === 'guessMonth' ? (
+                <div className="relative z-10 space-y-3">
+                  <span className="inline-block rounded-full bg-hardwood-500 px-3 py-1 font-display text-sm text-arena-950">
+                    {round.releaseYear ?? '—'}
+                  </span>
+                  <div className="font-display text-3xl tracking-wide text-white">WHAT MONTH IS IT?</div>
+                </div>
+              ) : (
+                <div className="relative z-10 space-y-1.5">
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="rounded-full bg-hardwood-500 px-3 py-1 font-display text-sm text-arena-950">{round.releaseYear ?? '—'}</span>
+                    <span className="text-xs uppercase tracking-[0.3em] text-slate-500">month</span>
+                  </div>
+                  <div className="font-display text-4xl text-white">{round.releaseMonth ? MONTH_NAMES[round.releaseMonth - 1] : '—'}</div>
+                </div>
+              )}
             </>
           ) : (
             <>

@@ -39,6 +39,19 @@ export interface SongRound {
   clipDurations: number[] // e.g. [2, 4, 7, 10]
   points: number[] // e.g. [4, 3, 2, 1] — canonical clue count for BOTH modes; always read this, not clipDurations.length
 
+  // mode: "year" only, below. Host-entered, since SoundCloud track metadata doesn't
+  // reliably carry a real release date (especially for uploads/remixes/private tracks).
+  /** The song's actual release year — the coarse first-stage guess, worth YEAR_GUESS_YEAR_POINTS. */
+  releaseYear?: number
+  /** 1-12 — the fine second-stage guess, worth YEAR_GUESS_MONTH_POINTS. */
+  releaseMonth?: number
+
+  // Jeopardy-style Daily Double, available on song/lyric rounds only (not tierguess/year,
+  // which already use their own multi-team credit-toggle scoring rather than a single
+  // pick-a-winner grid). Set in the builder; who's wagering and how much is chosen live by
+  // the host at presentation time, so it isn't stored here.
+  wager?: boolean
+
   // source: "lyric" only, below. `title`/`artist` are reused as the "song name" and "who
   // sang it" hint content (and for display in lists elsewhere), same as for song rounds.
   /** The first lyric line — shown constantly as the prompt, not a staged hint. */
@@ -76,7 +89,7 @@ export interface GameProgress {
   completed: boolean
 }
 
-export type GameMode = 'song' | 'lyric' | 'tierguess'
+export type GameMode = 'song' | 'lyric' | 'tierguess' | 'year'
 
 export interface Game {
   id: string
@@ -109,6 +122,10 @@ export function isLyricMode(game: Pick<Game, 'mode'>): boolean {
 
 export function isTierGuessMode(game: Pick<Game, 'mode'>): boolean {
   return game.mode === 'tierguess'
+}
+
+export function isYearMode(game: Pick<Game, 'mode'>): boolean {
+  return game.mode === 'year'
 }
 
 export const DEFAULT_CLIP_DURATIONS = [2, 4, 7, 10]

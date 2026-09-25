@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { Game, SongRound } from '../types'
-import { createEmptyLyricRound, createEmptyRound, createTeam, createTierGuessRound, isLyricMode, isTierGuessMode, teamColorForIndex } from '../types'
+import {
+  createEmptyLyricRound,
+  createEmptyRound,
+  createTeam,
+  createTierGuessRound,
+  isLyricMode,
+  isTierGuessMode,
+  isYearMode,
+  teamColorForIndex,
+} from '../types'
 import type { TierList, TierListSong } from '../types/tierlist'
 import { getGame, listGames, saveGame } from '../lib/storage/game-repository'
 import { getTierList, listTierLists } from '../lib/storage/tierlist-repository'
@@ -20,6 +29,11 @@ import { useToast } from '../state/ToastContext'
 
 const MIN_TEAMS = 2
 const MAX_TEAMS = 8
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
 
 function parseTimeToSeconds(input: string): number {
   const trimmed = input.trim()
@@ -262,6 +276,7 @@ export default function GameBuilder() {
 
   const isLyric = isLyricMode(game)
   const isTierGuess = isTierGuessMode(game)
+  const isYear = isYearMode(game)
   const usedTrackIds = new Set(game.rounds.map((r) => r.soundcloudTrackId).filter((id): id is string => Boolean(id)))
 
   return (
@@ -508,6 +523,8 @@ export default function GameBuilder() {
                   <div className="mt-1 flex items-center gap-2 text-xs">
                     {isTierGuess ? (
                       <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">🎯 Tier Guess</span>
+                    ) : isYear ? (
+                      <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">📅 Guess the Year</span>
                     ) : selectedRound.source === 'soundcloud' ? (
                       <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">SoundCloud</span>
                     ) : null}
@@ -524,8 +541,52 @@ export default function GameBuilder() {
                       </a>
                     )}
                   </div>
+                  {!isTierGuess && !isYear && (
+                    <label className="mt-2 flex w-fit items-center gap-1.5 text-xs text-slate-400">
+                      <input
+                        type="checkbox"
+                        checked={selectedRound.wager ?? false}
+                        onChange={(e) => updateRound({ ...selectedRound, wager: e.target.checked })}
+                        className="accent-hardwood-500"
+                      />
+                      ⭐ Wager round (host picks one team to bet points on, live)
+                    </label>
+                  )}
                 </div>
               </div>
+
+              {isYear && (
+                <div className="rounded-xl border border-arena-600 bg-arena-800/60 p-4">
+                  <div className="mb-2 text-sm text-slate-400">The answer for this round</div>
+                  <div className="flex items-center gap-3">
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-500">Release year</label>
+                      <input
+                        type="number"
+                        min={1900}
+                        max={2100}
+                        value={selectedRound.releaseYear ?? ''}
+                        onChange={(e) => updateRound({ ...selectedRound, releaseYear: e.target.value ? Number(e.target.value) : undefined })}
+                        placeholder="e.g. 2003"
+                        className="w-28 rounded-lg border border-arena-600 bg-arena-900 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-slate-500">Release month</label>
+                      <select
+                        value={selectedRound.releaseMonth ?? ''}
+                        onChange={(e) => updateRound({ ...selectedRound, releaseMonth: e.target.value ? Number(e.target.value) : undefined })}
+                        className="rounded-lg border border-arena-600 bg-arena-900 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+                      >
+                        <option value="">Unknown</option>
+                        {MONTH_NAMES.map((name, i) => (
+                          <option key={name} value={i + 1}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {isLyric ? (
                 <LyricEditor round={selectedRound} onChange={updateRound} />
