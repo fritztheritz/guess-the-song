@@ -21,6 +21,10 @@ export class BuzzerRoom {
     this.buzzState = 'closed' // 'closed' | 'open' | 'locked'
     this.winner = null
     this.order = []
+    /** Team ids the host has marked wrong for the current clue — blocked from re-buzzing
+     *  until the next 'open' (a fresh possession), so the race continues among whoever's
+     *  left instead of the same team locking it right back up. */
+    this.iced = new Set()
   }
 
   async fetch(request) {
@@ -43,10 +47,14 @@ export class BuzzerRoom {
     return new Response(null, { status: 101, webSocket: client })
   }
 
+  stateMessage() {
+    return { type: 'state', buzzState: this.buzzState, winner: this.winner, order: this.order, iced: [...this.iced] }
+  }
+
   attachHost(socket) {
     // Only one host expected at a time — a page refresh/reconnect just replaces it.
     this.hostSocket = socket
-    this.send(socket, { type: 'state', buzzState: this.buzzState, winner: this.winner, order: this.order })
+    this.send(socket, this.stateMessage())
     this.send(socket, { type: 'roster', players: this.rosterList() })
 
     socket.addEventListener('message', (event) => this.onHostMessage(event))
@@ -60,7 +68,7 @@ export class BuzzerRoom {
 
   attachPlayer(socket) {
     this.send(socket, { type: 'teams', teams: this.teams })
-    this.send(socket, { type: 'state', buzzState: this.buzzState, winner: this.winner, order: this.order })
+    this.send(socket, this.stateMessage())
 
     socket.addEventListener('message', (event) => this.onPlayerMessage(socket, event))
     socket.addEventListener('close', () => this.removePlayer(socket))
@@ -81,10 +89,18 @@ export class BuzzerRoom {
       this.buzzState = 'open'
       this.winner = null
       this.order = []
-      this.broadcastAll({ type: 'state', buzzState: this.buzzState, winner: this.winner, order: this.order })
+      this.iced = new Set()
+      this.broadcastAll(this.stateMessage())
     } else if (msg.type === 'close') {
       this.buzzState = 'closed'
-      this.broadcastAll({ type: 'state', buzzState: this.buzzState, winner: this.winner, order: this.order })
+      this.broadcastAll(this.stateMessage())
+    } else if (msg.type === 'wrong' && typeof msg.teamId === 'string') {
+      // The host judged the team that just buzzed as wrong: ice them out and reopen for
+      // everyone else, without touching the winner history (order) already recorded.
+      this.iced.add(msg.teamId)
+      this.winner = null
+      this.buzzState = 'open'
+      this.broadcastAll(this.stateMessage())
     }
   }
 
@@ -103,7 +119,7 @@ export class BuzzerRoom {
       this.broadcastToHost({ type: 'roster', players: this.rosterList() })
     } else if (msg.type === 'buzz') {
       const player = this.players.get(socket)
-      if (!player || this.buzzState !== 'open') return
+      if (!player || this.buzzState !== 'open' || this.iced.has(player.teamId)) return
       const entry = { connId: player.connId, name: player.name, teamId: player.teamId, at: Date.now() }
       this.order.push(entry)
       if (this.order.length > MAX_ORDER) this.order.shift()
@@ -111,7 +127,7 @@ export class BuzzerRoom {
         this.winner = entry
         this.buzzState = 'locked'
       }
-      this.broadcastAll({ type: 'state', buzzState: this.buzzState, winner: this.winner, order: this.order })
+      this.broadcastAll(this.stateMessage())
     }
   }
 

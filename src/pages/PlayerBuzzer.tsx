@@ -45,6 +45,7 @@ export default function PlayerBuzzer() {
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
   const [buzzState, setBuzzState] = useState<BuzzState>('closed')
   const [winner, setWinner] = useState<BuzzerWinner | null>(null)
+  const [iced, setIced] = useState<string[]>([])
   const [myConnId, setMyConnId] = useState<string | null>(null)
   const socketRef = useRef<BuzzerSocket | null>(null)
 
@@ -66,6 +67,7 @@ export default function PlayerBuzzer() {
       else if (msg.type === 'state') {
         setBuzzState(msg.buzzState)
         setWinner(msg.winner)
+        setIced(msg.iced)
       } else if (msg.type === 'joined') {
         setMyConnId(msg.connId)
         setConnected(true)
@@ -187,6 +189,11 @@ export default function PlayerBuzzer() {
                 <div className="mt-1 px-4 text-sm">{winner.name} buzzed first</div>
               </div>
             )
+          ) : identity && iced.includes(identity.teamId) ? (
+            <div className="flex h-56 w-56 flex-col items-center justify-center rounded-full border-4 border-arena-700 bg-arena-800 text-slate-500">
+              <div className="text-3xl">🚫</div>
+              <div className="mt-1 px-6 text-sm">Your team already tried this one — sit tight</div>
+            </div>
           ) : (
             <button
               onClick={handleBuzz}

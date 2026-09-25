@@ -9,7 +9,19 @@ function joinUrl(code: string): string {
 // which team. Doesn't touch buzz state itself — HostController owns that (open/close tied
 // to phase, winner shown inline in the reveal screen) since this is purely the "who's in
 // the room" view, the buzzer equivalent of the Public Display connection indicator.
-export default function BuzzerPanel({ code, teams, roster, onClose }: { code: string; teams: Team[]; roster: BuzzerPlayer[]; onClose: () => void }) {
+export default function BuzzerPanel({
+  code,
+  teams,
+  roster,
+  iced,
+  onClose,
+}: {
+  code: string
+  teams: Team[]
+  roster: BuzzerPlayer[]
+  iced: string[]
+  onClose: () => void
+}) {
   const url = joinUrl(code)
 
   async function copyLink() {
@@ -47,7 +59,10 @@ export default function BuzzerPanel({ code, teams, roster, onClose }: { code: st
               if (members.length === 0) return null
               return (
                 <div key={team.id}>
-                  <div className="text-xs font-medium" style={{ color: team.color }}>{team.name}</div>
+                  <div className="text-xs font-medium" style={{ color: team.color }}>
+                    {team.name}
+                    {iced.includes(team.id) && <span className="ml-1.5 text-slate-500">🚫 iced this clue</span>}
+                  </div>
                   <div className="flex flex-wrap gap-1.5">
                     {members.map((p) => (
                       <span key={p.connId} className="rounded-full bg-arena-700 px-2.5 py-1 text-xs text-slate-200">

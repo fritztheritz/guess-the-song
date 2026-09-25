@@ -78,6 +78,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   const [buzzRoster, setBuzzRoster] = useState<BuzzerPlayer[]>([])
   const [buzzState, setBuzzState] = useState<BuzzState>('closed')
   const [buzzWinner, setBuzzWinner] = useState<BuzzerWinner | null>(null)
+  const [buzzIced, setBuzzIced] = useState<string[]>([])
   const [buzzerConnected, setBuzzerConnected] = useState(false)
   const [buzzerPanelOpen, setBuzzerPanelOpen] = useState(false)
 
@@ -145,6 +146,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       else if (msg.type === 'state') {
         setBuzzState(msg.buzzState)
         setBuzzWinner(msg.winner)
+        setBuzzIced(msg.iced)
       }
     })
     socket.connect()
@@ -317,6 +319,24 @@ export default function HostController({ gameId }: { gameId: string }) {
   function lockInWager(team: Team, amount: number) {
     setWagerTeamId(team.id)
     setWagerAmount(Math.max(0, Math.round(amount)))
+  }
+
+  // Phone Buzz-In's live judging, for the team that just locked in the buzzer — only
+  // wired up for Song/Lyric (the modes that already score with a single award() call;
+  // Tier Guess/Year use their own multi-team credit-toggle flow at reveal instead, and a
+  // wager round already has its own dedicated correct/missed buttons for the one team
+  // allowed to answer it, so buzzing doesn't apply there).
+  function markBuzzCorrect() {
+    if (!round) return
+    const team = game?.teams.find((t) => t.id === buzzWinner?.teamId)
+    if (!team) return
+    award(team, round.points[clueIndex])
+    reveal()
+  }
+
+  function markBuzzWrong() {
+    if (!buzzWinner) return
+    buzzerSocketRef.current?.send({ type: 'wrong', teamId: buzzWinner.teamId })
   }
 
   // Tier Guess (and Year Guess) scoring is unlike award() above: any number of teams can
@@ -787,6 +807,28 @@ export default function HostController({ gameId }: { gameId: string }) {
               </>
             )}
 
+            {!isTierGuess && !isYear && !round.wager && buzzWinner && (
+              <div className="w-full max-w-sm space-y-2 rounded-xl border border-scoreboard-amber/40 bg-scoreboard-amber/10 p-4">
+                <div className="text-sm font-semibold text-scoreboard-amber">
+                  🔔 {buzzWinner.name} ({game.teams.find((t) => t.id === buzzWinner.teamId)?.name ?? '—'}) buzzed in!
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={markBuzzCorrect}
+                    className="flex-1 rounded-xl border border-scoreboard-green bg-scoreboard-green/15 py-2.5 font-semibold text-scoreboard-green hover:bg-scoreboard-green/25"
+                  >
+                    ✓ Correct (+{round.points[clueIndex]})
+                  </button>
+                  <button
+                    onClick={markBuzzWrong}
+                    className="flex-1 rounded-xl border border-scoreboard-500 bg-scoreboard-500/15 py-2.5 font-semibold text-scoreboard-500 hover:bg-scoreboard-500/25"
+                  >
+                    ✗ Wrong — reopen
+                  </button>
+                </div>
+              </div>
+            )}
+
             {!(round.wager && !wagerTeamId) && (
               <div className="flex gap-3">
                 {!isTierGuess && clueIndex < round.points.length - 1 && (
@@ -1222,7 +1264,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       )}
 
       {buzzerPanelOpen && game.buzzerRoomCode && (
-        <BuzzerPanel code={game.buzzerRoomCode} teams={game.teams} roster={buzzRoster} onClose={() => setBuzzerPanelOpen(false)} />
+        <BuzzerPanel code={game.buzzerRoomCode} teams={game.teams} roster={buzzRoster} iced={buzzIced} onClose={() => setBuzzerPanelOpen(false)} />
       )}
     </div>
   )

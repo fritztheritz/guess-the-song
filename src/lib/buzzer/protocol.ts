@@ -26,11 +26,13 @@ export type HostOutMessage =
   | { type: 'sync-teams'; teams: BuzzerTeam[] }
   | { type: 'open' }
   | { type: 'close' }
+  /** The team that just buzzed got it wrong — ice them out and reopen for everyone else. */
+  | { type: 'wrong'; teamId: string }
 
 export type PlayerOutMessage = { type: 'join'; name: string; teamId: string } | { type: 'buzz' }
 
 export type ServerMessage =
-  | { type: 'state'; buzzState: BuzzState; winner: BuzzerWinner | null; order: BuzzerWinner[] }
+  | { type: 'state'; buzzState: BuzzState; winner: BuzzerWinner | null; order: BuzzerWinner[]; iced: string[] }
   | { type: 'roster'; players: BuzzerPlayer[] }
   | { type: 'teams'; teams: BuzzerTeam[] }
   | { type: 'joined'; connId: string }
