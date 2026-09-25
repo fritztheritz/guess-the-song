@@ -95,6 +95,11 @@ export default function HostController({ gameId }: { gameId: string }) {
     correctCount: 0,
     noScoreCount: 0,
     biggest: null as { points: number; teamName: string; roundTitle: string } | null,
+    fastestBuzz: null as { name: string; teamId: string; ms: number } | null,
+    // Every buzz's (connId, at) is unique, but the same 'state' broadcast can land twice
+    // (e.g. the host's socket reconnecting mid-lock replays the current state) — this
+    // dedupes so a reconnect can't count one buzz as the fastest twice over.
+    seenBuzzKeys: new Set<string>(),
   })
 
   function recordScoreEvent(points: number, teamName: string, roundTitle: string) {
@@ -103,6 +108,16 @@ export default function HostController({ gameId }: { gameId: string }) {
       if (!recapRef.current.biggest || points > recapRef.current.biggest.points) {
         recapRef.current.biggest = { points, teamName, roundTitle }
       }
+    }
+  }
+
+  function recordBuzzReaction(winner: BuzzerWinner) {
+    if (winner.reactionMs == null) return
+    const key = `${winner.connId}:${winner.at}`
+    if (recapRef.current.seenBuzzKeys.has(key)) return
+    recapRef.current.seenBuzzKeys.add(key)
+    if (!recapRef.current.fastestBuzz || winner.reactionMs < recapRef.current.fastestBuzz.ms) {
+      recapRef.current.fastestBuzz = { name: winner.name, teamId: winner.teamId, ms: winner.reactionMs }
     }
   }
 
@@ -147,6 +162,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         setBuzzState(msg.buzzState)
         setBuzzWinner(msg.winner)
         setBuzzIced(msg.iced)
+        if (msg.winner) recordBuzzReaction(msg.winner)
       }
     })
     socket.connect()
@@ -432,7 +448,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     setPossessionIndex(0)
     setLastAward(null)
     setPhase('intro')
-    recapRef.current = { correctCount: 0, noScoreCount: 0, biggest: null }
+    recapRef.current = { correctCount: 0, noScoreCount: 0, biggest: null, fastestBuzz: null, seenBuzzKeys: new Set() }
   }
 
   function restartClue() {
@@ -1222,7 +1238,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           </div>
           <div className="font-display text-lg tracking-widest text-slate-500">GAME OVER</div>
 
-          {(recapRef.current.correctCount > 0 || recapRef.current.noScoreCount > 0) && (
+          {(recapRef.current.correctCount > 0 || recapRef.current.noScoreCount > 0 || recapRef.current.fastestBuzz) && (
             <div className="w-full max-w-sm space-y-2 rounded-xl border border-arena-600 bg-arena-800/60 p-4 text-sm">
               <div className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">Recap</div>
               {sortedFinal.length > 1 && sortedFinal[0].score !== sortedFinal[1].score && (
@@ -1236,6 +1252,15 @@ export default function HostController({ gameId }: { gameId: string }) {
                   <span className="text-left">⚡ Biggest score</span>
                   <span className="truncate text-right">
                     +{recapRef.current.biggest.points} — {recapRef.current.biggest.teamName} on "{recapRef.current.biggest.roundTitle}"
+                  </span>
+                </div>
+              )}
+              {recapRef.current.fastestBuzz && (
+                <div className="flex justify-between gap-3 text-slate-300">
+                  <span className="text-left">🔔 Fastest buzz</span>
+                  <span className="truncate text-right">
+                    {(recapRef.current.fastestBuzz.ms / 1000).toFixed(2)}s — {recapRef.current.fastestBuzz.name} (
+                    {game.teams.find((t) => t.id === recapRef.current.fastestBuzz?.teamId)?.name ?? '—'})
                   </span>
                 </div>
               )}

@@ -20,6 +20,9 @@ export interface BuzzerWinner {
   name: string
   teamId: string
   at: number
+  /** Milliseconds from the clue's buzzer window opening to this buzz — null if it somehow
+   *  landed before the server ever recorded an 'open' (shouldn't normally happen). */
+  reactionMs: number | null
 }
 
 export type HostOutMessage =

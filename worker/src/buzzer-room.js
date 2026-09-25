@@ -21,6 +21,11 @@ export class BuzzerRoom {
     this.buzzState = 'closed' // 'closed' | 'open' | 'locked'
     this.winner = null
     this.order = []
+    /** When the current clue's buzzer window opened — the baseline every buzz's
+     *  reactionMs is measured from. Deliberately NOT reset by 'wrong' (only by 'open'):
+     *  reaction time is "how fast from when guessing started", which should keep counting
+     *  across a wrong-then-reopened round within the same clue, not restart per attempt. */
+    this.openedAt = null
     /** Team ids the host has marked wrong for the current clue, blocked from re-buzzing —
      *  but only until every other team has also had (and missed) a turn. The point is
      *  "let someone else try first", not "you're out for the rest of this clue": once the
@@ -92,6 +97,7 @@ export class BuzzerRoom {
       this.winner = null
       this.order = []
       this.iced = new Set()
+      this.openedAt = Date.now()
       this.broadcastAll(this.stateMessage())
     } else if (msg.type === 'close') {
       this.buzzState = 'closed'
@@ -128,7 +134,14 @@ export class BuzzerRoom {
     } else if (msg.type === 'buzz') {
       const player = this.players.get(socket)
       if (!player || this.buzzState !== 'open' || this.iced.has(player.teamId)) return
-      const entry = { connId: player.connId, name: player.name, teamId: player.teamId, at: Date.now() }
+      const now = Date.now()
+      const entry = {
+        connId: player.connId,
+        name: player.name,
+        teamId: player.teamId,
+        at: now,
+        reactionMs: this.openedAt ? now - this.openedAt : null,
+      }
       this.order.push(entry)
       if (this.order.length > MAX_ORDER) this.order.shift()
       if (!this.winner) {
