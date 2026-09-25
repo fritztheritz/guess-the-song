@@ -86,6 +86,20 @@ export abstract class BaseAudioSource implements AudioSource {
         },
         { once: true },
       )
+      // SoundCloud caps some tracks (access: 'preview') to ~30s of actual audio data
+      // regardless of the track's real length — a clip whose start+duration runs past that
+      // has no more bytes to play at all, so the element fires 'ended' on its own well before
+      // our duration timer would. Resolving here keeps caller-visible state (e.g. a shot
+      // clock) from carrying on for a stretch that's already silent.
+      audio.addEventListener(
+        'ended',
+        () => {
+          if (!started) return
+          this.stop()
+          resolve()
+        },
+        { once: true },
+      )
     })
   }
 

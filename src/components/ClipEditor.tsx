@@ -13,9 +13,18 @@ function clamp(value: number, min: number, max: number, fallback: number): numbe
   return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback
 }
 
+// SoundCloud restricts some tracks (access: 'preview', shown at import time) to a ~30s
+// preview stream regardless of the track's real length — any clip that runs past that has
+// no audio data left to play and just goes silent mid-clue.
+const PREVIEW_CAP_SECONDS = 30
+
 export default function ClipEditor({ round, onChange }: { round: SongRound; onChange: (round: SongRound) => void }) {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null)
-  const duration = round.duration ?? 240
+  const fullDuration = round.duration ?? 240
+  const isPreviewOnly = round.access === 'preview'
+  const duration = isPreviewOnly ? Math.min(fullDuration, PREVIEW_CAP_SECONDS) : fullDuration
+  const longestClueEnd = round.clipStart + Math.max(0, ...round.clipDurations)
+  const runsPastPreview = isPreviewOnly && longestClueEnd > PREVIEW_CAP_SECONDS
 
   async function preview(index: number) {
     setPlayingIndex(index)
@@ -59,6 +68,13 @@ export default function ClipEditor({ round, onChange }: { round: SongRound; onCh
       <div className="mb-4 text-center text-sm text-slate-400">
         Start: <span className="font-mono text-hardwood-400">{formatTime(round.clipStart)}</span>
       </div>
+
+      {isPreviewOnly && (
+        <p className="mb-4 rounded-lg border border-scoreboard-amber/30 bg-scoreboard-amber/10 px-3 py-2 text-xs text-scoreboard-amber">
+          SoundCloud only allows a {formatTime(PREVIEW_CAP_SECONDS)} preview of this track — clips can't run past that.
+          {runsPastPreview && ' Your longest clue currently runs past it and will cut off silently.'}
+        </p>
+      )}
 
       <div className="mb-1 flex items-center justify-between">
         <div className="text-sm font-medium text-slate-300">Clues</div>
