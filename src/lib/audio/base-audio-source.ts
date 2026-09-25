@@ -28,6 +28,28 @@ export abstract class BaseAudioSource implements AudioSource {
         }, duration * 1000)
       }
 
+      const seekTo = (time: number) => {
+        // Chrome/Firefox report duration (and therefore the seekable range) as Infinity for
+        // a freshly-loaded blob: MP3 — our clips are always fetched into a blob first (see
+        // soundcloud-playback.ts) rather than streamed — until a seek has touched the real
+        // end of the file once. Before that, setting currentTime to anything is a silent
+        // no-op: no 'seeked' event ever fires, so the clip just plays nothing forever. The
+        // standard workaround is to seek near the end once, wait for the browser to resolve
+        // the real duration (surfaced as a 'durationchange'/'timeupdate'), then seek again.
+        if (audio.duration === Infinity || Number.isNaN(audio.duration)) {
+          const onFixed = () => {
+            audio.removeEventListener('timeupdate', onFixed)
+            audio.addEventListener('seeked', startPlayback, { once: true })
+            audio.currentTime = time
+          }
+          audio.addEventListener('timeupdate', onFixed, { once: true })
+          audio.currentTime = 1e101
+          return
+        }
+        audio.addEventListener('seeked', startPlayback, { once: true })
+        audio.currentTime = time
+      }
+
       const onCanPlay = () => {
         if (startTime <= 0) {
           // Seeking to 0 when currentTime is already 0 is a no-op — some browsers never
@@ -35,12 +57,10 @@ export abstract class BaseAudioSource implements AudioSource {
           startPlayback()
           return
         }
-        // Setting currentTime kicks off an async seek (often a new network request for a
-        // streamed clip); calling play() before it resolves raced the seek and either
-        // silently played from wherever the seek hadn't reached yet, or didn't play at all
-        // — this was the actual bug for any clip with a non-zero start time.
-        audio.addEventListener('seeked', startPlayback, { once: true })
-        audio.currentTime = startTime
+        // Setting currentTime kicks off an async seek; calling play() before it resolves
+        // raced the seek and either silently played from wherever the seek hadn't reached
+        // yet, or didn't play at all — this was the original bug for a non-zero start time.
+        seekTo(startTime)
       }
       audio.addEventListener('canplay', onCanPlay, { once: true })
       audio.addEventListener(

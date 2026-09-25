@@ -39,3 +39,17 @@ export function deleteTierList(id: string) {
   delete all[id]
   writeAll(all)
 }
+
+export function exportAllTierLists(): TierList[] {
+  return listTierLists()
+}
+
+/** Restores tier lists from a backup, keyed by id — same overwrite-by-id semantics as importGames. */
+export function importTierLists(lists: TierList[]): number {
+  const existing = readAll()
+  for (const list of lists) {
+    existing[list.id] = list
+  }
+  writeAll(existing)
+  return lists.length
+}

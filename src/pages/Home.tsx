@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listGames, deleteGame, saveGame, exportAllGames, importGames } from '../lib/storage/game-repository'
-import { listTierLists, deleteTierList, saveTierList } from '../lib/storage/tierlist-repository'
+import { listTierLists, deleteTierList, saveTierList, exportAllTierLists, importTierLists } from '../lib/storage/tierlist-repository'
 import { downloadBackupFile, parseBackupFile, BackupFileError } from '../lib/game-backup'
 import { duplicateGame, isLyricMode, isTierGuessMode, type Game } from '../types'
 import { duplicateTierList, type TierList } from '../types/tierlist'
@@ -75,13 +75,20 @@ export default function Home() {
   const visibleTierLists = tierLists.filter((l) => matchesActiveTags(l.tags))
 
   function handleExportAll() {
-    const all = exportAllGames()
-    if (all.length === 0) {
-      setBackupStatus('No games to back up yet.')
+    // Reads straight from storage rather than the tierLists state var, so a backup taken
+    // while the tier-lists flag is off still includes any tier lists already saved.
+    const allGames = exportAllGames()
+    const allTierLists = exportAllTierLists()
+    if (allGames.length === 0 && allTierLists.length === 0) {
+      setBackupStatus('Nothing to back up yet.')
       return
     }
-    downloadBackupFile(all)
-    setBackupStatus(`Downloaded a backup of ${all.length} game${all.length === 1 ? '' : 's'}.`)
+    downloadBackupFile(allGames, allTierLists)
+    const parts = [
+      allGames.length > 0 ? `${allGames.length} game${allGames.length === 1 ? '' : 's'}` : null,
+      allTierLists.length > 0 ? `${allTierLists.length} tier list${allTierLists.length === 1 ? '' : 's'}` : null,
+    ].filter(Boolean)
+    setBackupStatus(`Downloaded a backup of ${parts.join(' and ')}.`)
   }
 
   async function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
@@ -90,19 +97,25 @@ export default function Home() {
     if (!file) return
     try {
       const text = await file.text()
-      const imported = parseBackupFile(text)
-      if (imported.length === 0) {
-        setBackupStatus('That backup file has no games in it.')
+      const { games: importedGames, tierLists: importedTierLists } = parseBackupFile(text)
+      if (importedGames.length === 0 && importedTierLists.length === 0) {
+        setBackupStatus('That backup file is empty.')
         return
       }
+      const parts = [
+        importedGames.length > 0 ? `${importedGames.length} game${importedGames.length === 1 ? '' : 's'}` : null,
+        importedTierLists.length > 0 ? `${importedTierLists.length} tier list${importedTierLists.length === 1 ? '' : 's'}` : null,
+      ].filter(Boolean)
       const ok = await confirm(
-        `Restore ${imported.length} game${imported.length === 1 ? '' : 's'}? Any game already here with the same name/id will be overwritten by the backup.`,
+        `Restore ${parts.join(' and ')}? Anything already here with the same id will be overwritten by the backup.`,
         { confirmLabel: 'Restore' },
       )
       if (!ok) return
-      const count = importGames(imported)
+      importGames(importedGames)
+      importTierLists(importedTierLists)
       setGames(listGames())
-      setBackupStatus(`Restored ${count} game${count === 1 ? '' : 's'} from backup.`)
+      if (tierListsEnabled) setTierLists(listTierLists())
+      setBackupStatus(`Restored ${parts.join(' and ')} from backup.`)
     } catch (err) {
       setBackupStatus(err instanceof BackupFileError ? err.message : 'Could not read that file.')
     }
@@ -283,7 +296,7 @@ export default function Home() {
           </p>
           <div className="flex justify-center gap-3">
             <button onClick={handleExportAll} className="text-sm text-slate-400 underline hover:text-hardwood-400">
-              Export all games
+              Export all games &amp; tier lists
             </button>
             <button onClick={() => importFileInput.current?.click()} className="text-sm text-slate-400 underline hover:text-hardwood-400">
               Restore from backup
