@@ -20,6 +20,13 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     description: 'Build a tier list from SoundCloud tracks, then rank them live with drag-and-drop on a shared screen.',
     default: false,
   },
+  {
+    key: 'phone-buzzer',
+    label: 'Phone Buzz-In',
+    description:
+      "Players buzz in from their own phones instead of the host picking a team — first buzz locks in that team, host still judges correct/incorrect. Needs the Cloudflare Worker's buzzer route configured; only affects Song/Lyric/Year rounds.",
+    default: false,
+  },
 ]
 
 const STORAGE_KEY = 'gts.flags.v1'

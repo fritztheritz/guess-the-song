@@ -113,6 +113,9 @@ export interface Game {
   /** Free-form, host-assigned labels for organizing the Home page once there are lots of
    *  games — e.g. "Friday Night", "90s Hip-Hop". Absent/empty on every game predating this. */
   tags?: string[]
+  /** Phone buzz-in room code, generated once and reused for this game's whole life so
+   *  players don't need to rejoin with a new code after a host page refresh. */
+  buzzerRoomCode?: string
 }
 
 /** Every existing stored game predates `mode` — this is the one place that should ever default it. */

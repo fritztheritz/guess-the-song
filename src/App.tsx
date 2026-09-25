@@ -9,6 +9,7 @@ import Admin from './pages/Admin'
 import CreateTierList from './pages/CreateTierList'
 import TierListBuilder from './pages/TierListBuilder'
 import TierListPresent from './pages/TierListPresent'
+import PlayerBuzzer from './pages/PlayerBuzzer'
 import RequireFlag from './components/RequireFlag'
 
 export default function App() {
@@ -21,6 +22,8 @@ export default function App() {
       <Route path="/callback" element={<Callback />} />
       <Route path="/import" element={<ImportGame />} />
       <Route path="/admin" element={<Admin />} />
+      <Route path="/buzz" element={<PlayerBuzzer />} />
+      <Route path="/buzz/:code" element={<PlayerBuzzer />} />
       <Route
         path="/tierlists/new"
         element={

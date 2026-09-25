@@ -1,0 +1,148 @@
+// One BuzzerRoom Durable Object instance per room code (Durable Objects are routed by
+// name, so every WebSocket for the same code — the host and every player's phone — lands
+// on the exact same instance, giving a consistent view of "who buzzed first" without any
+// external pub/sub). State is plain in-memory fields on the class, not `ctx.storage` or the
+// hibernatable-WebSocket API: a buzzer room only matters for the length of one hosting
+// session (a couple of hours at most), traffic is frequent enough while it's in use that
+// the instance stays warm, and losing the room if it's ever evicted mid-game just means
+// the host's room code page reconnects and re-syncs teams — not worth the complexity of
+// persisting/rehydrating state for what's inherently disposable, session-scoped data.
+
+const MAX_ORDER = 20 // plenty for "who buzzed 2nd/3rd", caps memory for a long game
+
+export class BuzzerRoom {
+  constructor(state, env) {
+    this.state = state
+    this.env = env
+    this.hostSocket = null
+    this.teams = []
+    /** @type {Map<WebSocket, {connId: string, name: string, teamId: string}>} */
+    this.players = new Map()
+    this.buzzState = 'closed' // 'closed' | 'open' | 'locked'
+    this.winner = null
+    this.order = []
+  }
+
+  async fetch(request) {
+    if (request.headers.get('Upgrade') !== 'websocket') {
+      return new Response('Expected WebSocket upgrade', { status: 426 })
+    }
+    const url = new URL(request.url)
+    const role = url.searchParams.get('role') === 'host' ? 'host' : 'player'
+
+    const pair = new WebSocketPair()
+    const [client, server] = Object.values(pair)
+    server.accept()
+
+    if (role === 'host') {
+      this.attachHost(server)
+    } else {
+      this.attachPlayer(server)
+    }
+
+    return new Response(null, { status: 101, webSocket: client })
+  }
+
+  attachHost(socket) {
+    // Only one host expected at a time — a page refresh/reconnect just replaces it.
+    this.hostSocket = socket
+    this.send(socket, { type: 'state', buzzState: this.buzzState, winner: this.winner, order: this.order })
+    this.send(socket, { type: 'roster', players: this.rosterList() })
+
+    socket.addEventListener('message', (event) => this.onHostMessage(event))
+    socket.addEventListener('close', () => {
+      if (this.hostSocket === socket) this.hostSocket = null
+    })
+    socket.addEventListener('error', () => {
+      if (this.hostSocket === socket) this.hostSocket = null
+    })
+  }
+
+  attachPlayer(socket) {
+    this.send(socket, { type: 'teams', teams: this.teams })
+    this.send(socket, { type: 'state', buzzState: this.buzzState, winner: this.winner, order: this.order })
+
+    socket.addEventListener('message', (event) => this.onPlayerMessage(socket, event))
+    socket.addEventListener('close', () => this.removePlayer(socket))
+    socket.addEventListener('error', () => this.removePlayer(socket))
+  }
+
+  onHostMessage(event) {
+    let msg
+    try {
+      msg = JSON.parse(event.data)
+    } catch {
+      return
+    }
+    if (msg.type === 'sync-teams' && Array.isArray(msg.teams)) {
+      this.teams = msg.teams
+      this.broadcastToPlayers({ type: 'teams', teams: this.teams })
+    } else if (msg.type === 'open') {
+      this.buzzState = 'open'
+      this.winner = null
+      this.order = []
+      this.broadcastAll({ type: 'state', buzzState: this.buzzState, winner: this.winner, order: this.order })
+    } else if (msg.type === 'close') {
+      this.buzzState = 'closed'
+      this.broadcastAll({ type: 'state', buzzState: this.buzzState, winner: this.winner, order: this.order })
+    }
+  }
+
+  onPlayerMessage(socket, event) {
+    let msg
+    try {
+      msg = JSON.parse(event.data)
+    } catch {
+      return
+    }
+    if (msg.type === 'join' && typeof msg.name === 'string' && typeof msg.teamId === 'string') {
+      const existing = this.players.get(socket)
+      const connId = existing?.connId ?? crypto.randomUUID()
+      this.players.set(socket, { connId, name: msg.name.slice(0, 40), teamId: msg.teamId })
+      this.send(socket, { type: 'joined', connId })
+      this.broadcastToHost({ type: 'roster', players: this.rosterList() })
+    } else if (msg.type === 'buzz') {
+      const player = this.players.get(socket)
+      if (!player || this.buzzState !== 'open') return
+      const entry = { connId: player.connId, name: player.name, teamId: player.teamId, at: Date.now() }
+      this.order.push(entry)
+      if (this.order.length > MAX_ORDER) this.order.shift()
+      if (!this.winner) {
+        this.winner = entry
+        this.buzzState = 'locked'
+      }
+      this.broadcastAll({ type: 'state', buzzState: this.buzzState, winner: this.winner, order: this.order })
+    }
+  }
+
+  removePlayer(socket) {
+    if (this.players.delete(socket)) {
+      this.broadcastToHost({ type: 'roster', players: this.rosterList() })
+    }
+  }
+
+  rosterList() {
+    return [...this.players.values()]
+  }
+
+  send(socket, msg) {
+    try {
+      socket.send(JSON.stringify(msg))
+    } catch {
+      // Socket already closed — its close/error listener will clean it up.
+    }
+  }
+
+  broadcastToHost(msg) {
+    if (this.hostSocket) this.send(this.hostSocket, msg)
+  }
+
+  broadcastToPlayers(msg) {
+    for (const socket of this.players.keys()) this.send(socket, msg)
+  }
+
+  broadcastAll(msg) {
+    this.broadcastToHost(msg)
+    this.broadcastToPlayers(msg)
+  }
+}

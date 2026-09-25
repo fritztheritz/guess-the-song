@@ -45,7 +45,8 @@ src/
   state/            SoundCloud connection context
   pages/            Home, CreateGame, GameBuilder, Presentation, Callback
   components/       TrackCard, ClipEditor, ImportSoundCloudModal, Scoreboard, ...
-worker/             Cloudflare Worker: SoundCloud token exchange/refresh proxy
+worker/             Cloudflare Worker: SoundCloud token exchange/refresh proxy,
+                    plus the Phone Buzz-In WebSocket relay (Durable Object)
 ```
 
 ## SoundCloud setup

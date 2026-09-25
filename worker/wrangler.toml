@@ -12,3 +12,14 @@ compatibility_date = "2026-01-01"
 [vars]
 ALLOWED_ORIGINS = "https://fritztheritz.github.io,http://127.0.0.1:5173"
 SOUNDCLOUD_CLIENT_ID = "4RRAqFiWAlqK8OEswaRSzSgHHcZK6PrD"
+
+# Phone buzz-in (Host Controller <-> player phones): one Durable Object instance per room
+# code holds the live WebSocket connections, so "who buzzed first" is decided in one place
+# instead of needing an external pub/sub service.
+[[durable_objects.bindings]]
+name = "BUZZER_ROOM"
+class_name = "BuzzerRoom"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["BuzzerRoom"]

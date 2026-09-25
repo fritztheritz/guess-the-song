@@ -14,6 +14,10 @@ import {
 } from '../lib/presentation-sync'
 import { useConfirm } from '../state/ConfirmContext'
 import Scoreboard from '../components/Scoreboard'
+import BuzzerPanel from '../components/BuzzerPanel'
+import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
+import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
+import type { BuzzState, BuzzerPlayer, BuzzerWinner } from '../lib/buzzer/protocol'
 
 type Phase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final'
 
@@ -35,6 +39,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   const navigate = useNavigate()
   const confirm = useConfirm()
   const tierListsEnabled = useFeatureFlag('tier-lists')
+  const buzzerEnabled = useFeatureFlag('phone-buzzer') && isBuzzerConfigured()
   const [game, setGame] = useState<Game | null>(null)
   const [phase, setPhase] = useState<Phase>('intro')
   const [possessionIndex, setPossessionIndex] = useState(0)
@@ -67,12 +72,21 @@ export default function HostController({ gameId }: { gameId: string }) {
   // Off by default and only ever shown once a Public Display has connected — otherwise a
   // solo host playing single-screen would leak the answer to their own audience by peeking.
   const [peekMode, setPeekMode] = useState(false)
+  // Phone Buzz-In: room state mirrored from the BuzzerRoom Durable Object. `buzzWinner`
+  // tracks who buzzed first for the current possession — the host still taps a team in the
+  // existing award grid to actually score it, this only decides who's allowed to answer.
+  const [buzzRoster, setBuzzRoster] = useState<BuzzerPlayer[]>([])
+  const [buzzState, setBuzzState] = useState<BuzzState>('closed')
+  const [buzzWinner, setBuzzWinner] = useState<BuzzerWinner | null>(null)
+  const [buzzerConnected, setBuzzerConnected] = useState(false)
+  const [buzzerPanelOpen, setBuzzerPanelOpen] = useState(false)
 
   const audioSourceRef = useRef<AudioSource | null>(null)
   const shotClockTimer = useRef<ReturnType<typeof setInterval> | null>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
   const playStartedAtRef = useRef<number | null>(null)
   const latestSnapshotRef = useRef<PresentationSnapshot | null>(null)
+  const buzzerSocketRef = useRef<BuzzerSocket | null>(null)
   // Recap stats for the final screen — live counters, not persisted, so they only cover
   // scoring that happened in this browser tab's current playthrough (a "continue" after
   // closing the tab starts these back at zero, same tradeoff as tierCredits/lastAward etc.).
@@ -113,6 +127,58 @@ export default function HostController({ gameId }: { gameId: string }) {
   const isTierGuess = game ? isTierGuessMode(game) : false
   const isLyric = game ? isLyricMode(game) : false
   const isYear = game ? isYearMode(game) : false
+
+  // Phone Buzz-In setup — generates (once) and persists a room code on the game itself so
+  // reloading the Host Controller doesn't hand out a new code players would have to rejoin
+  // with, then opens the host's WebSocket connection to that room.
+  useEffect(() => {
+    if (!buzzerEnabled || !game) return
+    let current = game
+    if (!current.buzzerRoomCode) {
+      current = saveGame({ ...current, buzzerRoomCode: generateRoomCode() })
+      setGame(current)
+    }
+    const socket = new BuzzerSocket(current.buzzerRoomCode!, 'host')
+    buzzerSocketRef.current = socket
+    const unsubscribe = socket.onMessage((msg) => {
+      if (msg.type === 'roster') setBuzzRoster(msg.players)
+      else if (msg.type === 'state') {
+        setBuzzState(msg.buzzState)
+        setBuzzWinner(msg.winner)
+      }
+    })
+    socket.connect()
+    setBuzzerConnected(true)
+    return () => {
+      unsubscribe()
+      socket.close()
+      buzzerSocketRef.current = null
+      setBuzzerConnected(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buzzerEnabled, game?.id])
+
+  // Keeps the room's team roster (names/colors, for the join page) in sync — deliberately
+  // keyed on a flattened string rather than the teams array itself, since that array gets a
+  // new reference on every score change and would otherwise resend this on every point.
+  const teamsKey = game?.teams.map((t) => `${t.id}:${t.name}:${t.color}`).join('|') ?? ''
+  useEffect(() => {
+    if (!buzzerSocketRef.current || !game) return
+    buzzerSocketRef.current.sendAndRemember({
+      type: 'sync-teams',
+      teams: game.teams.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamsKey, buzzerConnected])
+
+  // The buzzer is open exactly when the room is in 'clue' phase, for every mode/phase-entry
+  // path (fresh possession, resume, "TIP OFF", prev/next) — simpler and more robust than
+  // threading an open/close call through each of those individually.
+  useEffect(() => {
+    if (!buzzerSocketRef.current) return
+    buzzerSocketRef.current.sendAndRemember(phase === 'clue' ? { type: 'open' } : { type: 'close' })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, buzzerConnected])
 
   useEffect(() => {
     audioSourceRef.current?.stop()
@@ -488,6 +554,17 @@ export default function HostController({ gameId }: { gameId: string }) {
   return (
     <div className="fixed inset-0 flex flex-col bg-arena-950 court-lines text-white">
       <div className="absolute right-4 top-4 z-20 flex flex-wrap justify-end gap-2">
+        {buzzerEnabled && game.buzzerRoomCode && (
+          <button
+            onClick={() => setBuzzerPanelOpen(true)}
+            className="flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60"
+          >
+            <span
+              className={`h-2 w-2 rounded-full ${buzzState === 'open' ? 'animate-pulse bg-scoreboard-green' : buzzState === 'locked' ? 'bg-scoreboard-amber' : 'bg-slate-600'}`}
+            />
+            🔔 {game.buzzerRoomCode} ({buzzRoster.length})
+          </button>
+        )}
         {publicConnected && (
           <button
             onClick={() => setPeekMode((v) => !v)}
@@ -906,6 +983,12 @@ export default function HostController({ gameId }: { gameId: string }) {
             </>
           )}
 
+          {buzzWinner && (
+            <div className="relative z-10 rounded-full bg-scoreboard-amber/15 px-4 py-1.5 text-sm font-semibold text-scoreboard-amber">
+              🔔 {buzzWinner.name} ({game.teams.find((t) => t.id === buzzWinner.teamId)?.name ?? '—'}) buzzed in first
+            </div>
+          )}
+
           {isTierGuess ? (
             tierGuessStage === 'guessPosition' ? null : (
               <div className="relative z-10 w-full max-w-lg space-y-3">
@@ -1136,6 +1219,10 @@ export default function HostController({ gameId }: { gameId: string }) {
             </button>
           </div>
         </div>
+      )}
+
+      {buzzerPanelOpen && game.buzzerRoomCode && (
+        <BuzzerPanel code={game.buzzerRoomCode} teams={game.teams} roster={buzzRoster} onClose={() => setBuzzerPanelOpen(false)} />
       )}
     </div>
   )

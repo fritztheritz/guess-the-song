@@ -11,7 +11,37 @@
 // relays the response back. It never logs or echoes the secret, and only ever talks to
 // secure.soundcloud.com.
 
+import { BuzzerRoom } from './buzzer-room.js'
+
+export { BuzzerRoom }
+
 const SOUNDCLOUD_TOKEN_URL = 'https://secure.soundcloud.com/oauth/token'
+
+// Room codes are short and shown on a screen for phones to type in, so they're drawn from
+// an alphabet that skips visually-ambiguous characters (0/O, 1/I/L) rather than validated
+// against it here — this just recognizes anything code-shaped so a stray request to some
+// other path doesn't get routed at a Durable Object by accident.
+const ROOM_CODE_PATTERN = /^[A-Za-z0-9]{4,8}$/
+
+function handleBuzzer(request, env) {
+  const url = new URL(request.url)
+  const code = url.pathname.split('/')[2] || ''
+  if (!ROOM_CODE_PATTERN.test(code)) {
+    return new Response('Invalid room code', { status: 400 })
+  }
+  const id = env.BUZZER_ROOM.idFromName(code.toUpperCase())
+  const room = env.BUZZER_ROOM.get(id)
+  return room.fetch(request)
+}
+
+// Strict membership check — unlike allowedOrigin() below (which falls back to the first
+// allowed origin so withCors() always has *something* to send back to a same-origin
+// browser request), this must actually fail closed for an origin that isn't on the list.
+function isOriginAllowed(request, env) {
+  const origin = request.headers.get('Origin') || ''
+  const allowed = (env.ALLOWED_ORIGINS || '').split(',').map((o) => o.trim()).filter(Boolean)
+  return allowed.includes(origin)
+}
 
 function allowedOrigin(request, env) {
   const origin = request.headers.get('Origin') || ''
@@ -86,6 +116,15 @@ export default {
     const url = new URL(request.url)
     if (url.pathname === '/token' && request.method === 'POST') {
       return handleToken(request, env)
+    }
+    if (url.pathname.startsWith('/buzzer/')) {
+      // WebSocket upgrades aren't subject to CORS preflight, so the Origin allowlist is
+      // enforced by hand here instead — otherwise any page on the internet could open a
+      // socket into someone's live room and buzz for them.
+      if (!isOriginAllowed(request, env)) {
+        return new Response('Origin not allowed', { status: 403 })
+      }
+      return handleBuzzer(request, env)
     }
 
     return jsonError(request, env, 404, 'not_found')
