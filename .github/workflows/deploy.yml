@@ -36,6 +36,8 @@ jobs:
           VITE_SOUNDCLOUD_CLIENT_ID: ${{ vars.VITE_SOUNDCLOUD_CLIENT_ID }}
           VITE_SOUNDCLOUD_REDIRECT_URI: ${{ vars.VITE_SOUNDCLOUD_REDIRECT_URI }}
           VITE_SOUNDCLOUD_TOKEN_PROXY_URL: ${{ vars.VITE_SOUNDCLOUD_TOKEN_PROXY_URL }}
+          VITE_SPOTIFY_CLIENT_ID: ${{ vars.VITE_SPOTIFY_CLIENT_ID }}
+          VITE_SPOTIFY_REDIRECT_URI: ${{ vars.VITE_SPOTIFY_REDIRECT_URI }}
           VITE_BASE: /${{ github.event.repository.name }}/
         run: npm run build
 
