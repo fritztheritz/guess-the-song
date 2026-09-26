@@ -4,14 +4,48 @@ import type { DraftBoard, DraftPoolSong, Drafter } from '../types/draft'
 import { snakeOrder, computeDraftStandings } from '../types/draft'
 import { getDraftBoard, saveDraftBoard } from '../lib/storage/draft-repository'
 import { useConfirm } from '../state/ConfirmContext'
+import { useToast } from '../state/ToastContext'
+import { useSoundCloud } from '../state/SoundCloudContext'
+import { isSoundCloudConfigured } from '../lib/soundcloud/config'
+import { createSoundCloudPlaylist } from '../lib/soundcloud/soundcloud-tracks'
 import Spinner from '../components/Spinner'
 
-function DrafterRoster({ drafter, songs, highlight }: { drafter: Drafter; songs: DraftPoolSong[]; highlight?: boolean }) {
+function DrafterRoster({
+  drafter,
+  songs,
+  highlight,
+  onCreatePlaylist,
+}: {
+  drafter: Drafter
+  songs: DraftPoolSong[]
+  highlight?: boolean
+  /** Opens the naming modal. Only passed on the listening screen, and only when the drafter
+   *  has an eligible song. */
+  onCreatePlaylist?: () => void
+}) {
   return (
     <div className={`rounded-xl border p-3 ${highlight ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 bg-arena-800/60'}`}>
-      <div className="mb-1.5 flex items-center gap-1.5 text-sm font-semibold" style={{ color: drafter.color }}>
-        {drafter.avatar ? `${drafter.avatar} ` : ''}
-        {drafter.name}
+      <div className="mb-1.5 flex items-center justify-between gap-1.5">
+        <div className="flex items-center gap-1.5 truncate text-sm font-semibold" style={{ color: drafter.color }}>
+          {drafter.avatar ? `${drafter.avatar} ` : ''}
+          {drafter.name}
+        </div>
+        {drafter.soundcloudPlaylistUrl ? (
+          <a
+            href={drafter.soundcloudPlaylistUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="shrink-0 text-xs text-[#ff7733] hover:text-[#ff5500]"
+          >
+            🎵 Playlist ↗
+          </a>
+        ) : (
+          onCreatePlaylist && (
+            <button onClick={onCreatePlaylist} className="shrink-0 text-xs text-slate-400 hover:text-[#ff7733]">
+              🎵 Create
+            </button>
+          )
+        )}
       </div>
       {songs.length === 0 ? (
         <p className="text-xs text-slate-500">No picks yet</p>
@@ -28,12 +62,64 @@ function DrafterRoster({ drafter, songs, highlight }: { drafter: Drafter; songs:
   )
 }
 
+function CreatePlaylistModal({
+  defaultTitle,
+  songCount,
+  creating,
+  onCreate,
+  onClose,
+}: {
+  defaultTitle: string
+  songCount: number
+  creating: boolean
+  onCreate: (title: string) => void
+  onClose: () => void
+}) {
+  const [title, setTitle] = useState(defaultTitle)
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-sm rounded-2xl border border-arena-600 bg-arena-900 p-6 shadow-2xl">
+        <h2 className="font-display text-xl tracking-wide text-hardwood-400">NAME THE PLAYLIST</h2>
+        <p className="mt-1 text-sm text-slate-400">
+          {songCount} song{songCount === 1 ? '' : 's'} will be added to SoundCloud.
+        </p>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          autoFocus
+          className="mt-4 w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+        />
+        <div className="mt-5 flex gap-2">
+          <button
+            onClick={onClose}
+            disabled={creating}
+            className="flex-1 rounded-full border border-arena-500 py-2 text-sm text-slate-300 disabled:opacity-40 hover:border-hardwood-500"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onCreate(title.trim() || defaultTitle)}
+            disabled={creating || !title.trim()}
+            className="flex-[2] rounded-full bg-[#ff5500] py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-[#ff7733]"
+          >
+            {creating ? 'Creating…' : '🎵 Create Playlist'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DraftSessionRoom() {
   const { boardId, sessionId } = useParams()
   const confirm = useConfirm()
+  const showToast = useToast()
+  const soundcloud = useSoundCloud()
   const [board, setBoard] = useState<DraftBoard | null>(null)
   const [filterQuery, setFilterQuery] = useState('')
   const [ballotOrder, setBallotOrder] = useState<string[]>([])
+  const [playlistModalDrafterId, setPlaylistModalDrafterId] = useState<string | null>(null)
+  const [creatingPlaylistId, setCreatingPlaylistId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!boardId) return
@@ -77,11 +163,41 @@ export default function DraftSessionRoom() {
           ? {
               ...s,
               picks: [...s.picks, { songId: song.id, drafterId: currentDrafter.id, round: currentRound }],
-              phase: s.picks.length + 1 >= totalPicks ? 'ranking' : s.phase,
+              phase: s.picks.length + 1 >= totalPicks ? 'listening' : s.phase,
             }
           : s,
       ),
     })
+  }
+
+  function soundcloudSongsFor(drafterId: string): DraftPoolSong[] {
+    return rosterFor(drafterId).filter((s) => s.source === 'soundcloud' && s.soundcloudTrackId)
+  }
+
+  async function handleCreatePlaylistFor(drafterId: string, title: string) {
+    if (!board || !session) return
+    const drafter = session.drafters.find((d) => d.id === drafterId)
+    const songs = soundcloudSongsFor(drafterId)
+    if (!drafter || songs.length === 0) return
+    setCreatingPlaylistId(drafterId)
+    try {
+      const trackIds = songs.map((s) => s.soundcloudTrackId as string)
+      const playlist = await createSoundCloudPlaylist(title, trackIds)
+      persist({
+        ...board,
+        sessions: board.sessions.map((s) =>
+          s.id === session.id
+            ? { ...s, drafters: s.drafters.map((d) => (d.id === drafterId ? { ...d, soundcloudPlaylistUrl: playlist.permalinkUrl } : d)) }
+            : s,
+        ),
+      })
+      showToast(`Playlist created for ${drafter.name}`)
+      setPlaylistModalDrafterId(null)
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Could not create the playlist')
+    } finally {
+      setCreatingPlaylistId(null)
+    }
   }
 
   // Only safe to undo a pick before anyone's started ranking — once a ballot's been submitted
@@ -239,6 +355,57 @@ export default function DraftSessionRoom() {
           </>
         )}
 
+        {session.phase === 'listening' && (
+          <div className="space-y-6">
+            <div className="relative rounded-xl border border-hardwood-500 bg-hardwood-500/10 px-5 py-4 text-center">
+              <div className="font-display text-3xl tracking-widest text-hardwood-400">🎧 LISTENING TIME!</div>
+              <p className="mt-1 text-sm text-slate-400">Everyone's picks are in. Give the whole draft a listen before ranking.</p>
+              {canUndoPick && (
+                <button
+                  onClick={undoLastPick}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-arena-500 px-3 py-1 text-xs text-slate-300 hover:border-hardwood-400 hover:text-hardwood-300"
+                >
+                  ↩ Undo Last Pick
+                </button>
+              )}
+            </div>
+
+            {isSoundCloudConfigured() && !soundcloud.connection && (
+              <div className="rounded-xl border border-arena-600 bg-arena-800/60 p-4 text-center">
+                <p className="mb-2 text-sm text-slate-400">Connect SoundCloud to build a listening playlist per drafter.</p>
+                <button
+                  onClick={() => soundcloud.connect()}
+                  className="rounded-full border border-[#ff5500] px-5 py-2 font-semibold text-[#ff7733] hover:bg-[#ff5500]/10"
+                >
+                  Connect SoundCloud
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+              {session.drafters.map((drafter) => (
+                <DrafterRoster
+                  key={drafter.id}
+                  drafter={drafter}
+                  songs={rosterFor(drafter.id)}
+                  onCreatePlaylist={
+                    isSoundCloudConfigured() && soundcloud.connection && soundcloudSongsFor(drafter.id).length > 0
+                      ? () => setPlaylistModalDrafterId(drafter.id)
+                      : undefined
+                  }
+                />
+              ))}
+            </div>
+
+            <button
+              onClick={() => persist({ ...board, sessions: board.sessions.map((s) => (s.id === session.id ? { ...s, phase: 'ranking' } : s)) })}
+              className="w-full rounded-full bg-hardwood-500 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400"
+            >
+              START RANKING →
+            </button>
+          </div>
+        )}
+
         {session.phase === 'ranking' && nextRanker && (
           <div className="space-y-4">
             <div className="relative rounded-xl border border-hardwood-500 bg-hardwood-500/10 px-5 py-3 text-center">
@@ -330,6 +497,21 @@ export default function DraftSessionRoom() {
           </div>
         )}
       </div>
+
+      {playlistModalDrafterId &&
+        (() => {
+          const drafter = session.drafters.find((d) => d.id === playlistModalDrafterId)
+          if (!drafter) return null
+          return (
+            <CreatePlaylistModal
+              defaultTitle={`${drafter.name} — ${session.name}`}
+              songCount={soundcloudSongsFor(drafter.id).length}
+              creating={creatingPlaylistId === drafter.id}
+              onCreate={(title) => handleCreatePlaylistFor(drafter.id, title)}
+              onClose={() => setPlaylistModalDrafterId(null)}
+            />
+          )
+        })()}
     </div>
   )
 }

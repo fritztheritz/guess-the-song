@@ -167,3 +167,24 @@ export async function resolveSoundCloudUrl(url: string): Promise<ImportableTrack
   const track = await scFetchJson<RawSoundCloudTrack>(`/resolve?url=${encodeURIComponent(url)}`)
   return mapToImportableTrack(track)
 }
+
+export interface CreatedSoundCloudPlaylist {
+  id: string
+  permalinkUrl: string
+}
+
+// The one write call in this file (everything else here is read-only). Private by default —
+// this is meant for a group's own listening party, not a public release — but SoundCloud still
+// hands back a permalink_url that works as a share link for anyone who has it.
+export async function createSoundCloudPlaylist(
+  title: string,
+  trackIds: string[],
+  sharing: 'public' | 'private' = 'private',
+): Promise<CreatedSoundCloudPlaylist> {
+  const raw = await scFetchJson<{ id: number; permalink_url: string }>('/playlists', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playlist: { title, sharing, tracks: trackIds.map((id) => ({ id: Number(id) })) } }),
+  })
+  return { id: String(raw.id), permalinkUrl: raw.permalink_url }
+}

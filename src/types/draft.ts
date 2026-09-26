@@ -30,6 +30,9 @@ export interface Drafter {
   name: string
   color: string
   avatar?: string
+  /** Set once a SoundCloud playlist has been created from this drafter's picks, so the
+   *  "listening time" screen can link straight to it instead of offering to create another. */
+  soundcloudPlaylistUrl?: string
 }
 
 export interface DraftPick {
@@ -46,7 +49,9 @@ export interface DraftRanking {
   rankedDrafterIds: string[]
 }
 
-export type DraftSessionPhase = 'drafting' | 'ranking' | 'complete'
+/** 'listening' sits between 'drafting' and 'ranking' — everyone's picks are locked in, but
+ *  before ranking starts there's usually a listening-party pass through the whole draft. */
+export type DraftSessionPhase = 'drafting' | 'listening' | 'ranking' | 'complete'
 
 export interface DraftSession {
   id: string

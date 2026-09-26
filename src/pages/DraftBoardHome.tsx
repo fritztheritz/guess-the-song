@@ -17,6 +17,7 @@ import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
 
 const PHASE_LABEL: Record<DraftSession['phase'], string> = {
   drafting: '🎧 Drafting',
+  listening: '🎶 Listening',
   ranking: '📊 Ranking',
   complete: '✅ Complete',
 }
