@@ -10,6 +10,8 @@ import CreateTierList from './pages/CreateTierList'
 import TierListBuilder from './pages/TierListBuilder'
 import TierListPresent from './pages/TierListPresent'
 import PlayerBuzzer from './pages/PlayerBuzzer'
+import CreateTournament from './pages/CreateTournament'
+import TournamentBuilder from './pages/TournamentBuilder'
 import RequireFlag from './components/RequireFlag'
 
 export default function App() {
@@ -45,6 +47,22 @@ export default function App() {
         element={
           <RequireFlag flag="tier-lists">
             <TierListPresent />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/tournaments/new"
+        element={
+          <RequireFlag flag="tournaments">
+            <CreateTournament />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/tournaments/:tournamentId"
+        element={
+          <RequireFlag flag="tournaments">
+            <TournamentBuilder />
           </RequireFlag>
         }
       />

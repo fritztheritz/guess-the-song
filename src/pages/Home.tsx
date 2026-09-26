@@ -2,9 +2,17 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { listGames, deleteGame, saveGame, exportAllGames, importGames } from '../lib/storage/game-repository'
 import { listTierLists, deleteTierList, saveTierList, exportAllTierLists, importTierLists } from '../lib/storage/tierlist-repository'
+import {
+  listTournaments,
+  deleteTournament,
+  saveTournament,
+  exportAllTournaments,
+  importTournaments,
+} from '../lib/storage/tournament-repository'
 import { downloadBackupFile, parseBackupFile, BackupFileError } from '../lib/game-backup'
 import { duplicateGame, isLyricMode, isTierGuessMode, type Game } from '../types'
 import { duplicateTierList, type TierList } from '../types/tierlist'
+import { duplicateTournament, type Tournament } from '../types/tournament'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import { useConfirm } from '../state/ConfirmContext'
 import { useToast } from '../state/ToastContext'
@@ -18,8 +26,10 @@ export default function Home() {
   const showToast = useToast()
   const tierListsEnabled = useFeatureFlag('tier-lists')
   const spotifyImportEnabled = useFeatureFlag('spotify-import')
+  const tournamentsEnabled = useFeatureFlag('tournaments')
   const [games, setGames] = useState<Game[]>([])
   const [tierLists, setTierLists] = useState<TierList[]>([])
+  const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
   const [activeTags, setActiveTags] = useState<string[]>([])
   const importFileInput = useRef<HTMLInputElement | null>(null)
@@ -27,7 +37,8 @@ export default function Home() {
   useEffect(() => {
     setGames(listGames())
     if (tierListsEnabled) setTierLists(listTierLists())
-  }, [tierListsEnabled])
+    if (tournamentsEnabled) setTournaments(listTournaments())
+  }, [tierListsEnabled, tournamentsEnabled])
 
   async function handleDeleteTierList(id: string) {
     if (!(await confirm('Delete this tier list? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
@@ -39,6 +50,19 @@ export default function Home() {
   function handleDuplicateTierList(list: TierList) {
     const copy = saveTierList(duplicateTierList(list))
     navigate(`/tierlists/${copy.id}/edit`)
+  }
+
+  async function handleDeleteTournament(id: string) {
+    if (!(await confirm('Delete this tournament? This cannot be undone (the games it references are not deleted).', { danger: true, confirmLabel: 'Delete' })))
+      return
+    deleteTournament(id)
+    setTournaments(listTournaments())
+    showToast('Tournament deleted')
+  }
+
+  function handleDuplicateTournament(tournament: Tournament) {
+    const copy = saveTournament(duplicateTournament(tournament))
+    navigate(`/tournaments/${copy.id}`)
   }
 
   async function handleDelete(id: string) {
@@ -63,9 +87,10 @@ export default function Home() {
     const set = new Set<string>()
     modeVisibleGames.forEach((g) => (g.tags ?? []).forEach((t) => set.add(t)))
     if (tierListsEnabled) tierLists.forEach((l) => (l.tags ?? []).forEach((t) => set.add(t)))
+    if (tournamentsEnabled) tournaments.forEach((t) => (t.tags ?? []).forEach((tag) => set.add(tag)))
     return Array.from(set).sort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modeVisibleGames, tierLists, tierListsEnabled])
+  }, [modeVisibleGames, tierLists, tierListsEnabled, tournaments, tournamentsEnabled])
 
   function toggleTag(tag: string) {
     setActiveTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
@@ -76,22 +101,25 @@ export default function Home() {
   const matchesActiveTags = (tags?: string[]) => activeTags.length === 0 || (tags ?? []).some((t) => activeTags.includes(t))
   const visibleGames = modeVisibleGames.filter((g) => matchesActiveTags(g.tags))
   const visibleTierLists = tierLists.filter((l) => matchesActiveTags(l.tags))
+  const visibleTournaments = tournaments.filter((t) => matchesActiveTags(t.tags))
 
   function handleExportAll() {
-    // Reads straight from storage rather than the tierLists state var, so a backup taken
-    // while the tier-lists flag is off still includes any tier lists already saved.
+    // Reads straight from storage rather than the tierLists/tournaments state vars, so a
+    // backup taken while a flag is off still includes anything already saved under it.
     const allGames = exportAllGames()
     const allTierLists = exportAllTierLists()
-    if (allGames.length === 0 && allTierLists.length === 0) {
+    const allTournaments = exportAllTournaments()
+    if (allGames.length === 0 && allTierLists.length === 0 && allTournaments.length === 0) {
       setBackupStatus('Nothing to back up yet.')
       return
     }
-    downloadBackupFile(allGames, allTierLists)
+    downloadBackupFile(allGames, allTierLists, allTournaments)
     const parts = [
       allGames.length > 0 ? `${allGames.length} game${allGames.length === 1 ? '' : 's'}` : null,
       allTierLists.length > 0 ? `${allTierLists.length} tier list${allTierLists.length === 1 ? '' : 's'}` : null,
+      allTournaments.length > 0 ? `${allTournaments.length} tournament${allTournaments.length === 1 ? '' : 's'}` : null,
     ].filter(Boolean)
-    setBackupStatus(`Downloaded a backup of ${parts.join(' and ')}.`)
+    setBackupStatus(`Downloaded a backup of ${parts.join(', ')}.`)
   }
 
   async function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
@@ -100,25 +128,28 @@ export default function Home() {
     if (!file) return
     try {
       const text = await file.text()
-      const { games: importedGames, tierLists: importedTierLists } = parseBackupFile(text)
-      if (importedGames.length === 0 && importedTierLists.length === 0) {
+      const { games: importedGames, tierLists: importedTierLists, tournaments: importedTournaments } = parseBackupFile(text)
+      if (importedGames.length === 0 && importedTierLists.length === 0 && importedTournaments.length === 0) {
         setBackupStatus('That backup file is empty.')
         return
       }
       const parts = [
         importedGames.length > 0 ? `${importedGames.length} game${importedGames.length === 1 ? '' : 's'}` : null,
         importedTierLists.length > 0 ? `${importedTierLists.length} tier list${importedTierLists.length === 1 ? '' : 's'}` : null,
+        importedTournaments.length > 0 ? `${importedTournaments.length} tournament${importedTournaments.length === 1 ? '' : 's'}` : null,
       ].filter(Boolean)
       const ok = await confirm(
-        `Restore ${parts.join(' and ')}? Anything already here with the same id will be overwritten by the backup.`,
+        `Restore ${parts.join(', ')}? Anything already here with the same id will be overwritten by the backup.`,
         { confirmLabel: 'Restore' },
       )
       if (!ok) return
       importGames(importedGames)
       importTierLists(importedTierLists)
+      importTournaments(importedTournaments)
       setGames(listGames())
       if (tierListsEnabled) setTierLists(listTierLists())
-      setBackupStatus(`Restored ${parts.join(' and ')} from backup.`)
+      if (tournamentsEnabled) setTournaments(listTournaments())
+      setBackupStatus(`Restored ${parts.join(', ')} from backup.`)
     } catch (err) {
       setBackupStatus(err instanceof BackupFileError ? err.message : 'Could not read that file.')
     }
@@ -145,6 +176,14 @@ export default function Home() {
                 className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
               >
                 + CREATE TIER LIST
+              </Link>
+            )}
+            {tournamentsEnabled && (
+              <Link
+                to="/tournaments/new"
+                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
+              >
+                + CREATE TOURNAMENT
               </Link>
             )}
           </div>
@@ -314,13 +353,70 @@ export default function Home() {
           </div>
         )}
 
+        {tournamentsEnabled && tournaments.length > 0 && (
+          <div className="mt-16">
+            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TOURNAMENTS</h2>
+            {visibleTournaments.length === 0 ? (
+              <p className="text-sm text-slate-500">No tournaments match the selected tags.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {visibleTournaments.map((tournament) => (
+                  <div key={tournament.id} className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-4">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs">🏆</span>
+                        <div className="font-semibold text-slate-100">{tournament.name}</div>
+                      </div>
+                      <div className="text-sm text-slate-500">
+                        {tournament.gameIds.length} game{tournament.gameIds.length === 1 ? '' : 's'}
+                      </div>
+                      {tournament.tags && tournament.tags.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {tournament.tags.map((tag) => (
+                            <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-[10px] text-slate-400">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/tournaments/${tournament.id}`}
+                        className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                      >
+                        Open
+                      </Link>
+                      <button
+                        onClick={() => handleDuplicateTournament(tournament)}
+                        className="rounded-lg px-2 text-slate-500 hover:text-slate-200"
+                        aria-label={`Duplicate ${tournament.name}`}
+                        title="Duplicate"
+                      >
+                        ⧉
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTournament(tournament.id)}
+                        className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
+                        aria-label="Delete tournament"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="mt-16 text-center">
           <p className="mb-2 text-xs text-slate-500">
             Games are stored only in this browser. Back them up before clearing site data or switching browsers/devices.
           </p>
           <div className="flex justify-center gap-3">
             <button onClick={handleExportAll} className="text-sm text-slate-400 underline hover:text-hardwood-400">
-              Export all games &amp; tier lists
+              Export everything
             </button>
             <button onClick={() => importFileInput.current?.click()} className="text-sm text-slate-400 underline hover:text-hardwood-400">
               Restore from backup

@@ -34,6 +34,13 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
       'Search and import tracks from Spotify alongside SoundCloud. Playback goes through the Web Playback SDK and requires the host to connect a Spotify Premium account — needs VITE_SPOTIFY_CLIENT_ID configured.',
     default: false,
   },
+  {
+    key: 'tournaments',
+    label: 'Tournaments',
+    description:
+      'Chain several existing games together in sequence with one running leaderboard across them, aggregated by matching team name.',
+    default: false,
+  },
 ]
 
 const STORAGE_KEY = 'gts.flags.v1'
