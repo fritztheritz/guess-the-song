@@ -75,3 +75,23 @@
 .animate-pop-in {
   animation: pop-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
+
+/* Score-change feedback — a team's card pops and glows in their own color, set via the
+   --pop-color custom property since Tailwind can't express a per-team dynamic box-shadow. */
+@keyframes score-pop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+
+@keyframes score-glow {
+  0% { box-shadow: 0 0 0 0 var(--pop-color, transparent); }
+  35% { box-shadow: 0 0 22px 4px var(--pop-color, transparent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+.animate-score-pop {
+  animation:
+    score-pop 550ms cubic-bezier(0.3, 0.7, 0.3, 1.4),
+    score-glow 700ms ease-out;
+}

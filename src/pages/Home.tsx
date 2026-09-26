@@ -129,8 +129,8 @@ export default function Home() {
       <div className="mx-auto max-w-5xl px-6 py-16">
         <div className="text-center">
           <div className="mb-3 text-5xl">🏀</div>
-          <h1 className="font-display text-6xl tracking-wide text-white">GUESS THE TRACK</h1>
-          <p className="mt-2 text-slate-400">A music guessing game built from your SoundCloud library.</p>
+          <h1 className="font-display text-6xl tracking-wide text-white">BUZZER BEATS</h1>
+          <p className="mt-2 text-slate-400">A basketball-themed party trivia game — songs, lyrics, years, and rankings.</p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <Link
@@ -191,13 +191,22 @@ export default function Home() {
               <p className="text-sm text-slate-500">No games match the selected tags.</p>
             ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {visibleGames.map((game) => (
-                <div key={game.id} className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-4">
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs">{isLyricMode(game) ? '📝' : isTierGuessMode(game) ? '🎯' : '🎵'}</span>
-                      <div className="font-semibold text-slate-100">{game.name}</div>
-                    </div>
+              {visibleGames.map((game) => {
+                const thumbnailUrl = game.rounds.find((r) => r.artworkUrl)?.artworkUrl
+                return (
+                <div key={game.id} className="flex items-start gap-3 rounded-xl border border-arena-600 bg-arena-800/60 p-4 sm:items-center">
+                  <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-arena-700">
+                    {thumbnailUrl ? (
+                      <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-2xl text-arena-500">
+                        {isLyricMode(game) ? '📝' : isTierGuessMode(game) ? '🎯' : '🎵'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="truncate font-semibold text-slate-100">{game.name}</div>
                     <div className="text-sm text-slate-500">
                       {game.rounds.length} possession{game.rounds.length === 1 ? '' : 's'} · {game.teams.map((t) => t.name).join(' vs ')}
                     </div>
@@ -211,7 +220,7 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex shrink-0 gap-2">
                     <Link to={`/games/${game.id}/edit`} className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-200 hover:border-hardwood-500">
                       Edit
                     </Link>
@@ -230,8 +239,10 @@ export default function Home() {
                       ✕
                     </button>
                   </div>
+                  </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
             )}
           </div>

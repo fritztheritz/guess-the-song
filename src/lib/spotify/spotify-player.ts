@@ -36,7 +36,7 @@ class SpotifyPlayerManager {
       if (!window.Spotify) throw new Error('Spotify playback SDK failed to load.')
 
       const player = new window.Spotify.Player({
-        name: 'Guess the Track',
+        name: 'Buzzer Beats',
         getOAuthToken: (callback) => {
           getValidConnection()
             .then((c) => callback(c.accessToken))

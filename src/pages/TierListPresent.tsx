@@ -5,6 +5,7 @@ import { getTierList, saveTierList } from '../lib/storage/tierlist-repository'
 import { moveSong, songsInGroup } from '../lib/tierlist-ranking'
 import { useConfirm } from '../state/ConfirmContext'
 import { useToast } from '../state/ToastContext'
+import Spinner from '../components/Spinner'
 
 // Sentinel for "currently dragging over the Unranked pool" — distinct from tier ids
 // (real uuids) and from `null` (no drag in progress), so the two are never confused.
@@ -165,8 +166,15 @@ export default function TierListPresent() {
 
   if (!list) {
     return (
-      <div className="flex min-h-svh items-center justify-center text-slate-400">
-        {tierListId ? 'Loading…' : 'Tier list not found.'}
+      <div className="flex min-h-svh flex-col items-center justify-center gap-3 text-slate-400">
+        {tierListId ? (
+          <>
+            <Spinner />
+            <span>Loading…</span>
+          </>
+        ) : (
+          'Tier list not found.'
+        )}
       </div>
     )
   }

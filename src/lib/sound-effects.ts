@@ -32,3 +32,81 @@ export function playBuzzer() {
     // the reveal itself isn't worth blocking on a sound effect.
   }
 }
+
+/** A quick double-blip for the moment a player actually buzzes in — distinct from and
+ * earlier than playBuzzer()'s reveal cue. Short and sharp, game-show style. */
+export function playBuzzIn() {
+  try {
+    const ctx = getContext()
+    const now = ctx.currentTime
+
+    ;[0, 0.09].forEach((offset) => {
+      const start = now + offset
+      const gain = ctx.createGain()
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(0.3, start + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.08)
+      gain.connect(ctx.destination)
+
+      const osc = ctx.createOscillator()
+      osc.type = 'square'
+      osc.frequency.setValueAtTime(660, start)
+      osc.connect(gain)
+      osc.start(start)
+      osc.stop(start + 0.08)
+    })
+  } catch {
+    // Best-effort, same as playBuzzer().
+  }
+}
+
+/** A bright ascending chime for a confirmed-correct answer. */
+export function playCorrect() {
+  try {
+    const ctx = getContext()
+    const now = ctx.currentTime
+
+    ;[523.25, 659.25].forEach((freq, i) => {
+      const start = now + i * 0.09
+      const gain = ctx.createGain()
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(0.28, start + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.25)
+      gain.connect(ctx.destination)
+
+      const osc = ctx.createOscillator()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, start)
+      osc.connect(gain)
+      osc.start(start)
+      osc.stop(start + 0.25)
+    })
+  } catch {
+    // Best-effort, same as playBuzzer().
+  }
+}
+
+/** A short flat "womp" for a wrong buzz-in — lighter than playBuzzer() since it's just
+ * "try again" feedback, not the big reveal moment. */
+export function playWrong() {
+  try {
+    const ctx = getContext()
+    const now = ctx.currentTime
+
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.3)
+    gain.connect(ctx.destination)
+
+    const osc = ctx.createOscillator()
+    osc.type = 'square'
+    osc.frequency.setValueAtTime(180, now)
+    osc.frequency.linearRampToValueAtTime(110, now + 0.28)
+    osc.connect(gain)
+    osc.start(now)
+    osc.stop(now + 0.3)
+  } catch {
+    // Best-effort, same as playBuzzer().
+  }
+}

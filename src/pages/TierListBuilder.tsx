@@ -5,6 +5,7 @@ import { getTierList, listTierLists, saveTierList } from '../lib/storage/tierlis
 import { generatePlaceholderArtwork } from '../lib/placeholder-artwork'
 import ImportSoundCloudModal from '../components/ImportSoundCloudModal'
 import TagInput from '../components/TagInput'
+import Spinner from '../components/Spinner'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 
 export default function TierListBuilder() {
@@ -79,8 +80,15 @@ export default function TierListBuilder() {
 
   if (!list) {
     return (
-      <div className="flex min-h-svh items-center justify-center text-slate-400">
-        {tierListId ? 'Loading…' : 'Tier list not found.'}
+      <div className="flex min-h-svh flex-col items-center justify-center gap-3 text-slate-400">
+        {tierListId ? (
+          <>
+            <Spinner />
+            <span>Loading…</span>
+          </>
+        ) : (
+          'Tier list not found.'
+        )}
       </div>
     )
   }

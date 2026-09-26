@@ -4,6 +4,7 @@ import { handleCallback as handleSoundCloudCallback } from '../lib/soundcloud/so
 import { handleCallback as handleSpotifyCallback, isSpotifyState } from '../lib/spotify/spotify-auth'
 import { refreshSoundCloudContext } from '../state/SoundCloudContext'
 import { refreshSpotifyContext } from '../state/SpotifyContext'
+import Spinner from '../components/Spinner'
 
 export default function Callback() {
   const navigate = useNavigate()
@@ -43,7 +44,7 @@ export default function Callback() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-arena-600 border-t-hardwood-500" />
+          <Spinner className="mx-auto h-10 w-10" />
           <p className="text-slate-300">Connecting to {provider}…</p>
         </div>
       )}

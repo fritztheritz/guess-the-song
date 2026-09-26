@@ -3,6 +3,7 @@ import { isLyricMode, isTierGuessMode, isYearMode, LYRIC_HINT_LABELS, type Game,
 import { getGame } from '../lib/storage/game-repository'
 import { presentationChannelName, type PresentationMessage, type PresentationSnapshot } from '../lib/presentation-sync'
 import Scoreboard from '../components/Scoreboard'
+import Spinner from '../components/Spinner'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -60,7 +61,14 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
     }
   }, [snapshot?.playing])
 
-  if (!game) return <div className="flex min-h-svh items-center justify-center bg-arena-950 text-slate-400">Loading…</div>
+  if (!game) {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-arena-950 text-slate-400">
+        <Spinner />
+        <span>Loading…</span>
+      </div>
+    )
+  }
 
   if (!snapshot) {
     return (

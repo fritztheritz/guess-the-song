@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { isLyricMode, isTierGuessMode, isYearMode, LYRIC_HINT_LABELS, type Game, type SongRound, type Team } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
-import { playBuzzer } from '../lib/sound-effects'
+import { playBuzzer, playBuzzIn, playCorrect, playWrong } from '../lib/sound-effects'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import {
   presentationChannelName,
@@ -15,6 +15,7 @@ import {
 import { useConfirm } from '../state/ConfirmContext'
 import Scoreboard from '../components/Scoreboard'
 import BuzzerPanel from '../components/BuzzerPanel'
+import Spinner from '../components/Spinner'
 import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
 import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
 import type { BuzzState, BuzzerPlayer, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
@@ -111,14 +112,17 @@ export default function HostController({ gameId }: { gameId: string }) {
     }
   }
 
-  function recordBuzzReaction(winner: BuzzerWinner) {
-    if (winner.reactionMs == null) return
+  // Returns whether this was a genuinely new buzz (vs. the same one replayed by a
+  // reconnect's state resync) — callers use that to gate anything that should only ever
+  // happen once per real buzz-in, like a sound effect.
+  function recordBuzzReaction(winner: BuzzerWinner): boolean {
     const key = `${winner.connId}:${winner.at}`
-    if (recapRef.current.seenBuzzKeys.has(key)) return
+    if (recapRef.current.seenBuzzKeys.has(key)) return false
     recapRef.current.seenBuzzKeys.add(key)
-    if (!recapRef.current.fastestBuzz || winner.reactionMs < recapRef.current.fastestBuzz.ms) {
+    if (winner.reactionMs != null && (!recapRef.current.fastestBuzz || winner.reactionMs < recapRef.current.fastestBuzz.ms)) {
       recapRef.current.fastestBuzz = { name: winner.name, teamId: winner.teamId, ms: winner.reactionMs }
     }
+    return true
   }
 
   useEffect(() => {
@@ -162,7 +166,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         setBuzzState(msg.buzzState)
         setBuzzWinner(msg.winner)
         setBuzzIced(msg.iced)
-        if (msg.winner) recordBuzzReaction(msg.winner)
+        if (msg.winner && recordBuzzReaction(msg.winner)) playBuzzIn()
       }
     })
     socket.connect()
@@ -379,12 +383,14 @@ export default function HostController({ gameId }: { gameId: string }) {
     if (!round) return
     const team = game?.teams.find((t) => t.id === buzzWinner?.teamId)
     if (!team) return
+    playCorrect()
     award(team, round.points[clueIndex])
     reveal()
   }
 
   function markBuzzWrong() {
     if (!buzzWinner) return
+    playWrong()
     buzzerSocketRef.current?.send({ type: 'wrong', teamId: buzzWinner.teamId })
   }
 
@@ -618,7 +624,14 @@ export default function HostController({ gameId }: { gameId: string }) {
       (isTierGuess && phase === 'revealed' && tierGuessStage === 'guessPosition') ||
       (isYear && phase === 'revealed' && yearGuessStage === 'guessMonth'))
 
-  if (!game) return <div className="flex min-h-svh items-center justify-center bg-arena-950 text-slate-400">Loading…</div>
+  if (!game) {
+    return (
+      <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-arena-950 text-slate-400">
+        <Spinner />
+        <span>Loading…</span>
+      </div>
+    )
+  }
 
   return (
     <div className="fixed inset-0 flex flex-col bg-arena-950 court-lines text-white">

@@ -41,7 +41,7 @@ export function downloadBackupFile(games: Game[], tierLists: TierList[]) {
 
   const a = document.createElement('a')
   a.href = url
-  a.download = `guess-the-song-backup-${date}.json`
+  a.download = `buzzer-beats-backup-${date}.json`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -57,7 +57,7 @@ export function parseBackupFile(text: string): BackupContents {
   }
 
   if (!data || typeof data !== 'object' || !Array.isArray((data as BackupFile).games)) {
-    throw new BackupFileError("That doesn't look like a Guess the Track backup file.")
+    throw new BackupFileError("That doesn't look like a Buzzer Beats backup file.")
   }
 
   const backup = data as BackupFile
