@@ -95,3 +95,16 @@
     score-pop 550ms cubic-bezier(0.3, 0.7, 0.3, 1.4),
     score-glow 700ms ease-out;
 }
+
+/* Final-score celebration — each piece falls/rotates over a randomized duration/delay set
+   inline per-piece (see Confetti.tsx), rather than a fixed single keyframe for all of them. */
+@keyframes confetti-fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+
+.animate-confetti-fall {
+  animation-name: confetti-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}

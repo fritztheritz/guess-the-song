@@ -4,6 +4,7 @@ import { getGame } from '../lib/storage/game-repository'
 import { presentationChannelName, type PresentationMessage, type PresentationSnapshot } from '../lib/presentation-sync'
 import Scoreboard from '../components/Scoreboard'
 import Spinner from '../components/Spinner'
+import Confetti from '../components/Confetti'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -306,6 +307,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
 
       {phase === 'final' && (
         <div className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
+          <Confetti />
           <div className="font-display text-5xl tracking-widest text-hardwood-400">FINAL SCORE</div>
           <div className="space-y-3">
             {sortedFinal.map((team, i) => (

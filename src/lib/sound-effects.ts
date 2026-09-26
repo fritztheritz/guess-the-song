@@ -86,6 +86,32 @@ export function playCorrect() {
   }
 }
 
+/** A triumphant rising arpeggio for the final-score/winner reveal. */
+export function playFanfare() {
+  try {
+    const ctx = getContext()
+    const now = ctx.currentTime
+
+    ;[523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+      const start = now + i * 0.12
+      const gain = ctx.createGain()
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.6)
+      gain.connect(ctx.destination)
+
+      const osc = ctx.createOscillator()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, start)
+      osc.connect(gain)
+      osc.start(start)
+      osc.stop(start + 0.6)
+    })
+  } catch {
+    // Best-effort, same as playBuzzer().
+  }
+}
+
 /** A short flat "womp" for a wrong buzz-in — lighter than playBuzzer() since it's just
  * "try again" feedback, not the big reveal moment. */
 export function playWrong() {

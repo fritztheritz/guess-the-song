@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { isLyricMode, isTierGuessMode, isYearMode, LYRIC_HINT_LABELS, type Game, type SongRound, type Team } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
-import { playBuzzer, playBuzzIn, playCorrect, playWrong } from '../lib/sound-effects'
+import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare } from '../lib/sound-effects'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import {
   presentationChannelName,
@@ -16,6 +16,7 @@ import { useConfirm } from '../state/ConfirmContext'
 import Scoreboard from '../components/Scoreboard'
 import BuzzerPanel from '../components/BuzzerPanel'
 import Spinner from '../components/Spinner'
+import Confetti from '../components/Confetti'
 import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
 import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
 import type { BuzzState, BuzzerPlayer, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
@@ -234,6 +235,10 @@ export default function HostController({ gameId }: { gameId: string }) {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, possessionIndex, round?.id, teamsWithScoreKey, buzzerConnected])
+
+  useEffect(() => {
+    if (phase === 'final') playFanfare()
+  }, [phase])
 
   useEffect(() => {
     audioSourceRef.current?.stop()
@@ -1297,6 +1302,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
       {phase === 'final' && (
         <div className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
+          <Confetti />
           <div className="font-display text-5xl tracking-widest text-hardwood-400">FINAL SCORE</div>
           <div className="space-y-3">
             {sortedFinal.map((team, i) => (
