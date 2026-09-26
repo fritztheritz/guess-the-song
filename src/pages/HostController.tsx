@@ -93,6 +93,11 @@ export default function HostController({ gameId }: { gameId: string }) {
   const answerTimerTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
   const playStartedAtRef = useRef<number | null>(null)
+  // What the currently-running countdown's total length actually is — playClue's clip
+  // duration and startTimer's fixed ANSWER_TIMER_SECONDS aren't the same number, so the
+  // Public Display snapshot needs this instead of re-deriving it from round.clipDurations
+  // (which would silently be wrong whenever the running timer isn't a clip playback).
+  const activeDurationRef = useRef(0)
   const latestSnapshotRef = useRef<PresentationSnapshot | null>(null)
   const buzzerSocketRef = useRef<BuzzerSocket | null>(null)
   // Recap stats for the final screen — live counters, not persisted, so they only cover
@@ -283,7 +288,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         clueIndex,
         tierGuessStage,
         yearGuessStage,
-        playing: isPlaying && playStartedAtRef.current ? { duration: round.clipDurations[clueIndex] ?? 0, startedAt: playStartedAtRef.current } : null,
+        playing: isPlaying && playStartedAtRef.current ? { duration: activeDurationRef.current, startedAt: playStartedAtRef.current } : null,
         wager: wagerTeam && wagerAmount !== null ? { teamName: wagerTeam.name, teamColor: wagerTeam.color, amount: wagerAmount } : null,
       }
     : null
@@ -332,6 +337,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     (duration: number) => {
       if (isPlaying) return
       playStartedAtRef.current = Date.now()
+      activeDurationRef.current = duration
       setIsPlaying(true)
       setShotClock(duration)
       shotClockTimer.current = setInterval(() => {
@@ -352,6 +358,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       if (!round || !audioSourceRef.current || isPlaying) return
       const duration = round.clipDurations[index]
       playStartedAtRef.current = Date.now()
+      activeDurationRef.current = duration
       setIsPlaying(true)
       setPlaybackError(null)
       setShotClock(duration)
