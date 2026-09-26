@@ -673,11 +673,18 @@ export default function HostController({ gameId }: { gameId: string }) {
             <div className="mb-4 font-display text-2xl tracking-wide text-hardwood-400">KEYBOARD CONTROLS</div>
             <dl className="space-y-2 text-sm">
               {[
-                ['Space', 'Play current clue'],
+                // Space/R only do anything for modes that actually play an audio clip —
+                // Tier-Guess and Year mode show artwork/title up front instead, with nothing
+                // to play or restart.
+                ...(!isTierGuess && !isYear
+                  ? ([
+                      ['Space', 'Play current clue'],
+                      ['R', 'Restart current clue'],
+                    ] as const)
+                  : []),
                 ['Enter', 'Reveal answer / next possession'],
                 ['→', 'Next possession'],
                 ['←', 'Previous possession'],
-                ['R', 'Restart current clue'],
                 ['Esc', 'Exit presentation'],
                 ['?', 'Toggle this help'],
               ].map(([key, desc]) => (
