@@ -8,8 +8,36 @@ function getContext(): AudioContext {
   return sharedContext
 }
 
+const MUTE_STORAGE_KEY = 'gts.sound-muted'
+
+function readStoredMute(): boolean {
+  try {
+    return localStorage.getItem(MUTE_STORAGE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+// Per-browser, not per-game — a host running several games in one sitting shouldn't have
+// to re-mute for each one.
+let muted = readStoredMute()
+
+export function isSoundMuted(): boolean {
+  return muted
+}
+
+export function setSoundMuted(next: boolean) {
+  muted = next
+  try {
+    localStorage.setItem(MUTE_STORAGE_KEY, next ? '1' : '0')
+  } catch {
+    // localStorage unavailable — mute still applies for this tab, it just won't persist.
+  }
+}
+
 /** A short two-tone arena buzzer, for the Buzzer Beater reveal. Call from a user-gesture handler. */
 export function playBuzzer() {
+  if (muted) return
   try {
     const ctx = getContext()
     const now = ctx.currentTime
@@ -36,6 +64,7 @@ export function playBuzzer() {
 /** A quick double-blip for the moment a player actually buzzes in — distinct from and
  * earlier than playBuzzer()'s reveal cue. Short and sharp, game-show style. */
 export function playBuzzIn() {
+  if (muted) return
   try {
     const ctx = getContext()
     const now = ctx.currentTime
@@ -62,6 +91,7 @@ export function playBuzzIn() {
 
 /** A bright ascending chime for a confirmed-correct answer. */
 export function playCorrect() {
+  if (muted) return
   try {
     const ctx = getContext()
     const now = ctx.currentTime
@@ -88,6 +118,7 @@ export function playCorrect() {
 
 /** A triumphant rising arpeggio for the final-score/winner reveal. */
 export function playFanfare() {
+  if (muted) return
   try {
     const ctx = getContext()
     const now = ctx.currentTime
@@ -115,6 +146,7 @@ export function playFanfare() {
 /** A short flat "womp" for a wrong buzz-in — lighter than playBuzzer() since it's just
  * "try again" feedback, not the big reveal moment. */
 export function playWrong() {
+  if (muted) return
   try {
     const ctx = getContext()
     const now = ctx.currentTime

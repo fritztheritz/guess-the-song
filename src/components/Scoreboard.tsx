@@ -15,13 +15,20 @@ function TeamScoreCard({ team, compact }: { team: Team; compact: boolean }) {
     return () => clearTimeout(timer)
   }, [team.score])
 
+  const onFire = (team.streak ?? 0) >= 2
+
   return (
     <div
-      className={`min-w-[110px] flex-1 rounded-xl border border-arena-600 bg-arena-800/80 px-5 py-3 text-center shadow-lg shadow-black/30 ${
+      className={`relative min-w-[110px] flex-1 rounded-xl border border-arena-600 bg-arena-800/80 px-5 py-3 text-center shadow-lg shadow-black/30 ${
         justScored ? 'animate-score-pop' : ''
       }`}
       style={{ borderBottomColor: team.color, borderBottomWidth: 3, '--pop-color': team.color } as React.CSSProperties}
     >
+      {onFire && (
+        <span className="absolute -right-2 -top-2 rounded-full bg-scoreboard-amber px-1.5 py-0.5 text-[10px] font-bold leading-none text-arena-950 shadow">
+          🔥{team.streak}
+        </span>
+      )}
       <div className="truncate text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
         {team.avatar ? `${team.avatar} ` : ''}
         {team.name}

@@ -12,7 +12,7 @@ import {
 } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
-import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare } from '../lib/sound-effects'
+import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, isSoundMuted, setSoundMuted } from '../lib/sound-effects'
 import { downloadRecapCard } from '../lib/recap-card'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import {
@@ -84,6 +84,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   const [wagerTeamId, setWagerTeamId] = useState<string | null>(null)
   const [wagerAmount, setWagerAmount] = useState<number | null>(null)
   const [showHelp, setShowHelp] = useState(false)
+  const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
   // Host Controller / Public Display split: a second window opened via "Public Display"
   // shows a read-only, answer-free mirror of whatever's currently on screen here, synced
   // over BroadcastChannel. publicConnected only ever flips true (never back to false) —
@@ -343,6 +344,12 @@ export default function HostController({ gameId }: { gameId: string }) {
     window.open(url.toString(), `gts-public-${gameId}`, 'noopener')
   }
 
+  function toggleSound() {
+    const next = !soundMuted
+    setSoundMuted(next)
+    setSoundMutedState(next)
+  }
+
   const stopShotClock = useCallback(() => {
     if (shotClockTimer.current) clearInterval(shotClockTimer.current)
     shotClockTimer.current = null
@@ -421,13 +428,20 @@ export default function HostController({ gameId }: { gameId: string }) {
     if (team) {
       nextGame = {
         ...game,
-        teams: game.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + points } : t)),
+        teams: game.teams.map((t) =>
+          t.id === team.id
+            ? { ...t, score: t.score + points, streak: points > 0 ? (t.streak ?? 0) + 1 : 0 }
+            : { ...t, streak: 0 },
+        ),
       }
       setLastAward({ teamId: team.id, points })
       recordScoreEvent(points, team.name, round.title)
     } else {
       setLastAward(null)
       recapRef.current.noScoreCount += 1
+      // A no-score possession breaks every team's streak, not just the one who whiffed —
+      // nobody continued theirs either.
+      nextGame = { ...game, teams: game.teams.map((t) => ({ ...t, streak: 0 })) }
     }
     // Recorded as soon as any score changes, not just on possession advance — otherwise
     // leaving right after awarding (before clicking "next possession") would lose the
@@ -557,7 +571,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   function restartGame() {
     if (!game) return
-    const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0 })), progress: undefined })
+    const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0, streak: 0 })), progress: undefined })
     setGame(reset)
     setPossessionIndex(0)
     setLastAward(null)
@@ -758,6 +772,13 @@ export default function HostController({ gameId }: { gameId: string }) {
         )}
         <button onClick={openPublicDisplay} className="rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
           🖥️ Public Display{publicConnected ? ' ✓' : ''}
+        </button>
+        <button
+          onClick={toggleSound}
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-sm text-slate-300 hover:bg-black/60"
+          aria-label={soundMuted ? 'Unmute sound effects' : 'Mute sound effects'}
+        >
+          {soundMuted ? '🔇' : '🔊'}
         </button>
         <button
           onClick={() => setShowHelp((v) => !v)}
@@ -1460,6 +1481,7 @@ export default function HostController({ gameId }: { gameId: string }) {
               <div key={team.id} className="flex w-72 items-center justify-between rounded-xl border border-arena-600 bg-arena-800/70 px-5 py-3">
                 <span className="font-display text-xl" style={{ color: team.color }}>
                   {i === 0 ? '🏆 ' : ''}{team.avatar ? `${team.avatar} ` : ''}{team.name}
+                  {(team.streak ?? 0) >= 2 && <span className="ml-1 text-sm">🔥{team.streak}</span>}
                 </span>
                 <span className="scoreboard-digit font-display text-3xl">{team.score}</span>
               </div>

@@ -349,6 +349,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
               <div key={team.id} className="flex w-72 items-center justify-between rounded-xl border border-arena-600 bg-arena-800/70 px-5 py-3">
                 <span className="font-display text-xl" style={{ color: team.color }}>
                   {i === 0 ? '🏆 ' : ''}{team.avatar ? `${team.avatar} ` : ''}{team.name}
+                  {(team.streak ?? 0) >= 2 && <span className="ml-1 text-sm">🔥{team.streak}</span>}
                 </span>
                 <span className="scoreboard-digit font-display text-3xl">{team.score}</span>
               </div>

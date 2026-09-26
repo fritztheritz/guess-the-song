@@ -90,6 +90,11 @@ export interface Team {
   score: number
   /** Optional mascot emoji shown alongside the team name. Absent on every team created before this existed. */
   avatar?: string
+  /** Consecutive possessions this team has scored on (Song/Lyric/Year's single-winner award()
+   *  path only — Tier Guess's multi-team credit toggles don't feed this, since "streak" isn't
+   *  a clean concept when several teams can score the same possession). Reset to 0 on any
+   *  no-score or another team's score. Absent/0 on every team predating this. */
+  streak?: number
 }
 
 export interface GameProgress {
