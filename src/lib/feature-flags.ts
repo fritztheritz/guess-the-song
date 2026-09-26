@@ -41,6 +41,13 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
       'Chain several existing games together in sequence with one running leaderboard across them, aggregated by matching team name.',
     default: false,
   },
+  {
+    key: 'draft',
+    label: 'Song Draft',
+    description:
+      'A shared song pool that teams snake-draft 5 songs from, one pick at a time on a shared screen — once a song is picked, it\'s off the board for every future draft too. Ends with everyone ranking every other team\'s roster to crown a winner.',
+    default: false,
+  },
 ]
 
 const STORAGE_KEY = 'gts.flags.v1'

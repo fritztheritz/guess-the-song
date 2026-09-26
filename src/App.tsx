@@ -12,6 +12,9 @@ import TierListPresent from './pages/TierListPresent'
 import PlayerBuzzer from './pages/PlayerBuzzer'
 import CreateTournament from './pages/CreateTournament'
 import TournamentBuilder from './pages/TournamentBuilder'
+import CreateDraftBoard from './pages/CreateDraftBoard'
+import DraftBoardHome from './pages/DraftBoardHome'
+import DraftSessionRoom from './pages/DraftSessionRoom'
 import RequireFlag from './components/RequireFlag'
 
 export default function App() {
@@ -63,6 +66,30 @@ export default function App() {
         element={
           <RequireFlag flag="tournaments">
             <TournamentBuilder />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/drafts/new"
+        element={
+          <RequireFlag flag="draft">
+            <CreateDraftBoard />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/drafts/:boardId"
+        element={
+          <RequireFlag flag="draft">
+            <DraftBoardHome />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/drafts/:boardId/sessions/:sessionId"
+        element={
+          <RequireFlag flag="draft">
+            <DraftSessionRoom />
           </RequireFlag>
         }
       />

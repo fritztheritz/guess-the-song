@@ -9,10 +9,12 @@ import {
   exportAllTournaments,
   importTournaments,
 } from '../lib/storage/tournament-repository'
+import { listDraftBoards, deleteDraftBoard, exportAllDraftBoards, importDraftBoards } from '../lib/storage/draft-repository'
 import { downloadBackupFile, parseBackupFile, BackupFileError } from '../lib/game-backup'
 import { duplicateGame, isLyricMode, isTierGuessMode, type Game } from '../types'
 import { duplicateTierList, type TierList } from '../types/tierlist'
 import { duplicateTournament, type Tournament } from '../types/tournament'
+import type { DraftBoard } from '../types/draft'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import { useConfirm } from '../state/ConfirmContext'
 import { useToast } from '../state/ToastContext'
@@ -27,9 +29,11 @@ export default function Home() {
   const tierListsEnabled = useFeatureFlag('tier-lists')
   const spotifyImportEnabled = useFeatureFlag('spotify-import')
   const tournamentsEnabled = useFeatureFlag('tournaments')
+  const draftEnabled = useFeatureFlag('draft')
   const [games, setGames] = useState<Game[]>([])
   const [tierLists, setTierLists] = useState<TierList[]>([])
   const [tournaments, setTournaments] = useState<Tournament[]>([])
+  const [draftBoards, setDraftBoards] = useState<DraftBoard[]>([])
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
   const [activeTags, setActiveTags] = useState<string[]>([])
   const importFileInput = useRef<HTMLInputElement | null>(null)
@@ -38,7 +42,8 @@ export default function Home() {
     setGames(listGames())
     if (tierListsEnabled) setTierLists(listTierLists())
     if (tournamentsEnabled) setTournaments(listTournaments())
-  }, [tierListsEnabled, tournamentsEnabled])
+    if (draftEnabled) setDraftBoards(listDraftBoards())
+  }, [tierListsEnabled, tournamentsEnabled, draftEnabled])
 
   async function handleDeleteTierList(id: string) {
     if (!(await confirm('Delete this tier list? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
@@ -65,6 +70,14 @@ export default function Home() {
     navigate(`/tournaments/${copy.id}`)
   }
 
+  async function handleDeleteDraftBoard(id: string) {
+    if (!(await confirm('Delete this draft? This cannot be undone — every session and pick on it goes with it.', { danger: true, confirmLabel: 'Delete' })))
+      return
+    deleteDraftBoard(id)
+    setDraftBoards(listDraftBoards())
+    showToast('Draft deleted')
+  }
+
   async function handleDelete(id: string) {
     if (!(await confirm('Delete this game? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
     deleteGame(id)
@@ -88,9 +101,10 @@ export default function Home() {
     modeVisibleGames.forEach((g) => (g.tags ?? []).forEach((t) => set.add(t)))
     if (tierListsEnabled) tierLists.forEach((l) => (l.tags ?? []).forEach((t) => set.add(t)))
     if (tournamentsEnabled) tournaments.forEach((t) => (t.tags ?? []).forEach((tag) => set.add(tag)))
+    if (draftEnabled) draftBoards.forEach((b) => (b.tags ?? []).forEach((tag) => set.add(tag)))
     return Array.from(set).sort()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modeVisibleGames, tierLists, tierListsEnabled, tournaments, tournamentsEnabled])
+  }, [modeVisibleGames, tierLists, tierListsEnabled, tournaments, tournamentsEnabled, draftBoards, draftEnabled])
 
   function toggleTag(tag: string) {
     setActiveTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
@@ -102,22 +116,25 @@ export default function Home() {
   const visibleGames = modeVisibleGames.filter((g) => matchesActiveTags(g.tags))
   const visibleTierLists = tierLists.filter((l) => matchesActiveTags(l.tags))
   const visibleTournaments = tournaments.filter((t) => matchesActiveTags(t.tags))
+  const visibleDraftBoards = draftBoards.filter((b) => matchesActiveTags(b.tags))
 
   function handleExportAll() {
-    // Reads straight from storage rather than the tierLists/tournaments state vars, so a
-    // backup taken while a flag is off still includes anything already saved under it.
+    // Reads straight from storage rather than the tierLists/tournaments/draftBoards state
+    // vars, so a backup taken while a flag is off still includes anything already saved under it.
     const allGames = exportAllGames()
     const allTierLists = exportAllTierLists()
     const allTournaments = exportAllTournaments()
-    if (allGames.length === 0 && allTierLists.length === 0 && allTournaments.length === 0) {
+    const allDraftBoards = exportAllDraftBoards()
+    if (allGames.length === 0 && allTierLists.length === 0 && allTournaments.length === 0 && allDraftBoards.length === 0) {
       setBackupStatus('Nothing to back up yet.')
       return
     }
-    downloadBackupFile(allGames, allTierLists, allTournaments)
+    downloadBackupFile(allGames, allTierLists, allTournaments, allDraftBoards)
     const parts = [
       allGames.length > 0 ? `${allGames.length} game${allGames.length === 1 ? '' : 's'}` : null,
       allTierLists.length > 0 ? `${allTierLists.length} tier list${allTierLists.length === 1 ? '' : 's'}` : null,
       allTournaments.length > 0 ? `${allTournaments.length} tournament${allTournaments.length === 1 ? '' : 's'}` : null,
+      allDraftBoards.length > 0 ? `${allDraftBoards.length} draft${allDraftBoards.length === 1 ? '' : 's'}` : null,
     ].filter(Boolean)
     setBackupStatus(`Downloaded a backup of ${parts.join(', ')}.`)
   }
@@ -128,8 +145,13 @@ export default function Home() {
     if (!file) return
     try {
       const text = await file.text()
-      const { games: importedGames, tierLists: importedTierLists, tournaments: importedTournaments } = parseBackupFile(text)
-      if (importedGames.length === 0 && importedTierLists.length === 0 && importedTournaments.length === 0) {
+      const {
+        games: importedGames,
+        tierLists: importedTierLists,
+        tournaments: importedTournaments,
+        draftBoards: importedDraftBoards,
+      } = parseBackupFile(text)
+      if (importedGames.length === 0 && importedTierLists.length === 0 && importedTournaments.length === 0 && importedDraftBoards.length === 0) {
         setBackupStatus('That backup file is empty.')
         return
       }
@@ -137,6 +159,7 @@ export default function Home() {
         importedGames.length > 0 ? `${importedGames.length} game${importedGames.length === 1 ? '' : 's'}` : null,
         importedTierLists.length > 0 ? `${importedTierLists.length} tier list${importedTierLists.length === 1 ? '' : 's'}` : null,
         importedTournaments.length > 0 ? `${importedTournaments.length} tournament${importedTournaments.length === 1 ? '' : 's'}` : null,
+        importedDraftBoards.length > 0 ? `${importedDraftBoards.length} draft${importedDraftBoards.length === 1 ? '' : 's'}` : null,
       ].filter(Boolean)
       const ok = await confirm(
         `Restore ${parts.join(', ')}? Anything already here with the same id will be overwritten by the backup.`,
@@ -146,9 +169,11 @@ export default function Home() {
       importGames(importedGames)
       importTierLists(importedTierLists)
       importTournaments(importedTournaments)
+      importDraftBoards(importedDraftBoards)
       setGames(listGames())
       if (tierListsEnabled) setTierLists(listTierLists())
       if (tournamentsEnabled) setTournaments(listTournaments())
+      if (draftEnabled) setDraftBoards(listDraftBoards())
       setBackupStatus(`Restored ${parts.join(', ')} from backup.`)
     } catch (err) {
       setBackupStatus(err instanceof BackupFileError ? err.message : 'Could not read that file.')
@@ -184,6 +209,14 @@ export default function Home() {
                 className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
               >
                 + CREATE TOURNAMENT
+              </Link>
+            )}
+            {draftEnabled && (
+              <Link
+                to="/drafts/new"
+                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
+              >
+                + CREATE DRAFT
               </Link>
             )}
           </div>
@@ -405,6 +438,58 @@ export default function Home() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {draftEnabled && draftBoards.length > 0 && (
+          <div className="mt-16">
+            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR DRAFTS</h2>
+            {visibleDraftBoards.length === 0 ? (
+              <p className="text-sm text-slate-500">No drafts match the selected tags.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {visibleDraftBoards.map((board) => {
+                  const available = board.songPool.filter((s) => !s.takenBySessionId).length
+                  return (
+                    <div key={board.id} className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-4">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs">🎧</span>
+                          <div className="font-semibold text-slate-100">{board.name}</div>
+                        </div>
+                        <div className="text-sm text-slate-500">
+                          {available} song{available === 1 ? '' : 's'} available · {board.sessions.length} session{board.sessions.length === 1 ? '' : 's'}
+                        </div>
+                        {board.tags && board.tags.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {board.tags.map((tag) => (
+                              <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-[10px] text-slate-400">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Link
+                          to={`/drafts/${board.id}`}
+                          className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                        >
+                          Open
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteDraftBoard(board.id)}
+                          className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
+                          aria-label="Delete draft"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

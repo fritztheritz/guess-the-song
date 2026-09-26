@@ -1,13 +1,14 @@
 import type { Game } from '../types'
 import type { TierList } from '../types/tierlist'
 import type { Tournament } from '../types/tournament'
+import type { DraftBoard } from '../types/draft'
 
 // Full-library backup file — distinct from the per-game shareable link (game-share.ts),
 // which encodes into a URL and is meant for handing one game to someone else. This is a
 // plain downloadable JSON file meant for the same person to restore their own library
 // (e.g. after clearing browser data or moving to a new machine).
 const FORMAT = 'guess-the-song-backup'
-const VERSION = 3
+const VERSION = 4
 
 interface BackupFile {
   format: typeof FORMAT
@@ -18,15 +19,18 @@ interface BackupFile {
   tierLists?: TierList[]
   /** Absent on version-1/2 backups, which predate tournaments. */
   tournaments?: Tournament[]
+  /** Absent on version-1/2/3 backups, which predate draft boards. */
+  draftBoards?: DraftBoard[]
 }
 
 export interface BackupContents {
   games: Game[]
   tierLists: TierList[]
   tournaments: Tournament[]
+  draftBoards: DraftBoard[]
 }
 
-export function buildBackupFile(games: Game[], tierLists: TierList[], tournaments: Tournament[]): string {
+export function buildBackupFile(games: Game[], tierLists: TierList[], tournaments: Tournament[], draftBoards: DraftBoard[]): string {
   const backup: BackupFile = {
     format: FORMAT,
     version: VERSION,
@@ -34,12 +38,13 @@ export function buildBackupFile(games: Game[], tierLists: TierList[], tournament
     games,
     tierLists,
     tournaments,
+    draftBoards,
   }
   return JSON.stringify(backup, null, 2)
 }
 
-export function downloadBackupFile(games: Game[], tierLists: TierList[], tournaments: Tournament[]) {
-  const json = buildBackupFile(games, tierLists, tournaments)
+export function downloadBackupFile(games: Game[], tierLists: TierList[], tournaments: Tournament[], draftBoards: DraftBoard[]) {
+  const json = buildBackupFile(games, tierLists, tournaments, draftBoards)
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const date = new Date().toISOString().slice(0, 10)
@@ -66,5 +71,10 @@ export function parseBackupFile(text: string): BackupContents {
   }
 
   const backup = data as BackupFile
-  return { games: backup.games, tierLists: backup.tierLists ?? [], tournaments: backup.tournaments ?? [] }
+  return {
+    games: backup.games,
+    tierLists: backup.tierLists ?? [],
+    tournaments: backup.tournaments ?? [],
+    draftBoards: backup.draftBoards ?? [],
+  }
 }
