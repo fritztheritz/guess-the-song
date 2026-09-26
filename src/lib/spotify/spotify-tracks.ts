@@ -44,8 +44,10 @@ function mapToImportableSpotifyTrack(raw: RawSpotifyTrack): ImportableSpotifyTra
 
 export async function searchSpotifyTracks(query: string): Promise<ImportableSpotifyTrack[]> {
   if (!query.trim()) return []
-  // 20 (Spotify's own default) rather than the documented 50-max: Development Mode apps
-  // have been observed rejecting higher limits with a bare "Invalid limit" 400.
-  const data = await spotifyFetchJson<SearchResponse>(`/search?type=track&limit=20&q=${encodeURIComponent(query)}`)
+  // No explicit `limit` — this app's Spotify search has been rejecting it with a bare
+  // "Invalid limit" 400 at both 24 and 20 (Spotify's own documented default), so whatever
+  // cap is being enforced here isn't the standard 1-50 range. Omitting it lets Spotify
+  // apply its own default rather than guessing at another number.
+  const data = await spotifyFetchJson<SearchResponse>(`/search?type=track&q=${encodeURIComponent(query)}`)
   return (data.tracks?.items ?? []).map(mapToImportableSpotifyTrack)
 }
