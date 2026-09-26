@@ -1,4 +1,4 @@
-import { spotifyFetchJson } from './spotify-api'
+import { spotifyFetchJson, SpotifyApiError } from './spotify-api'
 
 // Raw shape is intentionally partial — only the fields this app reads.
 interface RawSpotifyTrack {
@@ -12,7 +12,7 @@ interface RawSpotifyTrack {
 }
 
 interface SearchResponse {
-  tracks?: { items: RawSpotifyTrack[] }
+  tracks?: { items: RawSpotifyTrack[]; total?: number }
 }
 
 export interface ImportableSpotifyTrack {
@@ -42,12 +42,63 @@ function mapToImportableSpotifyTrack(raw: RawSpotifyTrack): ImportableSpotifyTra
   }
 }
 
+const RESULT_TARGET = 20
+// Confirmed via testing: this app's Spotify search rejects explicit `limit` values of both
+// 24 and 20 (Spotify's own documented default) with a bare "Invalid limit" 400, and omitting
+// the param falls back to only 5 results — so whatever per-request cap is enforced here is
+// well under the documented 1-50 range. Probe from high to low once, then page with
+// `offset` at whichever value actually works to still surface a reasonable result count.
+const CANDIDATE_LIMITS = [50, 25, 10, 5, 1]
+let workingLimit: number | null = null
+
+function isInvalidLimitError(err: unknown): boolean {
+  return err instanceof SpotifyApiError && /invalid limit/i.test(err.message)
+}
+
+async function fetchSearchPage(query: string, limit: number, offset: number): Promise<SearchResponse> {
+  return spotifyFetchJson<SearchResponse>(
+    `/search?type=track&limit=${limit}&offset=${offset}&q=${encodeURIComponent(query)}`,
+  )
+}
+
+async function fetchFirstPage(query: string): Promise<SearchResponse> {
+  if (workingLimit !== null) {
+    try {
+      return await fetchSearchPage(query, workingLimit, 0)
+    } catch (err) {
+      if (!isInvalidLimitError(err)) throw err
+      workingLimit = null // cap may have changed (e.g. quota mode approved) — re-probe below
+    }
+  }
+
+  let lastErr: unknown
+  for (const limit of CANDIDATE_LIMITS) {
+    try {
+      const page = await fetchSearchPage(query, limit, 0)
+      workingLimit = limit
+      return page
+    } catch (err) {
+      if (!isInvalidLimitError(err)) throw err
+      lastErr = err
+    }
+  }
+  throw lastErr
+}
+
 export async function searchSpotifyTracks(query: string): Promise<ImportableSpotifyTrack[]> {
   if (!query.trim()) return []
-  // No explicit `limit` — this app's Spotify search has been rejecting it with a bare
-  // "Invalid limit" 400 at both 24 and 20 (Spotify's own documented default), so whatever
-  // cap is being enforced here isn't the standard 1-50 range. Omitting it lets Spotify
-  // apply its own default rather than guessing at another number.
-  const data = await spotifyFetchJson<SearchResponse>(`/search?type=track&q=${encodeURIComponent(query)}`)
-  return (data.tracks?.items ?? []).map(mapToImportableSpotifyTrack)
+
+  const first = await fetchFirstPage(query)
+  const items = [...(first.tracks?.items ?? [])]
+  const limit = workingLimit ?? items.length
+  const total = first.tracks?.total ?? items.length
+
+  while (limit > 0 && items.length < RESULT_TARGET && items.length < total) {
+    const page = await fetchSearchPage(query, limit, items.length)
+    const pageItems = page.tracks?.items ?? []
+    if (pageItems.length === 0) break
+    items.push(...pageItems)
+  }
+
+  return items.map(mapToImportableSpotifyTrack)
 }
