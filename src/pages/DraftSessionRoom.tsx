@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import type { DraftBoard, DraftPoolSong, Drafter } from '../types/draft'
 import { snakeOrder, computeDraftStandings } from '../types/draft'
 import { getDraftBoard, saveDraftBoard } from '../lib/storage/draft-repository'
+import { useConfirm } from '../state/ConfirmContext'
 import Spinner from '../components/Spinner'
 
 function DrafterRoster({ drafter, songs, highlight }: { drafter: Drafter; songs: DraftPoolSong[]; highlight?: boolean }) {
@@ -29,6 +30,7 @@ function DrafterRoster({ drafter, songs, highlight }: { drafter: Drafter; songs:
 
 export default function DraftSessionRoom() {
   const { boardId, sessionId } = useParams()
+  const confirm = useConfirm()
   const [board, setBoard] = useState<DraftBoard | null>(null)
   const [filterQuery, setFilterQuery] = useState('')
   const [ballotOrder, setBallotOrder] = useState<string[]>([])
@@ -79,6 +81,25 @@ export default function DraftSessionRoom() {
             }
           : s,
       ),
+    })
+  }
+
+  // Only safe to undo a pick before anyone's started ranking — once a ballot's been submitted
+  // it was ranking a specific final roster, so pulling a pick back out from under it would make
+  // that ballot stale.
+  const canUndoPick = !!board && !!session && session.picks.length > 0 && session.rankings.length === 0
+
+  async function undoLastPick() {
+    if (!board || !session || session.picks.length === 0) return
+    const lastPick = session.picks[session.picks.length - 1]
+    const song = board.songPool.find((s) => s.id === lastPick.songId)
+    const drafter = session.drafters.find((d) => d.id === lastPick.drafterId)
+    const ok = await confirm(`Undo ${drafter?.name ?? 'this'}'s pick of "${song?.title ?? 'that song'}"?`, { confirmLabel: 'Undo' })
+    if (!ok) return
+    persist({
+      ...board,
+      songPool: board.songPool.map((s) => (s.id === lastPick.songId ? { ...s, takenBySessionId: undefined, takenByDrafterId: undefined } : s)),
+      sessions: board.sessions.map((s) => (s.id === session.id ? { ...s, picks: s.picks.slice(0, -1), phase: 'drafting' } : s)),
     })
   }
 
@@ -149,7 +170,7 @@ export default function DraftSessionRoom() {
 
         {session.phase === 'drafting' && currentDrafter && (
           <>
-            <div className="rounded-xl border border-hardwood-500 bg-hardwood-500/10 px-5 py-3 text-center">
+            <div className="relative rounded-xl border border-hardwood-500 bg-hardwood-500/10 px-5 py-3 text-center">
               <div className="text-xs uppercase tracking-[0.3em] text-slate-400">
                 Round {currentRound} of {session.picksPerDrafter} · Pick {currentPickNumber + 1} of {totalPicks}
               </div>
@@ -157,6 +178,14 @@ export default function DraftSessionRoom() {
                 {currentDrafter.avatar ? `${currentDrafter.avatar} ` : ''}
                 {currentDrafter.name.toUpperCase()}'S PICK
               </div>
+              {canUndoPick && (
+                <button
+                  onClick={undoLastPick}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-arena-500 px-3 py-1 text-xs text-slate-300 hover:border-hardwood-400 hover:text-hardwood-300"
+                >
+                  ↩ Undo Last Pick
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -212,7 +241,7 @@ export default function DraftSessionRoom() {
 
         {session.phase === 'ranking' && nextRanker && (
           <div className="space-y-4">
-            <div className="rounded-xl border border-hardwood-500 bg-hardwood-500/10 px-5 py-3 text-center">
+            <div className="relative rounded-xl border border-hardwood-500 bg-hardwood-500/10 px-5 py-3 text-center">
               <div className="text-xs uppercase tracking-[0.3em] text-slate-400">
                 Ranking · {session.rankings.length} of {session.drafters.length} submitted
               </div>
@@ -221,6 +250,14 @@ export default function DraftSessionRoom() {
                 {nextRanker.name.toUpperCase()}, RANK EVERYONE ELSE
               </div>
               <p className="mt-1 text-sm text-slate-400">Best roster at the top, worst at the bottom.</p>
+              {canUndoPick && (
+                <button
+                  onClick={undoLastPick}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-arena-500 px-3 py-1 text-xs text-slate-300 hover:border-hardwood-400 hover:text-hardwood-300"
+                >
+                  ↩ Undo Last Pick
+                </button>
+              )}
             </div>
 
             <div className="space-y-2">
