@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { isLyricMode, isTierGuessMode, isYearMode, LYRIC_HINT_LABELS, type Game, type SongRound, type Team } from '../types'
+import {
+  DEFAULT_ANSWER_TIMER_SECONDS,
+  isLyricMode,
+  isTierGuessMode,
+  isYearMode,
+  LYRIC_HINT_LABELS,
+  type Game,
+  type SongRound,
+  type Team,
+} from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
 import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare } from '../lib/sound-effects'
@@ -36,11 +45,6 @@ const TIER_GUESS_POSITION_POINTS = 2
 // Same shape, applied to the year/month guess instead of tier/position.
 const YEAR_GUESS_YEAR_POINTS = 1
 const YEAR_GUESS_MONTH_POINTS = 2
-// Lyric/Tier Guess/Year rounds have no audio clip to hang a countdown off of (unlike Song
-// mode's shot clock, which tracks real clip playback) — this is a fixed, host-started
-// "thinking time" instead, same "fixed slot" philosophy as the lyric hint points above.
-const ANSWER_TIMER_SECONDS = 20
-
 export default function HostController({ gameId }: { gameId: string }) {
   const navigate = useNavigate()
   const confirm = useConfirm()
@@ -94,8 +98,8 @@ export default function HostController({ gameId }: { gameId: string }) {
   const channelRef = useRef<BroadcastChannel | null>(null)
   const playStartedAtRef = useRef<number | null>(null)
   // What the currently-running countdown's total length actually is — playClue's clip
-  // duration and startTimer's fixed ANSWER_TIMER_SECONDS aren't the same number, so the
-  // Public Display snapshot needs this instead of re-deriving it from round.clipDurations
+  // duration and startTimer's (per-game, host-configurable) answer timer aren't the same
+  // number, so the Public Display snapshot needs this instead of re-deriving it from round.clipDurations
   // (which would silently be wrong whenever the running timer isn't a clip playback).
   const activeDurationRef = useRef(0)
   const latestSnapshotRef = useRef<PresentationSnapshot | null>(null)
@@ -158,6 +162,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   const isTierGuess = game ? isTierGuessMode(game) : false
   const isLyric = game ? isLyricMode(game) : false
   const isYear = game ? isYearMode(game) : false
+  const answerTimerSeconds = game?.answerTimerSeconds ?? DEFAULT_ANSWER_TIMER_SECONDS
 
   // Phone Buzz-In setup — generates (once) and persists a room code on the game itself so
   // reloading the Host Controller doesn't hand out a new code players would have to rejoin
@@ -852,10 +857,10 @@ export default function HostController({ gameId }: { gameId: string }) {
                   </>
                 ) : (
                   <button
-                    onClick={() => startTimer(ANSWER_TIMER_SECONDS)}
+                    onClick={() => startTimer(answerTimerSeconds)}
                     className="rounded-full border border-hardwood-500 px-5 py-2 text-sm font-semibold text-hardwood-400 hover:bg-hardwood-500/10"
                   >
-                    ▶ START {ANSWER_TIMER_SECONDS}s TIMER
+                    ▶ START {answerTimerSeconds}s TIMER
                   </button>
                 )}
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Finish the lyric</div>
@@ -889,10 +894,10 @@ export default function HostController({ gameId }: { gameId: string }) {
                   </>
                 ) : (
                   <button
-                    onClick={() => startTimer(ANSWER_TIMER_SECONDS)}
+                    onClick={() => startTimer(answerTimerSeconds)}
                     className="rounded-full border border-hardwood-500 px-5 py-2 text-sm font-semibold text-hardwood-400 hover:bg-hardwood-500/10"
                   >
-                    ▶ START {ANSWER_TIMER_SECONDS}s TIMER
+                    ▶ START {answerTimerSeconds}s TIMER
                   </button>
                 )}
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Guess the ranking</div>
@@ -933,10 +938,10 @@ export default function HostController({ gameId }: { gameId: string }) {
                   </>
                 ) : (
                   <button
-                    onClick={() => startTimer(ANSWER_TIMER_SECONDS)}
+                    onClick={() => startTimer(answerTimerSeconds)}
                     className="rounded-full border border-hardwood-500 px-5 py-2 text-sm font-semibold text-hardwood-400 hover:bg-hardwood-500/10"
                   >
-                    ▶ START {ANSWER_TIMER_SECONDS}s TIMER
+                    ▶ START {answerTimerSeconds}s TIMER
                   </button>
                 )}
 

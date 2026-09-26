@@ -124,6 +124,9 @@ export interface Game {
   /** Phone buzz-in room code, generated once and reused for this game's whole life so
    *  players don't need to rejoin with a new code after a host page refresh. */
   buzzerRoomCode?: string
+  /** Lyric/Tier Guess/Year modes only — length in seconds of the host-started "answer
+   *  timer" countdown. Absent (every game predating this) falls back to ANSWER_TIMER_SECONDS. */
+  answerTimerSeconds?: number
 }
 
 /** Every existing stored game predates `mode` — this is the one place that should ever default it. */
@@ -141,6 +144,9 @@ export function isYearMode(game: Pick<Game, 'mode'>): boolean {
 
 export const DEFAULT_CLIP_DURATIONS = [2, 4, 7, 10]
 export const DEFAULT_POINTS = [4, 3, 2, 1]
+// Lyric/Tier Guess/Year modes' answer-timer fallback — used whenever a game (or a game
+// predating Game.answerTimerSeconds entirely) hasn't set its own value.
+export const DEFAULT_ANSWER_TIMER_SECONDS = 20
 
 // Cycles for team #9+ rather than hard-capping — scoreboard/award UI wrap to handle
 // any team count, so there's no structural reason to cap it.

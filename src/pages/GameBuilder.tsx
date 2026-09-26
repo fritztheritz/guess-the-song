@@ -12,6 +12,7 @@ import {
   teamColorForIndex,
   TEAM_COLORS,
   TEAM_AVATARS,
+  DEFAULT_ANSWER_TIMER_SECONDS,
 } from '../types'
 import type { TierList, TierListSong } from '../types/tierlist'
 import { getGame, listGames, saveGame } from '../lib/storage/game-repository'
@@ -491,6 +492,24 @@ export default function GameBuilder() {
               >
                 Apply start to all {game.rounds.length} tracks
               </button>
+            </div>
+          )}
+
+          {(isLyric || isTierGuess || isYear) && (
+            <div className="mt-6 border-t border-arena-700 pt-3">
+              <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Answer Timer</div>
+              <label className="mb-1 block text-xs text-slate-500">Seconds to think before reveal</label>
+              <input
+                type="number"
+                min={5}
+                max={120}
+                value={game.answerTimerSeconds ?? DEFAULT_ANSWER_TIMER_SECONDS}
+                onChange={(e) => {
+                  const seconds = Math.max(5, Math.min(120, Number(e.target.value) || DEFAULT_ANSWER_TIMER_SECONDS))
+                  persist({ ...game, answerTimerSeconds: seconds })
+                }}
+                className="w-full rounded-md border border-arena-700 bg-arena-800 px-2 py-1 text-sm text-slate-100 outline-none focus:border-hardwood-500"
+              />
             </div>
           )}
 
