@@ -4,6 +4,7 @@ import { useSpotify } from '../state/SpotifyContext'
 import {
   searchSpotifyTracks,
   getArtistTopTracks,
+  loadMoreSpotifyTracks,
   type ImportableSpotifyTrack,
   type SpotifyArtistMatch,
 } from '../lib/spotify/spotify-tracks'
@@ -38,9 +39,11 @@ export default function ImportSpotifyModal({
   const { connection } = useSpotify()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ImportableSpotifyTrack[]>([])
+  const [total, setTotal] = useState(0)
   const [artistMatch, setArtistMatch] = useState<SpotifyArtistMatch | null>(null)
   const [viewingArtist, setViewingArtist] = useState<SpotifyArtistMatch | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Map<string, ImportableSpotifyTrack>>(new Map())
 
@@ -52,6 +55,7 @@ export default function ImportSpotifyModal({
     try {
       const result = await searchSpotifyTracks(query)
       setResults(result.tracks)
+      setTotal(result.total)
       setArtistMatch(result.artist)
     } catch (err) {
       setError(errorMessage(err))
@@ -69,12 +73,36 @@ export default function ImportSpotifyModal({
     setLoading(true)
     setError(null)
     try {
-      setResults(await getArtistTopTracks(artist.id))
+      const tracks = await getArtistTopTracks(artist.id)
+      setResults(tracks)
+      setTotal(tracks.length) // no pagination on this endpoint — this is the whole list
       setViewingArtist(artist)
     } catch (err) {
       setError(errorMessage(err))
     } finally {
       setLoading(false)
+    }
+  }
+
+  // TODO(human): implement handleLoadMore.
+  //
+  // Called when the host clicks "Load more results" below the grid. It should:
+  //   1. Guard against double-clicks / concurrent calls (loadingMore is already tracked).
+  //   2. Call loadMoreSpotifyTracks(query, results.length) to get the next batch.
+  //   3. Append the new tracks to the existing `results` (don't replace them).
+  //   4. Surface errors the same way performSearch does (errorMessage + setError).
+  //   5. Make sure loadingMore ends up false again, even on failure.
+  async function handleLoadMore() {
+    if (loadingMore) return
+    setLoadingMore(true)
+    setError(null)
+    try {
+      const newTracks = await loadMoreSpotifyTracks(query, results.length)
+      setResults((prev) => [...prev, ...newTracks])
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -202,6 +230,18 @@ export default function ImportSpotifyModal({
                       </button>
                     )
                   })}
+                </div>
+              )}
+
+              {!viewingArtist && !loading && results.length > 0 && results.length < total && (
+                <div className="mt-4 flex justify-center">
+                  <button
+                    onClick={() => void handleLoadMore()}
+                    disabled={loadingMore}
+                    className="rounded-full border border-arena-600 px-5 py-2 text-sm text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {loadingMore ? 'Loading…' : 'Load more results'}
+                  </button>
                 </div>
               )}
             </div>

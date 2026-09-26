@@ -42,6 +42,7 @@ export interface SpotifyArtistMatch {
 export interface SpotifySearchResult {
   tracks: ImportableSpotifyTrack[]
   artist: SpotifyArtistMatch | null
+  total: number
 }
 
 function mapToImportableSpotifyTrack(raw: RawSpotifyTrack): ImportableSpotifyTrack {
@@ -112,7 +113,7 @@ async function fetchFirstPage(query: string): Promise<SearchResponse> {
 }
 
 export async function searchSpotifyTracks(query: string): Promise<SpotifySearchResult> {
-  if (!query.trim()) return { tracks: [], artist: null }
+  if (!query.trim()) return { tracks: [], artist: null, total: 0 }
 
   const first = await fetchFirstPage(query)
   const items = [...(first.tracks?.items ?? [])]
@@ -127,7 +128,26 @@ export async function searchSpotifyTracks(query: string): Promise<SpotifySearchR
   }
 
   const topArtist = first.artists?.items?.[0]
-  return { tracks: items.map(mapToImportableSpotifyTrack), artist: topArtist ? mapToArtistMatch(topArtist) : null }
+  return { tracks: items.map(mapToImportableSpotifyTrack), artist: topArtist ? mapToArtistMatch(topArtist) : null, total }
+}
+
+/**
+ * Fetches the next batch of tracks after `offset` already-loaded ones, for a "Load more"
+ * control — `searchSpotifyTracks` only ever hands back the first `RESULT_TARGET` (~20).
+ * Reuses whatever per-request `limit` the initial search already found working; if none is
+ * cached yet (e.g. called before any search this session), falls back to the smallest
+ * candidate, since that's the one this app's search has been most reliably accepting.
+ */
+export async function loadMoreSpotifyTracks(query: string, offset: number): Promise<ImportableSpotifyTrack[]> {
+  const limit = workingLimit ?? CANDIDATE_LIMITS[CANDIDATE_LIMITS.length - 1]
+  const items: RawSpotifyTrack[] = []
+  while (items.length < RESULT_TARGET) {
+    const page = await fetchSearchPage(query, 'track', limit, offset + items.length)
+    const pageItems = page.tracks?.items ?? []
+    if (pageItems.length === 0) break
+    items.push(...pageItems)
+  }
+  return items.map(mapToImportableSpotifyTrack)
 }
 
 /** Fetches an artist's top tracks — used once the host picks the artist chip above search results. */
