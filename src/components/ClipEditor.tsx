@@ -21,6 +21,7 @@ const PREVIEW_CAP_SECONDS = 30
 
 export default function ClipEditor({ round, onChange }: { round: SongRound; onChange: (round: SongRound) => void }) {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
   const fullDuration = round.duration ?? 240
   const isPreviewOnly = round.access === 'preview'
   const duration = isPreviewOnly ? Math.min(fullDuration, PREVIEW_CAP_SECONDS) : fullDuration
@@ -48,9 +49,12 @@ export default function ClipEditor({ round, onChange }: { round: SongRound; onCh
 
   async function preview(index: number) {
     setPlayingIndex(index)
+    setPreviewError(null)
     try {
       const source = createAudioSource(round)
       await source.play(round.clipStart, round.clipDurations[index])
+    } catch (err) {
+      setPreviewError(err instanceof Error ? err.message : 'Playback failed.')
     } finally {
       setPlayingIndex(null)
     }
@@ -88,6 +92,12 @@ export default function ClipEditor({ round, onChange }: { round: SongRound; onCh
       <div className="mb-4 text-center text-sm text-slate-400">
         Start: <span className="font-mono text-hardwood-400">{formatTime(round.clipStart)}</span>
       </div>
+
+      {previewError && (
+        <p className="mb-4 rounded-lg border border-scoreboard-500/30 bg-scoreboard-500/10 px-3 py-2 text-xs text-scoreboard-500">
+          {previewError}
+        </p>
+      )}
 
       {isPreviewOnly && (
         <p className="mb-4 rounded-lg border border-scoreboard-amber/30 bg-scoreboard-amber/10 px-3 py-2 text-xs text-scoreboard-amber">

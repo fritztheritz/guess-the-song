@@ -11,6 +11,7 @@ const STATE_PREFIX = 'sp'
 export interface SpotifyConnection {
   spotifyUserId: string
   displayName: string
+  country: string
   accessToken: string
   refreshToken: string
   expiresAt: number // epoch ms
@@ -136,6 +137,7 @@ async function establishConnection(tokens: TokenResponse) {
   const connection: SpotifyConnection = {
     spotifyUserId: '',
     displayName: '',
+    country: '',
     accessToken: tokens.access_token,
     refreshToken: tokens.refresh_token,
     expiresAt: Date.now() + tokens.expires_in * 1000,
@@ -147,12 +149,20 @@ async function establishConnection(tokens: TokenResponse) {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     })
     if (response.ok) {
-      const profile = (await response.json()) as { id: string; display_name?: string }
-      storeConnection({ ...connection, spotifyUserId: profile.id, displayName: profile.display_name ?? profile.id })
+      // `country` is needed as the `market` param on endpoints like artist top-tracks —
+      // Spotify deprecated the old `market=from_token` shortcut, so this is the only way
+      // left to infer it without asking the host to pick a country manually.
+      const profile = (await response.json()) as { id: string; display_name?: string; country?: string }
+      storeConnection({
+        ...connection,
+        spotifyUserId: profile.id,
+        displayName: profile.display_name ?? profile.id,
+        country: profile.country ?? '',
+      })
     }
   } catch {
-    // Profile fetch is best-effort cosmetic info (display name) — the connection itself
-    // already succeeded and shouldn't be thrown away over this.
+    // Profile fetch is best-effort cosmetic info (display name/country) — the connection
+    // itself already succeeded and shouldn't be thrown away over this.
   }
 }
 

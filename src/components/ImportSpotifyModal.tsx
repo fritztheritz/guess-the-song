@@ -1,7 +1,12 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import SpotifyConnectPanel from './SpotifyConnectPanel'
 import { useSpotify } from '../state/SpotifyContext'
-import { searchSpotifyTracks, type ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
+import {
+  searchSpotifyTracks,
+  getArtistTopTracks,
+  type ImportableSpotifyTrack,
+  type SpotifyArtistMatch,
+} from '../lib/spotify/spotify-tracks'
 import { SpotifyApiError, SpotifyNotConnectedError, SpotifyPremiumRequiredError, SpotifyRateLimitError } from '../lib/spotify/spotify-api'
 
 function errorMessage(err: unknown): string {
@@ -33,17 +38,39 @@ export default function ImportSpotifyModal({
   const { connection } = useSpotify()
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ImportableSpotifyTrack[]>([])
+  const [artistMatch, setArtistMatch] = useState<SpotifyArtistMatch | null>(null)
+  const [viewingArtist, setViewingArtist] = useState<SpotifyArtistMatch | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selected, setSelected] = useState<Map<string, ImportableSpotifyTrack>>(new Map())
 
-  async function runSearch(e: FormEvent) {
-    e.preventDefault()
+  async function performSearch() {
     if (!query.trim()) return
     setLoading(true)
     setError(null)
+    setViewingArtist(null)
     try {
-      setResults(await searchSpotifyTracks(query))
+      const result = await searchSpotifyTracks(query)
+      setResults(result.tracks)
+      setArtistMatch(result.artist)
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  function runSearch(e: FormEvent) {
+    e.preventDefault()
+    void performSearch()
+  }
+
+  async function viewArtistTopTracks(artist: SpotifyArtistMatch) {
+    setLoading(true)
+    setError(null)
+    try {
+      setResults(await getArtistTopTracks(artist.id))
+      setViewingArtist(artist)
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -101,6 +128,35 @@ export default function ImportSpotifyModal({
 
             <div className="flex-1 overflow-y-auto px-6 py-4">
               {error && <div className="mb-4 rounded-lg bg-scoreboard-500/10 px-4 py-2 text-sm text-scoreboard-500">{error}</div>}
+
+              {viewingArtist ? (
+                <div className="mb-4 flex items-center gap-2 text-sm text-slate-400">
+                  <span>Top tracks by <span className="font-semibold text-slate-200">{viewingArtist.name}</span></span>
+                  <button onClick={() => void performSearch()} className="text-hardwood-400 hover:underline">
+                    ← back to "{query}"
+                  </button>
+                </div>
+              ) : (
+                artistMatch && (
+                  <button
+                    onClick={() => viewArtistTopTracks(artistMatch)}
+                    className="mb-4 flex items-center gap-3 rounded-xl border border-arena-600 bg-arena-800 px-4 py-2.5 text-left hover:border-hardwood-500"
+                  >
+                    <div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-arena-700">
+                      {artistMatch.imageUrl ? (
+                        <img src={artistMatch.imageUrl} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-lg text-arena-500">♪</div>
+                      )}
+                    </div>
+                    <div>
+                      <div className="text-xs uppercase tracking-wide text-slate-500">Artist</div>
+                      <div className="font-semibold text-slate-100">{artistMatch.name}</div>
+                    </div>
+                    <span className="ml-auto text-xs text-hardwood-400">View top tracks →</span>
+                  </button>
+                )
+              )}
 
               {loading ? (
                 <div className="py-12 text-center text-slate-400">Searching…</div>

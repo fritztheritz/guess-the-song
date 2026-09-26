@@ -1,4 +1,5 @@
 import { spotifyFetchJson, SpotifyApiError } from './spotify-api'
+import { getValidConnection } from './spotify-auth'
 
 // Raw shape is intentionally partial — only the fields this app reads.
 interface RawSpotifyTrack {
@@ -11,8 +12,15 @@ interface RawSpotifyTrack {
   external_urls?: { spotify?: string }
 }
 
+interface RawSpotifyArtist {
+  id: string
+  name: string
+  images?: Array<{ url: string; width: number; height: number }>
+}
+
 interface SearchResponse {
   tracks?: { items: RawSpotifyTrack[]; total?: number }
+  artists?: { items: RawSpotifyArtist[] }
 }
 
 export interface ImportableSpotifyTrack {
@@ -23,6 +31,17 @@ export interface ImportableSpotifyTrack {
   artist: string
   artworkUrl?: string
   duration: number // seconds
+}
+
+export interface SpotifyArtistMatch {
+  id: string
+  name: string
+  imageUrl?: string
+}
+
+export interface SpotifySearchResult {
+  tracks: ImportableSpotifyTrack[]
+  artist: SpotifyArtistMatch | null
 }
 
 function mapToImportableSpotifyTrack(raw: RawSpotifyTrack): ImportableSpotifyTrack {
@@ -42,6 +61,11 @@ function mapToImportableSpotifyTrack(raw: RawSpotifyTrack): ImportableSpotifyTra
   }
 }
 
+function mapToArtistMatch(raw: RawSpotifyArtist): SpotifyArtistMatch {
+  const images = raw.images ?? []
+  return { id: raw.id, name: raw.name, imageUrl: images[Math.min(1, images.length - 1)]?.url ?? images[0]?.url }
+}
+
 const RESULT_TARGET = 20
 // Confirmed via testing: this app's Spotify search rejects explicit `limit` values of both
 // 24 and 20 (Spotify's own documented default) with a bare "Invalid limit" 400, and omitting
@@ -55,16 +79,18 @@ function isInvalidLimitError(err: unknown): boolean {
   return err instanceof SpotifyApiError && /invalid limit/i.test(err.message)
 }
 
-async function fetchSearchPage(query: string, limit: number, offset: number): Promise<SearchResponse> {
+async function fetchSearchPage(query: string, types: string, limit: number, offset: number): Promise<SearchResponse> {
   return spotifyFetchJson<SearchResponse>(
-    `/search?type=track&limit=${limit}&offset=${offset}&q=${encodeURIComponent(query)}`,
+    `/search?type=${types}&limit=${limit}&offset=${offset}&q=${encodeURIComponent(query)}`,
   )
 }
 
+// Only the first page also asks for `type=artist` — pagination past it only ever needs
+// more tracks, and re-requesting artist matches on every page would be wasted work.
 async function fetchFirstPage(query: string): Promise<SearchResponse> {
   if (workingLimit !== null) {
     try {
-      return await fetchSearchPage(query, workingLimit, 0)
+      return await fetchSearchPage(query, 'artist,track', workingLimit, 0)
     } catch (err) {
       if (!isInvalidLimitError(err)) throw err
       workingLimit = null // cap may have changed (e.g. quota mode approved) — re-probe below
@@ -74,7 +100,7 @@ async function fetchFirstPage(query: string): Promise<SearchResponse> {
   let lastErr: unknown
   for (const limit of CANDIDATE_LIMITS) {
     try {
-      const page = await fetchSearchPage(query, limit, 0)
+      const page = await fetchSearchPage(query, 'artist,track', limit, 0)
       workingLimit = limit
       return page
     } catch (err) {
@@ -85,8 +111,8 @@ async function fetchFirstPage(query: string): Promise<SearchResponse> {
   throw lastErr
 }
 
-export async function searchSpotifyTracks(query: string): Promise<ImportableSpotifyTrack[]> {
-  if (!query.trim()) return []
+export async function searchSpotifyTracks(query: string): Promise<SpotifySearchResult> {
+  if (!query.trim()) return { tracks: [], artist: null }
 
   const first = await fetchFirstPage(query)
   const items = [...(first.tracks?.items ?? [])]
@@ -94,11 +120,20 @@ export async function searchSpotifyTracks(query: string): Promise<ImportableSpot
   const total = first.tracks?.total ?? items.length
 
   while (limit > 0 && items.length < RESULT_TARGET && items.length < total) {
-    const page = await fetchSearchPage(query, limit, items.length)
+    const page = await fetchSearchPage(query, 'track', limit, items.length)
     const pageItems = page.tracks?.items ?? []
     if (pageItems.length === 0) break
     items.push(...pageItems)
   }
 
-  return items.map(mapToImportableSpotifyTrack)
+  const topArtist = first.artists?.items?.[0]
+  return { tracks: items.map(mapToImportableSpotifyTrack), artist: topArtist ? mapToArtistMatch(topArtist) : null }
+}
+
+/** Fetches an artist's top tracks — used once the host picks the artist chip above search results. */
+export async function getArtistTopTracks(artistId: string): Promise<ImportableSpotifyTrack[]> {
+  const connection = await getValidConnection()
+  const market = connection.country || 'US'
+  const data = await spotifyFetchJson<{ tracks: RawSpotifyTrack[] }>(`/artists/${artistId}/top-tracks?market=${market}`)
+  return (data.tracks ?? []).map(mapToImportableSpotifyTrack)
 }

@@ -66,20 +66,34 @@ class SpotifyPlayerManager {
   async playClip(uri: string, startMs: number, durationMs: number): Promise<void> {
     this.clearStopTimer()
     const deviceId = await this.ensureReady()
-    const connection = await getValidConnection()
 
-    const response = await fetch(`${SPOTIFY_API_BASE}/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${connection.accessToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uris: [uri], position_ms: startMs }),
-    })
+    // The device can take a beat to finish registering with Spotify Connect after the SDK
+    // reports it `ready` — calling play immediately after connecting sometimes 404s
+    // ("Device not found") even though the same call succeeds moments later. Retry a couple
+    // of times before giving up.
+    const attempts = [0, 400, 900]
+    let lastError: Error | null = null
+    for (const delay of attempts) {
+      if (delay) await new Promise((r) => setTimeout(r, delay))
+      const connection = await getValidConnection()
+      const response = await fetch(`${SPOTIFY_API_BASE}/me/player/play?device_id=${encodeURIComponent(deviceId)}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${connection.accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uris: [uri], position_ms: startMs }),
+      })
 
-    // 204 No Content is the documented success response; anything else is an error.
-    if (!response.ok && response.status !== 204) {
+      // 204 No Content is the documented success response.
+      if (response.ok || response.status === 204) {
+        lastError = null
+        break
+      }
+
       const detail = await response.text().catch(() => '')
-      const hint = response.status === 403 || response.status === 404 ? ' Spotify Premium is required for playback.' : ''
-      throw new Error(`Spotify playback failed (${response.status}).${hint} ${detail}`.trim())
+      const hint = response.status === 403 ? ' Spotify Premium is required for playback.' : ''
+      lastError = new Error(`Spotify playback failed (${response.status}).${hint} ${detail}`.trim())
+      if (response.status !== 404) break // only the "device not registered yet" case is worth retrying
     }
+    if (lastError) throw lastError
 
     return new Promise((resolve) => {
       this.stopTimer = setTimeout(() => {
