@@ -44,11 +44,19 @@ export async function spotifyFetch(path: string, init: RequestInit = {}, isRetry
   }
 
   if (!response.ok) {
-    const detail = await response
-      .clone()
-      .json()
-      .then((body: { error?: { message?: string } }) => body?.error?.message)
-      .catch(() => undefined)
+    const rawBody = await response.text().catch(() => '')
+    let detail: string | undefined
+    try {
+      const parsed = JSON.parse(rawBody) as { error?: { message?: string } | string; error_description?: string }
+      detail =
+        (typeof parsed.error === 'object' ? parsed.error?.message : undefined) ??
+        parsed.error_description ??
+        (typeof parsed.error === 'string' ? parsed.error : undefined)
+    } catch {
+      detail = rawBody || undefined
+    }
+    // eslint-disable-next-line no-console -- surfaced in-app too, but the full raw body (headers, url) is only useful here
+    console.error('Spotify API error', { url, status: response.status, body: rawBody })
     throw new SpotifyApiError(`Spotify request failed (${response.status})${detail ? `: ${detail}` : '.'}`, response.status)
   }
 
