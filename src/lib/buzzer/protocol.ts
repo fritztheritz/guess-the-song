@@ -26,7 +26,7 @@ export interface BuzzerWinner {
   reactionMs: number | null
 }
 
-export type PhonePhase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final'
+export type PhonePhase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime'
 export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year'
 
 // A deliberately reduced view of the game, computed host-side and pushed down through the

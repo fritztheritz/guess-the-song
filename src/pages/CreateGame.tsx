@@ -1,33 +1,55 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createGame, createTeam, teamColorForIndex, type GameMode } from '../types'
 import { saveGame } from '../lib/storage/game-repository'
+import { listTeamPresets, type TeamPreset } from '../lib/team-presets'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 
 const MIN_TEAMS = 2
 const MAX_TEAMS = 8
+
+interface DraftTeam {
+  name: string
+  color: string
+  avatar?: string
+}
+
+function draftTeam(index: number): DraftTeam {
+  return { name: index === 0 ? 'Team Jordan' : index === 1 ? 'Team Kobe' : `Team ${index + 1}`, color: teamColorForIndex(index) }
+}
 
 export default function CreateGame() {
   const navigate = useNavigate()
   const tierListsEnabled = useFeatureFlag('tier-lists')
   const [name, setName] = useState('Friday Night Music Game')
   const [mode, setMode] = useState<GameMode>('song')
-  const [teamNames, setTeamNames] = useState(['Team Jordan', 'Team Kobe'])
+  const [teams, setTeams] = useState<DraftTeam[]>([draftTeam(0), draftTeam(1)])
+  const [presetPickerIndex, setPresetPickerIndex] = useState<number | null>(null)
+  const presets = useMemo(() => listTeamPresets(), [])
 
   function addTeam() {
-    if (teamNames.length >= MAX_TEAMS) return
-    setTeamNames((prev) => [...prev, `Team ${prev.length + 1}`])
+    if (teams.length >= MAX_TEAMS) return
+    setTeams((prev) => [...prev, draftTeam(prev.length)])
   }
 
   function removeTeam(index: number) {
-    if (teamNames.length <= MIN_TEAMS) return
-    setTeamNames((prev) => prev.filter((_, i) => i !== index))
+    if (teams.length <= MIN_TEAMS) return
+    setTeams((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  function renameTeam(index: number, value: string) {
+    setTeams((prev) => prev.map((t, i) => (i === index ? { ...t, name: value } : t)))
+  }
+
+  function applyPreset(index: number, preset: TeamPreset) {
+    setTeams((prev) => prev.map((t, i) => (i === index ? { ...t, name: preset.name, color: preset.color, avatar: preset.avatar } : t)))
+    setPresetPickerIndex(null)
   }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    const teams = teamNames.map((n, i) => createTeam(n.trim() || `Team ${i + 1}`, teamColorForIndex(i)))
-    const game = createGame(name.trim() || 'Untitled Game', teams, mode)
+    const finalTeams = teams.map((t, i) => createTeam(t.name.trim() || `Team ${i + 1}`, t.color, t.avatar))
+    const game = createGame(name.trim() || 'Untitled Game', finalTeams, mode)
     saveGame(game)
     navigate(`/games/${game.id}/edit`)
   }
@@ -100,28 +122,62 @@ export default function CreateGame() {
         <div>
           <label className="mb-2 block text-sm text-slate-400">Choose teams</label>
           <div className="space-y-2">
-            {teamNames.map((teamName, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="h-3 w-3 shrink-0 rounded-full" style={{ background: teamColorForIndex(i) }} />
+            {teams.map((team, i) => (
+              <div key={i} className="relative flex items-center gap-2">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs" style={{ background: `${team.color}33`, color: team.color }}>
+                  {team.avatar ?? ''}
+                </span>
                 <input
-                  value={teamName}
-                  onChange={(e) => setTeamNames((prev) => prev.map((n, idx) => (idx === i ? e.target.value : n)))}
+                  value={team.name}
+                  onChange={(e) => renameTeam(i, e.target.value)}
                   className="w-full rounded-lg border border-arena-600 bg-arena-800 px-4 py-2 text-slate-100 outline-none focus:border-hardwood-500"
                 />
-                {teamNames.length > MIN_TEAMS && (
+                {presets.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPresetPickerIndex(presetPickerIndex === i ? null : i)}
+                    aria-label="Fill from a saved team"
+                    className="shrink-0 rounded-lg border border-arena-600 px-2 py-1.5 text-sm text-slate-400 hover:border-hardwood-500 hover:text-hardwood-400"
+                  >
+                    ★
+                  </button>
+                )}
+                {teams.length > MIN_TEAMS && (
                   <button
                     type="button"
                     onClick={() => removeTeam(i)}
-                    aria-label={`Remove ${teamName}`}
+                    aria-label={`Remove ${team.name}`}
                     className="shrink-0 rounded-lg px-2 py-1 text-slate-500 hover:text-scoreboard-500"
                   >
                     ✕
                   </button>
                 )}
+                {presetPickerIndex === i && (
+                  <>
+                    <div className="fixed inset-0 z-0" onClick={() => setPresetPickerIndex(null)} />
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-0 top-11 z-10 max-h-56 w-56 overflow-y-auto rounded-lg border border-arena-600 bg-arena-900 p-1.5 shadow-xl"
+                    >
+                      {presets.map((preset) => (
+                        <button
+                          key={preset.name}
+                          type="button"
+                          onClick={() => applyPreset(i, preset)}
+                          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-slate-200 hover:bg-arena-700"
+                        >
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: preset.color }} />
+                          {preset.avatar ? `${preset.avatar} ` : ''}
+                          {preset.name}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
-          {teamNames.length < MAX_TEAMS && (
+          {teams.length < MAX_TEAMS && (
             <button
               type="button"
               onClick={addTeam}

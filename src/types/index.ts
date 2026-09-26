@@ -125,8 +125,11 @@ export interface Game {
    *  players don't need to rejoin with a new code after a host page refresh. */
   buzzerRoomCode?: string
   /** Lyric/Tier Guess/Year modes only — length in seconds of the host-started "answer
-   *  timer" countdown. Absent (every game predating this) falls back to ANSWER_TIMER_SECONDS. */
+   *  timer" countdown. Absent (every game predating this) falls back to DEFAULT_ANSWER_TIMER_SECONDS. */
   answerTimerSeconds?: number
+  /** Opt-in pause for a score check partway through — only fires with 4+ rounds. Absent/false
+   *  on every game predating this and on every game the host hasn't explicitly turned it on for. */
+  halftimeEnabled?: boolean
 }
 
 /** Every existing stored game predates `mode` — this is the one place that should ever default it. */
@@ -201,8 +204,8 @@ export function createTierGuessRound(song: TierListSong, tierSize: number): Song
   })
 }
 
-export function createTeam(name: string, color: string): Team {
-  return { id: crypto.randomUUID(), name, color, score: 0 }
+export function createTeam(name: string, color: string, avatar?: string): Team {
+  return { id: crypto.randomUUID(), name, color, score: 0, avatar }
 }
 
 export function createGame(name: string, teams: Team[], mode: GameMode = 'song'): Game {

@@ -514,6 +514,19 @@ export default function GameBuilder() {
           )}
 
           <div className="mt-6 border-t border-arena-700 pt-3">
+            <label className="flex items-center gap-2 text-sm text-slate-300">
+              <input
+                type="checkbox"
+                checked={game.halftimeEnabled ?? false}
+                onChange={(e) => persist({ ...game, halftimeEnabled: e.target.checked })}
+                className="h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
+              />
+              🏀 Halftime break
+            </label>
+            <p className="mt-1 text-xs text-slate-500">Pause for a score check partway through (needs at least 4 possessions).</p>
+          </div>
+
+          <div className="mt-6 border-t border-arena-700 pt-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Teams</div>
             <div className="space-y-1.5">
               {game.teams.map((team) => (

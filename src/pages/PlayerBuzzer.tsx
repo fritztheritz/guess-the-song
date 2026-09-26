@@ -167,6 +167,7 @@ export default function PlayerBuzzer() {
           {(roundState.phase === 'intro' || roundState.phase === 'resume') && (
             <div className="text-sm text-slate-400">Get ready…</div>
           )}
+          {roundState.phase === 'halftime' && <div className="text-sm text-slate-300">🏀 Halftime — back soon</div>}
           {roundState.phase === 'final' && (
             <div className="text-sm text-slate-300">
               🏆 {[...roundState.teams].sort((a, b) => b.score - a.score)[0]?.name ?? '—'} wins!

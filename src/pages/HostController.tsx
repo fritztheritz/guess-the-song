@@ -13,6 +13,7 @@ import {
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
 import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare } from '../lib/sound-effects'
+import { downloadRecapCard } from '../lib/recap-card'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import {
   presentationChannelName,
@@ -30,11 +31,21 @@ import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
 import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
 import type { BuzzState, BuzzerPlayer, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
 
-type Phase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final'
+type Phase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+// Flavor text only, same "fixed set, pick one at random" philosophy as Confetti's color
+// palette — not host-configurable, since the point is a light surprise beat, not a setting.
+const HALFTIME_PROMPTS = [
+  "Stretch it out — second half tips off in a sec.",
+  "Free throw contest? Loser buys snacks next time.",
+  "Check your phone. Check your score. Check your rival's face.",
+  "Hydrate. Heckle. Here we go again.",
+  "Somebody's about to make a comeback. Might not be you.",
 ]
 
 // Fixed, not host-editable — matches the spec this mode was built to (tier match always
@@ -102,6 +113,11 @@ export default function HostController({ gameId }: { gameId: string }) {
   // number, so the Public Display snapshot needs this instead of re-deriving it from round.clipDurations
   // (which would silently be wrong whenever the running timer isn't a clip playback).
   const activeDurationRef = useRef(0)
+  // Guards halftime from firing more than once per playthrough — it's a one-time transitional
+  // beat, not persisted state, so it deliberately doesn't re-trigger on resume even if that
+  // lands exactly back on the halfway possession.
+  const halftimeShownRef = useRef(false)
+  const [halftimePrompt, setHalftimePrompt] = useState('')
   const latestSnapshotRef = useRef<PresentationSnapshot | null>(null)
   const buzzerSocketRef = useRef<BuzzerSocket | null>(null)
   // Recap stats for the final screen — live counters, not persisted, so they only cover
@@ -295,6 +311,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         yearGuessStage,
         playing: isPlaying && playStartedAtRef.current ? { duration: activeDurationRef.current, startedAt: playStartedAtRef.current } : null,
         wager: wagerTeam && wagerAmount !== null ? { teamName: wagerTeam.name, teamColor: wagerTeam.color, amount: wagerAmount } : null,
+        halftimePrompt: phase === 'halftime' ? halftimePrompt : null,
       }
     : null
 
@@ -318,7 +335,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     if (!channelRef.current || !latestSnapshotRef.current) return
     channelRef.current.postMessage({ type: 'state', snapshot: latestSnapshotRef.current })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, possessionIndex, clueIndex, tierGuessStage, yearGuessStage, isPlaying, wagerTeamId, wagerAmount])
+  }, [phase, possessionIndex, clueIndex, tierGuessStage, yearGuessStage, isPlaying, wagerTeamId, wagerAmount, halftimePrompt])
 
   function openPublicDisplay() {
     const url = new URL(window.location.href)
@@ -508,8 +525,15 @@ export default function HostController({ gameId }: { gameId: string }) {
     const next = possessionIndex + 1
     setGame(saveGame({ ...game, progress: { possessionIndex: next, completed: false } }))
     setPossessionIndex(next)
-    setPhase('clue')
     setLastAward(null)
+    const halftimeIndex = Math.floor(game.rounds.length / 2)
+    if (game.halftimeEnabled && game.rounds.length >= 4 && next === halftimeIndex && !halftimeShownRef.current) {
+      halftimeShownRef.current = true
+      setHalftimePrompt(HALFTIME_PROMPTS[Math.floor(Math.random() * HALFTIME_PROMPTS.length)])
+      setPhase('halftime')
+    } else {
+      setPhase('clue')
+    }
   }
 
   function prevPossession() {
@@ -539,6 +563,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     setLastAward(null)
     setPhase('intro')
     recapRef.current = { correctCount: 0, noScoreCount: 0, biggest: null, fastestBuzz: null, seenBuzzKeys: new Set() }
+    halftimeShownRef.current = false
   }
 
   function restartClue() {
@@ -613,6 +638,15 @@ export default function HostController({ gameId }: { gameId: string }) {
         if (e.code === 'Escape') exitPresentation()
         return
       }
+      if (phase === 'halftime') {
+        if (e.code === 'Space' || e.code === 'Enter') {
+          e.preventDefault()
+          setPhase('clue')
+        } else if (e.code === 'Escape') {
+          exitPresentation()
+        }
+        return
+      }
 
       const wagerPending = !!round?.wager && !wagerTeamId
       switch (e.code) {
@@ -645,6 +679,22 @@ export default function HostController({ gameId }: { gameId: string }) {
   }, [phase, clueIndex, isPlaying, possessionIndex, showHelp, isLyric, isTierGuess, isYear, tierGuessStage, yearGuessStage, round?.wager, wagerTeamId])
 
   const sortedFinal = useMemo(() => [...(game?.teams ?? [])].sort((a, b) => b.score - a.score), [game])
+
+  function handleDownloadRecap() {
+    if (!game) return
+    const fastest = recapRef.current.fastestBuzz
+    void downloadRecapCard({
+      gameName: game.name,
+      teams: sortedFinal.map((t) => ({ name: t.name, color: t.color, avatar: t.avatar, score: t.score })),
+      stats: {
+        winningMargin: sortedFinal.length > 1 && sortedFinal[0].score !== sortedFinal[1].score ? sortedFinal[0].score - sortedFinal[1].score : null,
+        biggest: recapRef.current.biggest,
+        fastestBuzz: fastest ? { name: fastest.name, teamName: game.teams.find((t) => t.id === fastest.teamId)?.name ?? '—', ms: fastest.ms } : null,
+        correctCount: recapRef.current.correctCount,
+        noScoreCount: recapRef.current.noScoreCount,
+      },
+    })
+  }
 
   // Host-only "peek" — the answer for whatever isn't otherwise on screen yet. Only rendered
   // once a Public Display is connected and the host has explicitly turned peeking on.
@@ -1386,6 +1436,21 @@ export default function HostController({ gameId }: { gameId: string }) {
         </div>
       )}
 
+      {phase === 'halftime' && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-pop-in">
+          <div className="text-6xl">🏀</div>
+          <div className="font-display text-5xl tracking-widest text-hardwood-400">HALFTIME</div>
+          <p className="max-w-md text-slate-400">{halftimePrompt}</p>
+          <Scoreboard teams={game.teams} />
+          <button
+            onClick={() => setPhase('clue')}
+            className="rounded-full bg-hardwood-500 px-8 py-3 font-display text-xl tracking-wide text-arena-950 shadow-lg shadow-hardwood-500/20 hover:bg-hardwood-400"
+          >
+            SECOND HALF →
+          </button>
+        </div>
+      )}
+
       {phase === 'final' && (
         <div className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
           <Confetti />
@@ -1438,9 +1503,12 @@ export default function HostController({ gameId }: { gameId: string }) {
             </div>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
             <button onClick={restartGame} className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400">
               PLAY AGAIN
+            </button>
+            <button onClick={handleDownloadRecap} className="rounded-full border border-arena-500 px-6 py-2.5 text-slate-200 hover:border-hardwood-500">
+              📤 SAVE RECAP CARD
             </button>
             <button onClick={() => navigate(`/games/${gameId}/edit`)} className="rounded-full border border-arena-500 px-6 py-2.5 text-slate-200 hover:border-hardwood-500">
               EDIT GAME
