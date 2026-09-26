@@ -39,10 +39,6 @@ export async function spotifyFetch(path: string, init: RequestInit = {}, isRetry
     throw new SpotifyRateLimitError('Spotify is temporarily limiting requests. Please try again shortly.', 429)
   }
 
-  if (response.status === 403) {
-    throw new SpotifyPremiumRequiredError('This requires a Spotify Premium account connected as the host.', 403)
-  }
-
   if (!response.ok) {
     const rawBody = await response.text().catch(() => '')
     let detail: string | undefined
