@@ -89,6 +89,24 @@ export default function DraftBoardHome() {
     navigate(`/drafts/${board.id}/sessions/${session.id}`)
   }
 
+  // Deleting a session frees up every song it had taken — otherwise those picks would stay
+  // permanently locked out of the shared pool with no session left to point back to.
+  async function deleteSession(session: DraftSession) {
+    if (!board) return
+    const ok = await confirm(`Delete "${session.name}"? This can't be undone — its picks go back into the pool.`, {
+      danger: true,
+      confirmLabel: 'Delete',
+    })
+    if (!ok) return
+    persist({
+      ...board,
+      songPool: board.songPool.map((s) =>
+        s.takenBySessionId === session.id ? { ...s, takenBySessionId: undefined, takenByDrafterId: undefined } : s,
+      ),
+      sessions: board.sessions.filter((s) => s.id !== session.id),
+    })
+  }
+
   if (!board) {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 text-slate-400">
@@ -207,19 +225,27 @@ export default function DraftBoardHome() {
           ) : (
             <div className="space-y-2">
               {[...board.sessions].reverse().map((session) => (
-                <Link
+                <div
                   key={session.id}
-                  to={`/drafts/${board.id}/sessions/${session.id}`}
-                  className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-3 hover:border-hardwood-500"
+                  className="group flex items-center gap-2 rounded-xl border border-arena-600 bg-arena-800/60 p-3 hover:border-hardwood-500"
                 >
-                  <div>
-                    <div className="font-semibold text-slate-100">{session.name}</div>
-                    <div className="text-xs text-slate-500">
-                      {session.drafters.length} drafters · {session.picksPerDrafter} picks each
+                  <Link to={`/drafts/${board.id}/sessions/${session.id}`} className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-slate-100">{session.name}</div>
+                      <div className="text-xs text-slate-500">
+                        {session.drafters.length} drafters · {session.picksPerDrafter} picks each
+                      </div>
                     </div>
-                  </div>
-                  <span className="text-sm text-slate-400">{PHASE_LABEL[session.phase]}</span>
-                </Link>
+                    <span className="shrink-0 text-sm text-slate-400">{PHASE_LABEL[session.phase]}</span>
+                  </Link>
+                  <button
+                    onClick={() => deleteSession(session)}
+                    aria-label={`Delete ${session.name}`}
+                    className="shrink-0 rounded-full p-1.5 text-slate-500 opacity-0 hover:text-scoreboard-500 group-hover:opacity-100"
+                  >
+                    ✕
+                  </button>
+                </div>
               ))}
             </div>
           )}
