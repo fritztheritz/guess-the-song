@@ -44,7 +44,12 @@ export async function spotifyFetch(path: string, init: RequestInit = {}, isRetry
   }
 
   if (!response.ok) {
-    throw new SpotifyApiError(`Spotify request failed (${response.status}).`, response.status)
+    const detail = await response
+      .clone()
+      .json()
+      .then((body: { error?: { message?: string } }) => body?.error?.message)
+      .catch(() => undefined)
+    throw new SpotifyApiError(`Spotify request failed (${response.status})${detail ? `: ${detail}` : '.'}`, response.status)
   }
 
   return response
