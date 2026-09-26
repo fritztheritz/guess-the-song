@@ -53,7 +53,17 @@ export async function scFetch(path: string, init: RequestInit = {}, isRetry = fa
   }
 
   if (!response.ok) {
-    throw new SoundCloudApiError(`SoundCloud request failed (${response.status}).`, response.status)
+    // Best-effort — SoundCloud's error responses usually carry a JSON `errors` array explaining
+    // exactly what was rejected (missing/invalid field, inaccessible track, etc.), which is far
+    // more useful than the bare status code for anything beyond "it didn't work."
+    let detail = ''
+    try {
+      const text = await response.text()
+      if (text) detail = ` ${text.slice(0, 500)}`
+    } catch {
+      // no body to read — fall back to just the status
+    }
+    throw new SoundCloudApiError(`SoundCloud request failed (${response.status}).${detail}`, response.status)
   }
 
   return response
