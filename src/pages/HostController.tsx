@@ -561,7 +561,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       switch (e.code) {
         case 'Space':
           e.preventDefault()
-          if (phase === 'clue' && !isLyric && !isTierGuess && !wagerPending) void playClue(clueIndex)
+          if (phase === 'clue' && !isLyric && !isTierGuess && !isYear && !wagerPending) void playClue(clueIndex)
           break
         case 'Enter':
           e.preventDefault()
@@ -575,7 +575,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           prevPossession()
           break
         case 'KeyR':
-          if (phase === 'clue' && !isLyric && !isTierGuess && !wagerPending) restartClue()
+          if (phase === 'clue' && !isLyric && !isTierGuess && !isYear && !wagerPending) restartClue()
           break
         case 'Escape':
           exitPresentation()
@@ -833,8 +833,6 @@ export default function HostController({ gameId }: { gameId: string }) {
                     ⭐ {game.teams.find((t) => t.id === wagerTeamId)?.name} wagering {wagerAmount} pts
                   </div>
                 )}
-                <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(shotClock)}</div>
-                <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Shot Clock</div>
 
                 <div className="font-display text-3xl tracking-wide text-white">WHAT YEAR IS IT FROM?</div>
 
@@ -846,18 +844,6 @@ export default function HostController({ gameId }: { gameId: string }) {
                   <div className="font-display text-2xl text-white">{round.title}</div>
                   <div className="text-slate-400">{round.artist}</div>
                 </div>
-
-                <div className="font-display text-2xl text-hardwood-400">{round.clipDurations[clueIndex]} SECONDS</div>
-
-                <button
-                  onClick={() => playClue(clueIndex)}
-                  disabled={isPlaying}
-                  className="flex h-20 w-20 items-center justify-center rounded-full bg-hardwood-500 text-3xl text-arena-950 shadow-lg shadow-hardwood-500/30 disabled:opacity-50 hover:bg-hardwood-400"
-                >
-                  {isPlaying ? '■' : '▶'}
-                </button>
-
-                {playbackError && <div className="max-w-md text-sm text-scoreboard-500">{playbackError}</div>}
               </>
             ) : (
               <>
