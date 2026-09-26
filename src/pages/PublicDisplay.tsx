@@ -137,6 +137,25 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                   <div className="text-slate-400">{round.artist}</div>
                 </div>
               </>
+            ) : isYear ? (
+              <>
+                {wager && (
+                  <div className="rounded-full bg-scoreboard-amber/15 px-4 py-1.5 text-sm font-semibold text-scoreboard-amber">
+                    ⭐ {wager.teamName} wagering {wager.amount} pts
+                  </div>
+                )}
+                <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(remaining)}</div>
+                <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Shot Clock</div>
+                <div className="font-display text-3xl tracking-wide text-white">WHAT YEAR IS IT FROM?</div>
+                <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
+                  {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                </div>
+                <div>
+                  <div className="font-display text-2xl text-white">{round.title}</div>
+                  <div className="text-slate-400">{round.artist}</div>
+                </div>
+                <div className="font-display text-2xl text-hardwood-400">{round.clipDurations[clueIndex]} SECONDS</div>
+              </>
             ) : (
               <>
                 {wager && (
@@ -146,7 +165,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                 )}
                 <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(remaining)}</div>
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Shot Clock</div>
-                <div className="font-display text-3xl tracking-wide text-white">{isYear ? 'WHAT YEAR IS IT FROM?' : "WHAT'S THE TRACK?"}</div>
+                <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE TRACK?</div>
                 <div className="flex h-40 w-40 items-center justify-center rounded-2xl border-2 border-dashed border-arena-600 bg-arena-800 text-5xl text-arena-600">
                   {snapshot.playing ? '♪' : '?'}
                 </div>
