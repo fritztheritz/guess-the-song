@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { teamColorForIndex } from '../types'
 import { listTeamPresets, type TeamPreset } from '../lib/team-presets'
 import type { Drafter } from '../types/draft'
+import DraftOrderWheel from './DraftOrderWheel'
 
 const MIN_DRAFTERS = 2
 const MAX_DRAFTERS = 8
@@ -31,6 +32,7 @@ export default function NewDraftSessionModal({
   const [drafters, setDrafters] = useState<DrafterDraft[]>([drafterDraft(0), drafterDraft(1)])
   const [picksPerDrafter, setPicksPerDrafter] = useState(5)
   const [presetPickerIndex, setPresetPickerIndex] = useState<number | null>(null)
+  const [wheelOpen, setWheelOpen] = useState(false)
   const presets = useMemo(() => listTeamPresets(), [])
 
   const needed = drafters.length * picksPerDrafter
@@ -53,6 +55,21 @@ export default function NewDraftSessionModal({
   function applyPreset(i: number, preset: TeamPreset) {
     setDrafters((prev) => prev.map((d, idx) => (idx === i ? { ...d, name: preset.name, color: preset.color, avatar: preset.avatar } : d)))
     setPresetPickerIndex(null)
+  }
+
+  function moveDrafter(i: number, direction: -1 | 1) {
+    setDrafters((prev) => {
+      const next = [...prev]
+      const target = i + direction
+      if (target < 0 || target >= next.length) return prev
+      ;[next[i], next[target]] = [next[target], next[i]]
+      return next
+    })
+  }
+
+  function applyWheelOrder(orderedIndices: number[]) {
+    setDrafters((prev) => orderedIndices.map((i) => prev[i]))
+    setWheelOpen(false)
   }
 
   function handleCreate() {
@@ -92,13 +109,43 @@ export default function NewDraftSessionModal({
           <div>
             <div className="mb-2 flex items-center justify-between">
               <label className="text-sm text-slate-400">Drafters</label>
-              <span className="text-xs text-slate-500">
-                {drafters.length}/{MAX_DRAFTERS}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-500">
+                  {drafters.length}/{MAX_DRAFTERS}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setWheelOpen(true)}
+                  className="rounded-full border border-arena-600 px-2.5 py-1 text-xs text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
+                >
+                  🎡 Randomize
+                </button>
+              </div>
             </div>
+            <p className="mb-2 text-xs text-slate-500">Top of the list picks first. Reorder with the arrows, or spin the wheel.</p>
             <div className="space-y-2">
               {drafters.map((drafter, i) => (
                 <div key={i} className="relative flex items-center gap-2">
+                  <div className="flex shrink-0 flex-col">
+                    <button
+                      type="button"
+                      onClick={() => moveDrafter(i, -1)}
+                      disabled={i === 0}
+                      aria-label={`Move ${drafter.name} up`}
+                      className="text-xs text-slate-500 hover:text-slate-200 disabled:opacity-20"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveDrafter(i, 1)}
+                      disabled={i === drafters.length - 1}
+                      aria-label={`Move ${drafter.name} down`}
+                      className="text-xs text-slate-500 hover:text-slate-200 disabled:opacity-20"
+                    >
+                      ▼
+                    </button>
+                  </div>
                   <span
                     className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs"
                     style={{ background: `${drafter.color}33`, color: drafter.color }}
@@ -194,6 +241,14 @@ export default function NewDraftSessionModal({
           </button>
         </div>
       </div>
+
+      {wheelOpen && (
+        <DraftOrderWheel
+          entries={drafters.map((d) => ({ name: d.name, color: d.color, avatar: d.avatar }))}
+          onComplete={applyWheelOrder}
+          onClose={() => setWheelOpen(false)}
+        />
+      )}
     </div>
   )
 }
