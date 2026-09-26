@@ -5,7 +5,7 @@ import type { BuzzState, BuzzerTeam, BuzzerWinner, PhoneRoundState } from '../li
 
 const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   song: '🎧 Listen up!',
-  year: '🎧 Listen up — when’s this from?',
+  year: '📅 What year is it from?',
   tierguess: '🎯 Guess the ranking!',
   lyric: '📝 Finish the lyric',
 }

@@ -233,7 +233,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   useEffect(() => {
     audioSourceRef.current?.stop()
-    audioSourceRef.current = round && !isLyric && !isTierGuess ? createAudioSource(round) : null
+    audioSourceRef.current = round && !isLyric && !isTierGuess && !isYear ? createAudioSource(round) : null
     setClueIndex(0)
     setIsPlaying(false)
     setShotClock(0)
