@@ -176,6 +176,11 @@ export interface CreatedSoundCloudPlaylist {
 // The one write call in this file (everything else here is read-only). Private by default —
 // this is meant for a group's own listening party, not a public release — but SoundCloud still
 // hands back a permalink_url that works as a share link for anyone who has it.
+//
+// The current (Open API) /playlists endpoint requires each track as { urn: "soundcloud:tracks:<id>" },
+// not { id: <number> } — the latter matches SoundCloud's older/classic API docs but 422s against
+// the live endpoint's strict deserializer (confirmed against their published OpenAPI spec at
+// developers.soundcloud.com/docs/api/explorer/open-api.json after a real 422 in testing).
 export async function createSoundCloudPlaylist(
   title: string,
   trackIds: string[],
@@ -184,7 +189,7 @@ export async function createSoundCloudPlaylist(
   const raw = await scFetchJson<{ id: number; permalink_url: string }>('/playlists', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playlist: { title, sharing, tracks: trackIds.map((id) => ({ id: Number(id) })) } }),
+    body: JSON.stringify({ playlist: { title, sharing, tracks: trackIds.map((id) => ({ urn: `soundcloud:tracks:${id}` })) } }),
   })
   return { id: String(raw.id), permalinkUrl: raw.permalink_url }
 }
