@@ -38,9 +38,15 @@ export default function ClipEditor({ round, onChange }: { round: SongRound; onCh
     if (round.source !== 'soundcloud' || !round.soundcloudTrackId) return
     if (round.access === 'preview' || round.access === 'blocked') return
     let active = true
-    checkStreamAccess(round.soundcloudTrackId, round.soundcloudSecretToken).then((access) => {
-      if (active && access !== round.access) onChange({ ...round, access })
-    })
+    checkStreamAccess(round.soundcloudTrackId, round.soundcloudSecretToken)
+      .then((access) => {
+        if (active && access !== round.access) onChange({ ...round, access })
+      })
+      .catch(() => {
+        // Best-effort background correction — if it fails (network blip, rate limit), the
+        // import-time metadata just stays as-is rather than surfacing an error for something
+        // the host never directly asked for.
+      })
     return () => {
       active = false
     }

@@ -1,7 +1,21 @@
+import { useState } from 'react'
 import { useSpotify } from '../state/SpotifyContext'
 
 export default function SpotifyConnectPanel() {
   const { connection, isConfigured, connect, disconnect } = useSpotify()
+  const [connectError, setConnectError] = useState<string | null>(null)
+
+  async function handleConnect() {
+    setConnectError(null)
+    try {
+      await connect()
+    } catch {
+      // connect() redirects the page on success, so reaching here always means it failed
+      // before that — most likely no secure context for the PKCE step (e.g. opened over a
+      // plain-http LAN address instead of localhost/https).
+      setConnectError('Could not start the Spotify connection. Make sure this page is loaded over HTTPS (or localhost).')
+    }
+  }
 
   if (!isConfigured) {
     return (
@@ -21,11 +35,12 @@ export default function SpotifyConnectPanel() {
           hosting — the SDK plays through their account, not each player's.
         </p>
         <button
-          onClick={connect}
+          onClick={() => void handleConnect()}
           className="rounded-full bg-[#1DB954] px-6 py-2.5 font-semibold text-black shadow-lg hover:bg-[#1ed760]"
         >
           Connect Spotify
         </button>
+        {connectError && <p className="max-w-sm text-xs text-scoreboard-500">{connectError}</p>}
       </div>
     )
   }

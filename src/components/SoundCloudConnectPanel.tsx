@@ -1,7 +1,21 @@
+import { useState } from 'react'
 import { useSoundCloud } from '../state/SoundCloudContext'
 
 export default function SoundCloudConnectPanel() {
   const { connection, isConfigured, connect, disconnect } = useSoundCloud()
+  const [connectError, setConnectError] = useState<string | null>(null)
+
+  async function handleConnect() {
+    setConnectError(null)
+    try {
+      await connect()
+    } catch {
+      // connect() redirects the page on success, so reaching here always means it failed
+      // before that — most likely no secure context for the PKCE step (e.g. opened over a
+      // plain-http LAN address instead of localhost/https).
+      setConnectError('Could not start the SoundCloud connection. Make sure this page is loaded over HTTPS (or localhost).')
+    }
+  }
 
   if (!isConfigured) {
     return (
@@ -19,11 +33,12 @@ export default function SoundCloudConnectPanel() {
       <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-arena-500 bg-arena-800/60 p-8 text-center">
         <p className="text-slate-300">Connect your SoundCloud account to browse and import tracks.</p>
         <button
-          onClick={connect}
+          onClick={() => void handleConnect()}
           className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 shadow-lg shadow-hardwood-500/20 hover:bg-hardwood-400"
         >
           Connect SoundCloud
         </button>
+        {connectError && <p className="max-w-sm text-xs text-scoreboard-500">{connectError}</p>}
       </div>
     )
   }
