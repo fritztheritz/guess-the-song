@@ -9,12 +9,15 @@ import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import { useConfirm } from '../state/ConfirmContext'
 import { useToast } from '../state/ToastContext'
 import SoundCloudAttribution from '../components/SoundCloudAttribution'
+import SoundCloudConnectPanel from '../components/SoundCloudConnectPanel'
+import SpotifyConnectPanel from '../components/SpotifyConnectPanel'
 
 export default function Home() {
   const navigate = useNavigate()
   const confirm = useConfirm()
   const showToast = useToast()
   const tierListsEnabled = useFeatureFlag('tier-lists')
+  const spotifyImportEnabled = useFeatureFlag('spotify-import')
   const [games, setGames] = useState<Game[]>([])
   const [tierLists, setTierLists] = useState<TierList[]>([])
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
@@ -146,6 +149,16 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {games.length === 0 && (
+          <div className="mx-auto mt-12 max-w-lg space-y-4">
+            <p className="text-center text-sm text-slate-500">
+              Games are built from tracks pulled in from a music source below — connect one before creating a game.
+            </p>
+            <SoundCloudConnectPanel />
+            {spotifyImportEnabled && <SpotifyConnectPanel />}
+          </div>
+        )}
 
         {allTags.length > 0 && (
           <div className="mx-auto mt-12 flex max-w-2xl flex-wrap items-center justify-center gap-2">
