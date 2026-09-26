@@ -1,9 +1,6 @@
 import type { Team } from '../types'
 import type { BuzzerPlayer } from '../lib/buzzer/protocol'
-
-function joinUrl(code: string): string {
-  return `${window.location.origin}${import.meta.env.BASE_URL}buzz/${code}`
-}
+import JoinQrCode, { joinUrl } from './JoinQrCode'
 
 // Host-only panel: shows the room code players type into /buzz, and who's connected on
 // which team. Doesn't touch buzz state itself — HostController owns that (open/close tied
@@ -42,6 +39,9 @@ export default function BuzzerPanel({
           <div className="text-xs uppercase tracking-widest text-slate-500">Players join at</div>
           <div className="text-sm text-hardwood-400">{url.replace(/^https?:\/\//, '')}</div>
           <div className="mt-3 font-display text-5xl tracking-[0.3em] text-white">{code}</div>
+          <div className="mt-3 flex justify-center">
+            <JoinQrCode code={code} size={140} />
+          </div>
           <button onClick={copyLink} className="mt-2 text-xs text-slate-500 underline hover:text-slate-300">
             Copy join link
           </button>
@@ -60,6 +60,7 @@ export default function BuzzerPanel({
               return (
                 <div key={team.id}>
                   <div className="text-xs font-medium" style={{ color: team.color }}>
+                    {team.avatar ? `${team.avatar} ` : ''}
                     {team.name}
                     {iced.includes(team.id) && <span className="ml-1.5 text-slate-500">🚫 iced this clue</span>}
                   </div>

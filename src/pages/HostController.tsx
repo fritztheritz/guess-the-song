@@ -36,6 +36,10 @@ const TIER_GUESS_POSITION_POINTS = 2
 // Same shape, applied to the year/month guess instead of tier/position.
 const YEAR_GUESS_YEAR_POINTS = 1
 const YEAR_GUESS_MONTH_POINTS = 2
+// Lyric/Tier Guess/Year rounds have no audio clip to hang a countdown off of (unlike Song
+// mode's shot clock, which tracks real clip playback) — this is a fixed, host-started
+// "thinking time" instead, same "fixed slot" philosophy as the lyric hint points above.
+const ANSWER_TIMER_SECONDS = 20
 
 export default function HostController({ gameId }: { gameId: string }) {
   const navigate = useNavigate()
@@ -86,6 +90,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   const audioSourceRef = useRef<AudioSource | null>(null)
   const shotClockTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  const answerTimerTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
   const playStartedAtRef = useRef<number | null>(null)
   const latestSnapshotRef = useRef<PresentationSnapshot | null>(null)
@@ -181,15 +186,16 @@ export default function HostController({ gameId }: { gameId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buzzerEnabled, game?.id])
 
-  // Keeps the room's team roster (names/colors, for the join page) in sync — deliberately
-  // keyed on a flattened string rather than the teams array itself, since that array gets a
-  // new reference on every score change and would otherwise resend this on every point.
-  const teamsKey = game?.teams.map((t) => `${t.id}:${t.name}:${t.color}`).join('|') ?? ''
+  // Keeps the room's team roster (names/colors/mascots, for the join page) in sync —
+  // deliberately keyed on a flattened string rather than the teams array itself, since that
+  // array gets a new reference on every score change and would otherwise resend this on
+  // every point.
+  const teamsKey = game?.teams.map((t) => `${t.id}:${t.name}:${t.color}:${t.avatar ?? ''}`).join('|') ?? ''
   useEffect(() => {
     if (!buzzerSocketRef.current || !game) return
     buzzerSocketRef.current.sendAndRemember({
       type: 'sync-teams',
-      teams: game.teams.map((t) => ({ id: t.id, name: t.name, color: t.color })),
+      teams: game.teams.map((t) => ({ id: t.id, name: t.name, color: t.color, avatar: t.avatar })),
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamsKey, buzzerConnected])
@@ -207,7 +213,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   // before it's actually revealed) down to every connected player, so a group can follow
   // the game entirely off their phones with no shared screen. Keyed on a score-inclusive
   // team key (unlike teamsKey above) since players should see live scores, not just names.
-  const teamsWithScoreKey = game?.teams.map((t) => `${t.id}:${t.name}:${t.color}:${t.score}`).join('|') ?? ''
+  const teamsWithScoreKey = game?.teams.map((t) => `${t.id}:${t.name}:${t.color}:${t.score}:${t.avatar ?? ''}`).join('|') ?? ''
   useEffect(() => {
     if (!buzzerSocketRef.current || !game) return
     const clueText = isLyric && phase === 'clue' ? (round?.lyricPrompt ?? null) : null
@@ -230,7 +236,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         mode: game.mode ?? 'song',
         clueText,
         revealed,
-        teams: game.teams.map((t) => ({ id: t.id, name: t.name, color: t.color, score: t.score })),
+        teams: game.teams.map((t) => ({ id: t.id, name: t.name, color: t.color, score: t.score, avatar: t.avatar })),
       },
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -242,6 +248,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   useEffect(() => {
     audioSourceRef.current?.stop()
+    stopShotClock()
     audioSourceRef.current = round && !isLyric && !isTierGuess && !isYear ? createAudioSource(round) : null
     setClueIndex(0)
     setIsPlaying(false)
@@ -262,6 +269,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     return () => {
       audioSourceRef.current?.stop()
       if (shotClockTimer.current) clearInterval(shotClockTimer.current)
+      if (answerTimerTimeout.current) clearTimeout(answerTimerTimeout.current)
     }
   }, [])
 
@@ -311,7 +319,33 @@ export default function HostController({ gameId }: { gameId: string }) {
   const stopShotClock = useCallback(() => {
     if (shotClockTimer.current) clearInterval(shotClockTimer.current)
     shotClockTimer.current = null
+    if (answerTimerTimeout.current) clearTimeout(answerTimerTimeout.current)
+    answerTimerTimeout.current = null
   }, [])
+
+  // Lyric/Tier Guess/Year's "answer timer" — same shotClock/isPlaying state playClue uses for
+  // Song mode's real clip-playback countdown, just driven by a fixed setTimeout instead of an
+  // awaited audio promise. Reusing that state (rather than a parallel set of "timer running"
+  // state) is what makes the existing broadcast-to-Public-Display wiring pick this up for free,
+  // since that snapshot's `playing` field and its sync effect are already keyed off isPlaying.
+  const startTimer = useCallback(
+    (duration: number) => {
+      if (isPlaying) return
+      playStartedAtRef.current = Date.now()
+      setIsPlaying(true)
+      setShotClock(duration)
+      shotClockTimer.current = setInterval(() => {
+        setShotClock((s) => Math.max(0, s - 0.1))
+      }, 100)
+      answerTimerTimeout.current = setTimeout(() => {
+        stopShotClock()
+        playStartedAtRef.current = null
+        setIsPlaying(false)
+        setShotClock(0)
+      }, duration * 1000)
+    },
+    [isPlaying, stopShotClock],
+  )
 
   const playClue = useCallback(
     async (index: number) => {
@@ -804,6 +838,19 @@ export default function HostController({ gameId }: { gameId: string }) {
               </>
             ) : isLyric ? (
               <>
+                {isPlaying ? (
+                  <>
+                    <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(shotClock)}</div>
+                    <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => startTimer(ANSWER_TIMER_SECONDS)}
+                    className="rounded-full border border-hardwood-500 px-5 py-2 text-sm font-semibold text-hardwood-400 hover:bg-hardwood-500/10"
+                  >
+                    ▶ START {ANSWER_TIMER_SECONDS}s TIMER
+                  </button>
+                )}
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Finish the lyric</div>
                 <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE NEXT LINE?</div>
                 <div className="max-w-xl rounded-2xl border-2 border-dashed border-arena-600 bg-arena-800 px-8 py-6 text-xl italic text-hardwood-300">
@@ -828,6 +875,19 @@ export default function HostController({ gameId }: { gameId: string }) {
               </>
             ) : isTierGuess ? (
               <>
+                {isPlaying ? (
+                  <>
+                    <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(shotClock)}</div>
+                    <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => startTimer(ANSWER_TIMER_SECONDS)}
+                    className="rounded-full border border-hardwood-500 px-5 py-2 text-sm font-semibold text-hardwood-400 hover:bg-hardwood-500/10"
+                  >
+                    ▶ START {ANSWER_TIMER_SECONDS}s TIMER
+                  </button>
+                )}
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Guess the ranking</div>
                 <div className="font-display text-3xl tracking-wide text-white">WHAT TIER IS IT IN?</div>
 
@@ -857,6 +917,20 @@ export default function HostController({ gameId }: { gameId: string }) {
                   <div className="rounded-full bg-scoreboard-amber/15 px-4 py-1.5 text-sm font-semibold text-scoreboard-amber">
                     ⭐ {game.teams.find((t) => t.id === wagerTeamId)?.name} wagering {wagerAmount} pts
                   </div>
+                )}
+
+                {isPlaying ? (
+                  <>
+                    <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(shotClock)}</div>
+                    <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => startTimer(ANSWER_TIMER_SECONDS)}
+                    className="rounded-full border border-hardwood-500 px-5 py-2 text-sm font-semibold text-hardwood-400 hover:bg-hardwood-500/10"
+                  >
+                    ▶ START {ANSWER_TIMER_SECONDS}s TIMER
+                  </button>
                 )}
 
                 <div className="font-display text-3xl tracking-wide text-white">WHAT YEAR IS IT FROM?</div>
@@ -1308,7 +1382,7 @@ export default function HostController({ gameId }: { gameId: string }) {
             {sortedFinal.map((team, i) => (
               <div key={team.id} className="flex w-72 items-center justify-between rounded-xl border border-arena-600 bg-arena-800/70 px-5 py-3">
                 <span className="font-display text-xl" style={{ color: team.color }}>
-                  {i === 0 ? '🏆 ' : ''}{team.name}
+                  {i === 0 ? '🏆 ' : ''}{team.avatar ? `${team.avatar} ` : ''}{team.name}
                 </span>
                 <span className="scoreboard-digit font-display text-3xl">{team.score}</span>
               </div>

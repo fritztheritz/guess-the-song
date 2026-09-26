@@ -22,7 +22,10 @@ function TeamScoreCard({ team, compact }: { team: Team; compact: boolean }) {
       }`}
       style={{ borderBottomColor: team.color, borderBottomWidth: 3, '--pop-color': team.color } as React.CSSProperties}
     >
-      <div className="truncate text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{team.name}</div>
+      <div className="truncate text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+        {team.avatar ? `${team.avatar} ` : ''}
+        {team.name}
+      </div>
       <div
         className={`scoreboard-digit font-display ${compact ? 'text-3xl' : 'text-6xl'} leading-none`}
         style={{ color: team.color }}

@@ -88,6 +88,8 @@ export interface Team {
   name: string
   color: string // tailwind-safe hex used for scoreboard styling
   score: number
+  /** Optional mascot emoji shown alongside the team name. Absent on every team created before this existed. */
+  avatar?: string
 }
 
 export interface GameProgress {
@@ -147,6 +149,10 @@ export const TEAM_COLORS = ['#e8871e', '#17b8a6', '#a855f7', '#ff3b3b', '#3fa9f5
 export function teamColorForIndex(index: number): string {
   return TEAM_COLORS[index % TEAM_COLORS.length]
 }
+
+// Fixed palette, same "pick from a curated set" philosophy as TEAM_COLORS — keeps every
+// mascot legible at scoreboard-digit size rather than letting hosts type in arbitrary emoji.
+export const TEAM_AVATARS = ['🏀', '🔥', '⚡', '🎯', '🚀', '👑', '🦁', '🐺', '🐐', '🎃', '👻', '⭐']
 
 export function createEmptyRound(partial: Partial<SongRound> & Pick<SongRound, 'title' | 'artist' | 'source'>): SongRound {
   return {

@@ -7,6 +7,7 @@ export interface BuzzerTeam {
   id: string
   name: string
   color: string
+  avatar?: string
 }
 
 export interface BuzzerPlayer {
@@ -45,7 +46,7 @@ export interface PhoneRoundState {
   clueText: string | null
   /** Only set once phase is 'revealed' — the answer, simplified (no tier/year staging). */
   revealed: { title: string; artist: string; artworkUrl?: string; lyricAnswer?: string } | null
-  teams: Array<{ id: string; name: string; color: string; score: number }>
+  teams: Array<{ id: string; name: string; color: string; score: number; avatar?: string }>
 }
 
 export type HostOutMessage =

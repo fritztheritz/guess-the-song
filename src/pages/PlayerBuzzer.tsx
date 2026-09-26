@@ -180,7 +180,7 @@ export default function PlayerBuzzer() {
             .sort((a, b) => b.score - a.score)
             .map((t) => (
               <span key={t.id} className="rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: `${t.color}22`, color: t.color }}>
-                {t.name} {t.score}
+                {t.avatar ? `${t.avatar} ` : ''}{t.name} {t.score}
               </span>
             ))}
         </div>
@@ -212,6 +212,7 @@ export default function PlayerBuzzer() {
                       }`}
                       style={{ background: `${team.color}22`, color: team.color, borderColor: selectedTeamId === team.id ? team.color : 'transparent' }}
                     >
+                      {team.avatar ? `${team.avatar} ` : ''}
                       {team.name}
                     </button>
                   ))}
@@ -230,7 +231,11 @@ export default function PlayerBuzzer() {
       ) : (
         <div className="flex w-full max-w-xs flex-col items-center gap-4">
           <div className="text-sm text-slate-400">
-            {identity?.name} · <span style={{ color: myTeam?.color }}>{myTeam?.name ?? '…'}</span>
+            {identity?.name} ·{' '}
+            <span style={{ color: myTeam?.color }}>
+              {myTeam?.avatar ? `${myTeam.avatar} ` : ''}
+              {myTeam?.name ?? '…'}
+            </span>
           </div>
 
           {buzzState === 'locked' && winner ? (

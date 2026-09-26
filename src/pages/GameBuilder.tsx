@@ -11,6 +11,7 @@ import {
   isYearMode,
   teamColorForIndex,
   TEAM_COLORS,
+  TEAM_AVATARS,
 } from '../types'
 import type { TierList, TierListSong } from '../types/tierlist'
 import { getGame, listGames, saveGame } from '../lib/storage/game-repository'
@@ -67,6 +68,7 @@ export default function GameBuilder() {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [colorPickerTeamId, setColorPickerTeamId] = useState<string | null>(null)
+  const [avatarPickerTeamId, setAvatarPickerTeamId] = useState<string | null>(null)
   // Computed once at mount, not kept live — it only feeds the tag autocomplete, so it's fine
   // if a tag added to another game mid-session doesn't show up here until next visit.
   const tagSuggestions = useMemo(() => Array.from(new Set(listGames().flatMap((g) => g.tags ?? []))).sort(), [])
@@ -283,6 +285,15 @@ export default function GameBuilder() {
     setColorPickerTeamId(null)
   }
 
+  function updateTeamAvatar(id: string, avatar: string) {
+    if (!game) return
+    persist({
+      ...game,
+      teams: game.teams.map((t) => (t.id === id ? { ...t, avatar: t.avatar === avatar ? undefined : avatar } : t)),
+    })
+    setAvatarPickerTeamId(null)
+  }
+
   function addTeam() {
     if (!game || game.teams.length >= MAX_TEAMS) return
     const team = createTeam(`Team ${game.teams.length + 1}`, teamColorForIndex(game.teams.length))
@@ -494,6 +505,13 @@ export default function GameBuilder() {
                     className="h-4 w-4 shrink-0 rounded-full ring-1 ring-arena-600 ring-offset-1 ring-offset-arena-800 hover:ring-hardwood-500"
                     style={{ background: team.color }}
                   />
+                  <button
+                    onClick={() => setAvatarPickerTeamId(avatarPickerTeamId === team.id ? null : team.id)}
+                    aria-label={`Change ${team.name}'s mascot`}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded ring-1 ring-arena-600 hover:ring-hardwood-500"
+                  >
+                    <span className="text-xs">{team.avatar ?? '＋'}</span>
+                  </button>
                   <input
                     value={team.name}
                     onChange={(e) => renameTeam(team.id, e.target.value)}
@@ -523,6 +541,28 @@ export default function GameBuilder() {
                             className={`h-5 w-5 rounded-full ${team.color === color ? 'ring-2 ring-white' : 'ring-1 ring-arena-600 hover:ring-slate-300'}`}
                             style={{ background: color }}
                           />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {avatarPickerTeamId === team.id && (
+                    <>
+                      <div className="fixed inset-0 z-0" onClick={() => setAvatarPickerTeamId(null)} />
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute left-4 top-7 z-10 flex w-40 flex-wrap gap-1.5 rounded-lg border border-arena-600 bg-arena-900 p-2 shadow-xl"
+                      >
+                        {TEAM_AVATARS.map((avatar) => (
+                          <button
+                            key={avatar}
+                            onClick={() => updateTeamAvatar(team.id, avatar)}
+                            aria-label={`Use ${avatar}`}
+                            className={`flex h-6 w-6 items-center justify-center rounded text-sm ${
+                              team.avatar === avatar ? 'bg-hardwood-500/30 ring-2 ring-hardwood-500' : 'ring-1 ring-arena-600 hover:ring-slate-300'
+                            }`}
+                          >
+                            {avatar}
+                          </button>
                         ))}
                       </div>
                     </>

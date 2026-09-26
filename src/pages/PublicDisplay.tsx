@@ -5,6 +5,7 @@ import { presentationChannelName, type PresentationMessage, type PresentationSna
 import Scoreboard from '../components/Scoreboard'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
+import JoinQrCode from '../components/JoinQrCode'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -95,6 +96,13 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
           <div className="font-display text-5xl tracking-wide text-hardwood-400">{game.name}</div>
           <div className="text-6xl">🏀</div>
           <Scoreboard teams={game.teams} />
+          {game.buzzerRoomCode && (
+            <div className="flex flex-col items-center gap-2 rounded-2xl border border-arena-700 bg-arena-900/60 px-6 py-4">
+              <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Scan to buzz in from your phone</div>
+              <JoinQrCode code={game.buzzerRoomCode} size={140} />
+              <div className="font-display text-2xl tracking-[0.3em] text-white">{game.buzzerRoomCode}</div>
+            </div>
+          )}
         </div>
       )}
 
@@ -113,6 +121,12 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
               </>
             ) : isLyric ? (
               <>
+                {snapshot.playing && (
+                  <>
+                    <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(remaining)}</div>
+                    <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
+                  </>
+                )}
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Finish the lyric</div>
                 <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE NEXT LINE?</div>
                 <div className="max-w-xl rounded-2xl border-2 border-dashed border-arena-600 bg-arena-800 px-8 py-6 text-xl italic text-hardwood-300">
@@ -136,6 +150,12 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
               </>
             ) : isTierGuess ? (
               <>
+                {snapshot.playing && (
+                  <>
+                    <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(remaining)}</div>
+                    <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
+                  </>
+                )}
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Guess the ranking</div>
                 <div className="font-display text-3xl tracking-wide text-white">WHAT TIER IS IT IN?</div>
                 <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
@@ -152,6 +172,12 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                   <div className="rounded-full bg-scoreboard-amber/15 px-4 py-1.5 text-sm font-semibold text-scoreboard-amber">
                     ⭐ {wager.teamName} wagering {wager.amount} pts
                   </div>
+                )}
+                {snapshot.playing && (
+                  <>
+                    <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(remaining)}</div>
+                    <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
+                  </>
                 )}
                 <div className="font-display text-3xl tracking-wide text-white">WHAT YEAR IS IT FROM?</div>
                 <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
@@ -313,7 +339,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
             {sortedFinal.map((team, i) => (
               <div key={team.id} className="flex w-72 items-center justify-between rounded-xl border border-arena-600 bg-arena-800/70 px-5 py-3">
                 <span className="font-display text-xl" style={{ color: team.color }}>
-                  {i === 0 ? '🏆 ' : ''}{team.name}
+                  {i === 0 ? '🏆 ' : ''}{team.avatar ? `${team.avatar} ` : ''}{team.name}
                 </span>
                 <span className="scoreboard-digit font-display text-3xl">{team.score}</span>
               </div>
