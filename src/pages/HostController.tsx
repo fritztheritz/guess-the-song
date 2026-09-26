@@ -899,7 +899,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
             {!(round.wager && !wagerTeamId) && (
               <div className="flex gap-3">
-                {!isTierGuess && clueIndex < round.points.length - 1 && (
+                {!isTierGuess && !isYear && clueIndex < round.points.length - 1 && (
                   <button onClick={advanceClue} disabled={isPlaying} className="rounded-full border border-arena-500 px-5 py-2 text-sm text-slate-300 hover:border-hardwood-500 disabled:opacity-40">
                     {isLyric ? `NEXT HINT: ${LYRIC_HINT_LABELS[clueIndex]} (${round.points[clueIndex + 1]} pts)` : `NEXT CLUE (${round.clipDurations[clueIndex + 1]}s)`}
                   </button>
