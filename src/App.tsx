@@ -6,6 +6,7 @@ import Presentation from './pages/Presentation'
 import Callback from './pages/Callback'
 import ImportGame from './pages/ImportGame'
 import SharedDraftResults from './pages/SharedDraftResults'
+import Stats from './pages/Stats'
 import Admin from './pages/Admin'
 import CreateTierList from './pages/CreateTierList'
 import TierListBuilder from './pages/TierListBuilder'
@@ -28,6 +29,7 @@ export default function App() {
       <Route path="/callback" element={<Callback />} />
       <Route path="/import" element={<ImportGame />} />
       <Route path="/share/results" element={<SharedDraftResults />} />
+      <Route path="/stats" element={<Stats />} />
       <Route path="/admin" element={<Admin />} />
       <Route path="/buzz" element={<PlayerBuzzer />} />
       <Route path="/buzz/:code" element={<PlayerBuzzer />} />

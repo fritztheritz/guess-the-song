@@ -1,4 +1,5 @@
 import type { TierDef, TierListSong } from './tierlist'
+import type { RecapCardStats } from '../lib/recap-card'
 
 // 'lyric'/'spotify' are additive — existing stored games never have these values, so every
 // `source === 'soundcloud' | 'local'` check elsewhere keeps working unchanged.
@@ -135,6 +136,11 @@ export interface Game {
   /** Opt-in pause for a score check partway through — only fires with 4+ rounds. Absent/false
    *  on every game predating this and on every game the host hasn't explicitly turned it on for. */
   halftimeEnabled?: boolean
+  /** Snapshotted once, the moment this playthrough reaches `progress.completed` — same shape
+   *  the recap card already renders from. Cleared on restart, so it always reflects the most
+   *  recent completed playthrough rather than a stale one. Absent until a game has actually
+   *  been played through to the end at least once. */
+  recap?: RecapCardStats
 }
 
 /** Every existing stored game predates `mode` — this is the one place that should ever default it. */

@@ -514,9 +514,14 @@ export default function Home() {
 
         <div className="mt-8 flex flex-col items-center gap-2">
           <SoundCloudAttribution />
-          <Link to="/admin" className="text-xs text-slate-600 hover:text-slate-400">
-            Feature flags
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link to="/stats" className="text-xs text-slate-600 hover:text-slate-400">
+              Stats
+            </Link>
+            <Link to="/admin" className="text-xs text-slate-600 hover:text-slate-400">
+              Feature flags
+            </Link>
+          </div>
         </div>
       </div>
     </div>

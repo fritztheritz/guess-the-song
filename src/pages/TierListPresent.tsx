@@ -5,7 +5,9 @@ import { getTierList, saveTierList } from '../lib/storage/tierlist-repository'
 import { moveSong, songsInGroup } from '../lib/tierlist-ranking'
 import { useConfirm } from '../state/ConfirmContext'
 import { useToast } from '../state/ToastContext'
+import { isSoundMuted, playCorrect, playFanfare, setSoundMuted } from '../lib/sound-effects'
 import Spinner from '../components/Spinner'
+import Confetti from '../components/Confetti'
 
 // Sentinel for "currently dragging over the Unranked pool" — distinct from tier ids
 // (real uuids) and from `null` (no drag in progress), so the two are never confused.
@@ -122,6 +124,8 @@ export default function TierListPresent() {
   const [list, setList] = useState<TierList | null>(null)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverZone, setDragOverZone] = useState<string | null>(null)
+  const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
+  const [celebrating, setCelebrating] = useState(false)
 
   useEffect(() => {
     if (!tierListId) return
@@ -148,9 +152,30 @@ export default function TierListPresent() {
 
   function drop(targetTierId: string | null, beforeSongId: string | null) {
     if (!list || !draggingId) return
-    persist(moveSong(list, draggingId, targetTierId, beforeSongId))
+    const moving = list.songs.find((s) => s.id === draggingId)
+    const wasFullyRanked = list.songs.every((s) => s.tierId !== null)
+    const next = moveSong(list, draggingId, targetTierId, beforeSongId)
+    const nowFullyRanked = next.songs.every((s) => s.tierId !== null)
+
+    // The "everything's ranked" celebration takes priority over the per-placement chime —
+    // playing both back to back would just sound like a glitch, not two distinct cues.
+    if (!wasFullyRanked && nowFullyRanked) {
+      playFanfare()
+      setCelebrating(true)
+      setTimeout(() => setCelebrating(false), 3000)
+    } else if (targetTierId !== null && moving?.tierId !== targetTierId) {
+      playCorrect()
+    }
+
+    persist(next)
     setDraggingId(null)
     setDragOverZone(null)
+  }
+
+  function toggleSound() {
+    const next = !soundMuted
+    setSoundMuted(next)
+    setSoundMutedState(next)
   }
 
   function handleDragOverZone(zoneId: string) {
@@ -191,10 +216,21 @@ export default function TierListPresent() {
             </Link>
             <h1 className="font-display text-3xl tracking-wide text-white">{list.name}</h1>
           </div>
-          <button onClick={resetRankings} className="text-xs text-slate-500 underline hover:text-slate-300">
-            ↺ Reset rankings
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleSound}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-sm text-slate-300 hover:bg-black/60"
+              aria-label={soundMuted ? 'Unmute sound effects' : 'Mute sound effects'}
+            >
+              {soundMuted ? '🔇' : '🔊'}
+            </button>
+            <button onClick={resetRankings} className="text-xs text-slate-500 underline hover:text-slate-300">
+              ↺ Reset rankings
+            </button>
+          </div>
         </div>
+
+        {celebrating && <Confetti />}
 
         <div className="space-y-3">
           {list.tiers.map((tier) => {

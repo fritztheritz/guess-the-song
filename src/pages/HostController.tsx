@@ -13,7 +13,7 @@ import {
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
 import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, isSoundMuted, setSoundMuted } from '../lib/sound-effects'
-import { downloadRecapCard } from '../lib/recap-card'
+import { downloadRecapCard, type RecapCardStats } from '../lib/recap-card'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import {
   presentationChannelName,
@@ -532,7 +532,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   function nextPossession() {
     if (!game) return
     if (possessionIndex >= game.rounds.length - 1) {
-      setGame(saveGame({ ...game, progress: { possessionIndex, completed: true } }))
+      setGame(saveGame({ ...game, progress: { possessionIndex, completed: true }, recap: buildRecapStats(game.teams) }))
       setPhase('final')
       return
     }
@@ -571,7 +571,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   function restartGame() {
     if (!game) return
-    const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0, streak: 0 })), progress: undefined })
+    const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0, streak: 0 })), progress: undefined, recap: undefined })
     setGame(reset)
     setPossessionIndex(0)
     setLastAward(null)
@@ -694,19 +694,26 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   const sortedFinal = useMemo(() => [...(game?.teams ?? [])].sort((a, b) => b.score - a.score), [game])
 
+  // Shared by the downloadable recap card and the persisted Game.recap snapshot, so the two
+  // never drift apart — both are just this same computation over whichever teams are handed in.
+  function buildRecapStats(teams: Team[]): RecapCardStats {
+    const sorted = [...teams].sort((a, b) => b.score - a.score)
+    const fastest = recapRef.current.fastestBuzz
+    return {
+      winningMargin: sorted.length > 1 && sorted[0].score !== sorted[1].score ? sorted[0].score - sorted[1].score : null,
+      biggest: recapRef.current.biggest,
+      fastestBuzz: fastest ? { name: fastest.name, teamName: teams.find((t) => t.id === fastest.teamId)?.name ?? '—', ms: fastest.ms } : null,
+      correctCount: recapRef.current.correctCount,
+      noScoreCount: recapRef.current.noScoreCount,
+    }
+  }
+
   function handleDownloadRecap() {
     if (!game) return
-    const fastest = recapRef.current.fastestBuzz
     void downloadRecapCard({
       gameName: game.name,
       teams: sortedFinal.map((t) => ({ name: t.name, color: t.color, avatar: t.avatar, score: t.score })),
-      stats: {
-        winningMargin: sortedFinal.length > 1 && sortedFinal[0].score !== sortedFinal[1].score ? sortedFinal[0].score - sortedFinal[1].score : null,
-        biggest: recapRef.current.biggest,
-        fastestBuzz: fastest ? { name: fastest.name, teamName: game.teams.find((t) => t.id === fastest.teamId)?.name ?? '—', ms: fastest.ms } : null,
-        correctCount: recapRef.current.correctCount,
-        noScoreCount: recapRef.current.noScoreCount,
-      },
+      stats: buildRecapStats(game.teams),
     })
   }
 
