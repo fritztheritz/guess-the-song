@@ -163,10 +163,15 @@ export class BuzzerRoom {
       this.broadcastAll(this.stateMessage())
     } else if (msg.type === 'guess' && typeof msg.text === 'string') {
       // Host-only, never broadcast to other players — same "don't leak more than the
-      // current phase allows" discipline as roundState. Only the team that's actually
-      // locked in the buzzer can submit one, so a guess can't be spoofed for someone else's turn.
+      // current phase allows" discipline as roundState. Two cases:
+      //  - 'locked': only the team that's actually locked in the buzzer can submit one, so
+      //    a guess can't be spoofed for someone else's turn (Song/Lyric's buzz-then-type flow).
+      //  - 'open': anyone can submit, no winner required — Guess the Year isn't a race, every
+      //    connected player gets an independent shot and the host scores each one on its own.
       const player = this.players.get(socket)
-      if (!player || this.buzzState !== 'locked' || this.winner?.connId !== player.connId) return
+      if (!player) return
+      const allowed = this.buzzState === 'open' || (this.buzzState === 'locked' && this.winner?.connId === player.connId)
+      if (!allowed) return
       this.broadcastToHost({ type: 'guess', connId: player.connId, text: msg.text.slice(0, 200) })
     }
   }

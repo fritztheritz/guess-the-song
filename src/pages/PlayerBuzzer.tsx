@@ -57,6 +57,12 @@ export default function PlayerBuzzer() {
   const [roundState, setRoundState] = useState<PhoneRoundState | null>(null)
   const [guessInput, setGuessInput] = useState('')
   const [guessSent, setGuessSent] = useState(false)
+  // Guess the Year / Guess the Tier: no-buzz free-for-all guessing, shared between the two
+  // modes since they're the same shape (type an answer, right ones score automatically —
+  // see HostController's autoScoreGuesses). Song/Lyric's buzz-then-type guess above is a
+  // separate flow (guessInput/guessSent) since that one's still winner-gated.
+  const [modeGuessInput, setModeGuessInput] = useState('')
+  const [modeGuessSubmitted, setModeGuessSubmitted] = useState<string | null>(null)
   const socketRef = useRef<BuzzerSocket | null>(null)
 
   const activeCode = params.code?.toUpperCase() ?? null
@@ -129,6 +135,23 @@ export default function PlayerBuzzer() {
     if (!text) return
     socketRef.current?.send({ type: 'guess', text })
     setGuessSent(true)
+  }
+
+  // Neither mode is a race — every connected player can submit independently, and getting
+  // it right scores automatically, so unlike the buzz-race guess above there's no "only the
+  // winner" gate and no locking after one submission. A fresh round means whatever was typed
+  // for the last one (right or wrong) is stale.
+  useEffect(() => {
+    setModeGuessInput('')
+    setModeGuessSubmitted(null)
+  }, [roundState?.possessionIndex])
+
+  function handleModeGuessSubmit(e: FormEvent) {
+    e.preventDefault()
+    const text = modeGuessInput.trim()
+    if (!text) return
+    socketRef.current?.send({ type: 'guess', text })
+    setModeGuessSubmitted(text)
   }
 
   if (!activeCode) {
@@ -258,7 +281,44 @@ export default function PlayerBuzzer() {
             </span>
           </div>
 
-          {buzzState === 'locked' && winner ? (
+          {roundState?.mode === 'year' || roundState?.mode === 'tierguess' ? (
+            <div className="w-full max-w-xs space-y-3">
+              {roundState.phase === 'clue' ? (
+                <>
+                  <form onSubmit={handleModeGuessSubmit} className="flex gap-2">
+                    <input
+                      value={modeGuessInput}
+                      onChange={(e) => setModeGuessInput(e.target.value)}
+                      placeholder={roundState.mode === 'year' ? 'Year, e.g. 2003' : 'Tier, e.g. S'}
+                      autoFocus
+                      maxLength={roundState.mode === 'year' ? 4 : 40}
+                      inputMode={roundState.mode === 'year' ? 'numeric' : 'text'}
+                      pattern={roundState.mode === 'year' ? '[0-9]*' : undefined}
+                      autoComplete="off"
+                      autoCapitalize={roundState.mode === 'year' ? undefined : 'characters'}
+                      autoCorrect={roundState.mode === 'year' ? undefined : 'off'}
+                      spellCheck={false}
+                      enterKeyHint="send"
+                      className="w-full rounded-xl border border-arena-600 bg-arena-800 px-4 py-3 text-center font-display text-2xl tracking-widest text-white outline-none focus:border-hardwood-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!modeGuessInput.trim()}
+                      className="shrink-0 rounded-xl bg-hardwood-500 px-4 font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
+                    >
+                      Send
+                    </button>
+                  </form>
+                  {modeGuessSubmitted && (
+                    <p className="text-sm text-slate-400">✓ Sent "{modeGuessSubmitted}" — change your mind? Just type a new one.</p>
+                  )}
+                  <p className="text-xs text-slate-500">No need to buzz — everyone can guess, right answers score automatically.</p>
+                </>
+              ) : (
+                <p className="text-sm text-slate-400">⏳ Time's up — check the screen for the answer.</p>
+              )}
+            </div>
+          ) : buzzState === 'locked' && winner ? (
             winner.connId === myConnId ? (
               <div className="flex w-full max-w-xs flex-col items-center gap-4">
                 <div className="flex h-40 w-40 flex-col items-center justify-center rounded-full bg-scoreboard-green text-arena-950 shadow-2xl">

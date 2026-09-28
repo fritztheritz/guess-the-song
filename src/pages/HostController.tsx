@@ -80,6 +80,11 @@ export default function HostController({ gameId }: { gameId: string }) {
   const [yearCredits, setYearCredits] = useState<Set<string>>(new Set())
   const [monthCredits, setMonthCredits] = useState<Set<string>>(new Set())
   const [yearGuessStage, setYearGuessStage] = useState<YearGuessStage>('year')
+  // Typed guesses from connected phones, keyed by connId — Guess the Year/Tier aren't a
+  // race, so this collects every submission during the current guessing window instead of
+  // tracking a single buzzWinner like Song/Lyric's guess does. Consumed (and cleared) by
+  // autoScoreGuesses at the moment that window closes.
+  const [modeGuesses, setModeGuesses] = useState<Map<string, { teamId: string; name: string; text: string }>>(new Map())
   // Wager rounds (song/lyric only): null until the host locks one in for this possession.
   const [wagerTeamId, setWagerTeamId] = useState<string | null>(null)
   const [wagerAmount, setWagerAmount] = useState<number | null>(null)
@@ -98,6 +103,10 @@ export default function HostController({ gameId }: { gameId: string }) {
   // tracks who buzzed first for the current possession — the host still taps a team in the
   // existing award grid to actually score it, this only decides who's allowed to answer.
   const [buzzRoster, setBuzzRoster] = useState<BuzzerPlayer[]>([])
+  // Mirrors buzzRoster for the socket message handler below, which is bound once per
+  // buzzer-connect effect run (not on every roster change) — reading state directly there
+  // would see whatever roster existed at connect time forever, never later joins/leaves.
+  const buzzRosterRef = useRef<BuzzerPlayer[]>([])
   const [buzzState, setBuzzState] = useState<BuzzState>('closed')
   const [buzzWinner, setBuzzWinner] = useState<BuzzerWinner | null>(null)
   const [buzzIced, setBuzzIced] = useState<string[]>([])
@@ -130,6 +139,9 @@ export default function HostController({ gameId }: { gameId: string }) {
   // connection to enforce it server-side. A ref, not state: it only ever gates a keydown
   // handler, never rendered.
   const keyboardIcedRef = useRef<Set<string>>(new Set())
+  // Guards the auto-score effect below from re-firing every render while sitting in the
+  // same revealed stage — set to `${round.id}:${stage}` the moment that stage gets scored.
+  const scoredStageRef = useRef<string | null>(null)
   // Recap stats for the final screen — live counters, not persisted, so they only cover
   // scoring that happened in this browser tab's current playthrough (a "continue" after
   // closing the tab starts these back at zero, same tradeoff as tierCredits/lastAward etc.).
@@ -203,14 +215,26 @@ export default function HostController({ gameId }: { gameId: string }) {
     const socket = new BuzzerSocket(current.buzzerRoomCode!, 'host')
     buzzerSocketRef.current = socket
     const unsubscribe = socket.onMessage((msg) => {
-      if (msg.type === 'roster') setBuzzRoster(msg.players)
-      else if (msg.type === 'state') {
+      if (msg.type === 'roster') {
+        buzzRosterRef.current = msg.players
+        setBuzzRoster(msg.players)
+      } else if (msg.type === 'state') {
         setBuzzState(msg.buzzState)
         setBuzzWinner(msg.winner)
         setBuzzIced(msg.iced)
         if (msg.winner && recordBuzzReaction(msg.winner)) playBuzzIn()
       } else if (msg.type === 'guess') {
-        setBuzzGuess({ connId: msg.connId, text: msg.text })
+        if (isYear || isTierGuess) {
+          // No buzzWinner exists for these modes' own guess — anyone connected can submit,
+          // so every submission is collected (by connId, so a resubmit just overwrites) and
+          // graded together the moment the guessing window closes. See autoScoreGuesses.
+          const player = buzzRosterRef.current.find((p) => p.connId === msg.connId)
+          if (player) {
+            setModeGuesses((prev) => new Map(prev).set(msg.connId, { teamId: player.teamId, name: player.name, text: msg.text }))
+          }
+        } else {
+          setBuzzGuess({ connId: msg.connId, text: msg.text })
+        }
       }
     })
     socket.connect()
@@ -257,6 +281,44 @@ export default function HostController({ gameId }: { gameId: string }) {
     setBuzzWinner(null)
     setBuzzState(phase === 'clue' ? 'open' : 'closed')
   }, [phase, buzzerConnected, isTierGuess, isYear])
+
+  // Grades Guess the Year/Tier's no-buzz guesses the moment their guessing window closes —
+  // the year/tier reveal (yearGuessStage/tierGuessStage first flips off 'year'/'tier' the
+  // instant reveal() or *GuessAdvance() runs) rather than waiting for a host click, since
+  // there's no single "submit" action to hang it off like Song/Lyric's markBuzzCorrect has.
+  // Only the primary guess (tier/year) is auto-scored; the closest-position/month follow-up
+  // stays host-judged, same as before, since it's an untimed "closest guess" call rather
+  // than a single unambiguous right answer.
+  useEffect(() => {
+    if (!game || !round || phase !== 'revealed') return
+    if (isYear && yearGuessStage !== 'year') {
+      const key = `${round.id}:year`
+      if (scoredStageRef.current !== key) {
+        scoredStageRef.current = key
+        autoScoreGuesses(
+          round.releaseYear !== undefined,
+          (text) => Number(text.trim()) === round.releaseYear,
+          yearCredits,
+          setYearCredits,
+          YEAR_GUESS_YEAR_POINTS,
+        )
+      }
+    } else if (isTierGuess && tierGuessStage !== 'tier') {
+      const key = `${round.id}:tier`
+      if (scoredStageRef.current !== key) {
+        scoredStageRef.current = key
+        const correctTier = game.tierListTiers?.find((t) => t.id === round.tierId)
+        autoScoreGuesses(
+          !!correctTier,
+          (text) => !!correctTier && text.trim().toLowerCase() === correctTier.name.trim().toLowerCase(),
+          tierCredits,
+          setTierCredits,
+          TIER_GUESS_TIER_POINTS,
+        )
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, isYear, isTierGuess, yearGuessStage, tierGuessStage, round?.id])
 
   // Phone-only mode: pushes a phone-safe summary of what's on screen (never the answer
   // before it's actually revealed) down to every connected player, so a group can follow
@@ -309,6 +371,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     setYearCredits(new Set())
     setMonthCredits(new Set())
     setYearGuessStage('year')
+    setModeGuesses(new Map())
     setWagerTeamId(null)
     setWagerAmount(round?.points[0] ?? null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -532,6 +595,38 @@ export default function HostController({ gameId }: { gameId: string }) {
   const togglePositionCredit = (team: Team) => toggleCredit(positionCredits, setPositionCredits, team, TIER_GUESS_POSITION_POINTS)
   const toggleYearCredit = (team: Team) => toggleCredit(yearCredits, setYearCredits, team, YEAR_GUESS_YEAR_POINTS)
   const toggleMonthCredit = (team: Team) => toggleCredit(monthCredits, setMonthCredits, team, YEAR_GUESS_MONTH_POINTS)
+
+  // Grades every typed guess collected in modeGuesses against `match` in one shot — used by
+  // Guess the Year/Tier's no-buzz guessing (see PlayerBuzzer), where any number of players
+  // can submit independently rather than a single buzzWinner. Deliberately NOT built on top
+  // of toggleCredit in a loop: toggleCredit reads `game` from this render's closure and
+  // calls saveGame immediately, so calling it more than once per tick would have each call
+  // overwrite the previous one's score change instead of stacking. This does one combined
+  // saveGame covering every newly-credited team instead.
+  function autoScoreGuesses(valid: boolean, match: (text: string) => boolean, credited: Set<string>, setCredited: (next: Set<string>) => void, points: number) {
+    if (!game || !round || !valid) {
+      setModeGuesses(new Map())
+      return
+    }
+    const nextCredited = new Set(credited)
+    const newlyCreditedTeamIds: string[] = []
+    for (const guess of modeGuesses.values()) {
+      if (nextCredited.has(guess.teamId) || !match(guess.text)) continue
+      nextCredited.add(guess.teamId)
+      newlyCreditedTeamIds.push(guess.teamId)
+      recordScoreEvent(points, guess.name, round.title)
+    }
+    if (newlyCreditedTeamIds.length > 0) {
+      setCredited(nextCredited)
+      const saved = saveGame({
+        ...game,
+        teams: game.teams.map((t) => (newlyCreditedTeamIds.includes(t.id) ? { ...t, score: t.score + points } : t)),
+        progress: { possessionIndex, completed: false },
+      })
+      setGame(saved)
+    }
+    setModeGuesses(new Map())
+  }
 
   // tierguess only: the "next" action on the reveal screen steps tier -> guessPosition ->
   // position before it actually advances to the next possession.
