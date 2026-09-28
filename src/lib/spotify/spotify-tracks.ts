@@ -224,13 +224,24 @@ async function collectArtistSearchTracks(artistName: string): Promise<Importable
   const query = `artist:"${artistName}"`
   const seen = new Map<string, ImportableSpotifyTrack>()
   const keyOf = (t: ImportableSpotifyTrack) => t.title.trim().toLowerCase()
+  const targetName = artistName.trim().toLowerCase()
 
-  function addPage(rawItems: RawSpotifyTrack[]) {
+  // The `artist:"X"` filter is relevance-based, not an exact match — once genuinely-credited
+  // tracks run out, Spotify keeps padding the page with looser matches (or, once results run
+  // fully dry, unrelated tracks) rather than just returning fewer. Only keep a track if the
+  // target artist is actually one of its credited artists (features/collabs count, not just
+  // the primary artist), so a smaller catalog ends up with a smaller pool instead of
+  // silently padding out to CATALOG_TARGET with someone else's songs.
+  function addPage(rawItems: RawSpotifyTrack[]): number {
+    let matched = 0
     for (const raw of rawItems) {
+      if (!raw.artists.some((a) => a.name.trim().toLowerCase() === targetName)) continue
+      matched++
       const mapped = mapToImportableSpotifyTrack(raw)
       const k = keyOf(mapped)
       if (!seen.has(k)) seen.set(k, mapped)
     }
+    return matched
   }
 
   const { page: first, limit } = await withLimitFallback((limit) => fetchSearchPage(query, 'track', limit, 0))
@@ -238,15 +249,17 @@ async function collectArtistSearchTracks(artistName: string): Promise<Importable
   const total = first.tracks?.total ?? (first.tracks?.items?.length ?? 0)
   let offset = first.tracks?.items?.length ?? 0
 
-  // The `offset < CATALOG_TARGET * 4` cap is a backstop against a query that keeps
-  // returning pages full of near-duplicate titles (already deduped away) without ever
-  // reaching CATALOG_TARGET unique ones — bounds the round trips either way.
+  // The `offset < CATALOG_TARGET * 4` cap bounds round trips for a query that keeps
+  // returning pages full of near-duplicates (already deduped away). A page with zero
+  // actually-credited matches stops the loop outright instead — once relevance has drifted
+  // that far off the artist, later pages are only going to drift further, not back.
   while (limit > 0 && seen.size < CATALOG_TARGET && offset < total && offset < CATALOG_TARGET * 4) {
     const page = await fetchSearchPage(query, 'track', limit, offset)
     const pageItems = page.tracks?.items ?? []
     if (pageItems.length === 0) break
-    addPage(pageItems)
+    const matched = addPage(pageItems)
     offset += pageItems.length
+    if (matched === 0) break
   }
 
   return [...seen.values()]
