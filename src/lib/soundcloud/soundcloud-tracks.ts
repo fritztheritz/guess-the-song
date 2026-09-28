@@ -173,19 +173,23 @@ export interface CreatedSoundCloudPlaylist {
   permalinkUrl: string
 }
 
-// The one write call in this file (everything else here is read-only). Private by default —
-// this is meant for a group's own listening party, not a public release.
+// The one write call in this file (everything else here is read-only). Caller picks public vs.
+// private (DraftSessionRoom's CreatePlaylistModal) — it's a real tradeoff, not just privacy vs.
+// not: SoundCloud's embeddable widget (w.soundcloud.com/player) flatly refuses private/secret-token
+// resources with a 404, even though their own metadata API resolves them fine with a valid token.
+// Only a public playlist can be embedded inline on the Listening Time screen; a private one only
+// ever works as a click-through link. Confirmed directly against SoundCloud (curl A/B: a public
+// track 200s at /player, the same private track and a private playlist both 404 there while
+// resolving fine via api-widget.soundcloud.com/resolve) — not fixable by reshaping the URL.
 //
 // The current (Open API) /playlists endpoint requires each track as { urn: "soundcloud:tracks:<id>" },
 // not { id: <number> } — the latter matches SoundCloud's older/classic API docs but 422s against
 // the live endpoint's strict deserializer (confirmed against their published OpenAPI spec at
 // developers.soundcloud.com/docs/api/explorer/open-api.json after a real 422 in testing).
 //
-// For a private playlist, permalink_url already IS the working share link — SoundCloud embeds
-// the secret token as a path segment (".../sets/<slug>/s-<token>?utm_medium=api&..."), not as a
-// query param. A prior version of this function appended "?secret_token=..." on top of that,
-// producing a URL with two "?" in it that 404s in the widget — confirmed against a real create
-// response in production. Nothing needs to be added here; just pass permalink_url through.
+// permalink_url is already the complete working share link as-is — for a private playlist,
+// SoundCloud embeds the secret token as a path segment (".../sets/<slug>/s-<token>?utm_medium=
+// api&..."), not as a query param, so nothing needs to be appended to it.
 export async function createSoundCloudPlaylist(
   title: string,
   trackIds: string[],

@@ -11,10 +11,19 @@ import { createSoundCloudPlaylist } from '../lib/soundcloud/soundcloud-tracks'
 import { buildDraftResultsShareUrl } from '../lib/draft-share'
 import Spinner from '../components/Spinner'
 
-// SoundCloud's widget accepts any playlist permalink as-is — private ones included, since
-// createSoundCloudPlaylist() (soundcloud-tracks.ts) stores the API's permalink_url unmodified,
-// which already embeds the private share token as a path segment. No oEmbed round-trip needed,
-// just build the iframe src directly.
+// The embeddable widget (w.soundcloud.com/player) only works for PUBLIC resources — confirmed
+// against SoundCloud directly: a private playlist/track's permalink_url resolves fine through
+// their metadata API (api-widget.soundcloud.com/resolve) even with its secret_token, but the
+// widget itself 404s on it regardless of URL format, while the same request for a public track
+// succeeds. It's a platform restriction, not something fixable from a URL shape here. A private
+// resource's permalink_url always has its secret token as a "/s-<token>" path segment (public
+// ones never do), so that's a reliable way to detect "don't even try to embed this."
+const PRIVATE_SHARE_TOKEN_PATTERN = /\/s-[\w-]+(?:[/?]|$)/
+
+function isEmbeddablePlaylistUrl(url: string): boolean {
+  return !PRIVATE_SHARE_TOKEN_PATTERN.test(url)
+}
+
 function soundCloudWidgetSrc(playlistUrl: string): string {
   const params = new URLSearchParams({
     url: playlistUrl,
@@ -86,13 +95,17 @@ function DrafterRoster({
         </ul>
       )}
       {showPlayer && drafter.soundcloudPlaylistUrl && (
-        <iframe
-          title={`${drafter.name}'s playlist`}
-          className="mt-2 w-full rounded-md"
-          height="120"
-          src={soundCloudWidgetSrc(drafter.soundcloudPlaylistUrl)}
-          allow="autoplay"
-        />
+        isEmbeddablePlaylistUrl(drafter.soundcloudPlaylistUrl) ? (
+          <iframe
+            title={`${drafter.name}'s playlist`}
+            className="mt-2 w-full rounded-md"
+            height="120"
+            src={soundCloudWidgetSrc(drafter.soundcloudPlaylistUrl)}
+            allow="autoplay"
+          />
+        ) : (
+          <p className="mt-2 text-xs text-slate-500">Private playlist — open on SoundCloud to listen (private playlists can't be embedded here).</p>
+        )
       )}
     </div>
   )
@@ -108,10 +121,11 @@ function CreatePlaylistModal({
   defaultTitle: string
   songCount: number
   creating: boolean
-  onCreate: (title: string) => void
+  onCreate: (title: string, sharing: 'public' | 'private') => void
   onClose: () => void
 }) {
   const [title, setTitle] = useState(defaultTitle)
+  const [sharing, setSharing] = useState<'public' | 'private'>('private')
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="w-full max-w-sm rounded-2xl border border-arena-600 bg-arena-900 p-6 shadow-2xl">
@@ -125,7 +139,26 @@ function CreatePlaylistModal({
           autoFocus
           className="mt-4 w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
         />
-        <div className="mt-5 flex gap-2">
+        <div className="mt-4 flex gap-2 rounded-lg border border-arena-600 bg-arena-800 p-1 text-xs">
+          <button
+            onClick={() => setSharing('private')}
+            className={`flex-1 rounded-md py-1.5 ${sharing === 'private' ? 'bg-arena-700 text-white' : 'text-slate-400'}`}
+          >
+            🔒 Private
+          </button>
+          <button
+            onClick={() => setSharing('public')}
+            className={`flex-1 rounded-md py-1.5 ${sharing === 'public' ? 'bg-arena-700 text-white' : 'text-slate-400'}`}
+          >
+            🌐 Public
+          </button>
+        </div>
+        <p className="mt-1.5 text-[11px] text-slate-500">
+          {sharing === 'private'
+            ? "Only opens for you when you click through — SoundCloud's private links can't be embedded inline here."
+            : 'Anyone can find and play it, but it embeds right on this screen for everyone to listen along.'}
+        </p>
+        <div className="mt-4 flex gap-2">
           <button
             onClick={onClose}
             disabled={creating}
@@ -134,7 +167,7 @@ function CreatePlaylistModal({
             Cancel
           </button>
           <button
-            onClick={() => onCreate(title.trim() || defaultTitle)}
+            onClick={() => onCreate(title.trim() || defaultTitle, sharing)}
             disabled={creating || !title.trim()}
             className="flex-[2] rounded-full bg-[#ff5500] py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-[#ff7733]"
           >
@@ -222,7 +255,7 @@ export default function DraftSessionRoom() {
     return rosterFor(drafterId).filter((s) => s.source === 'soundcloud' && s.soundcloudTrackId)
   }
 
-  async function handleCreatePlaylistFor(drafterId: string, title: string) {
+  async function handleCreatePlaylistFor(drafterId: string, title: string, sharing: 'public' | 'private') {
     if (!board || !session) return
     const drafter = session.drafters.find((d) => d.id === drafterId)
     const songs = soundcloudSongsFor(drafterId)
@@ -230,7 +263,7 @@ export default function DraftSessionRoom() {
     setCreatingPlaylistId(drafterId)
     try {
       const trackIds = songs.map((s) => s.soundcloudTrackId as string)
-      const playlist = await createSoundCloudPlaylist(title, trackIds)
+      const playlist = await createSoundCloudPlaylist(title, trackIds, sharing)
       persist({
         ...board,
         sessions: board.sessions.map((s) =>
@@ -630,7 +663,7 @@ export default function DraftSessionRoom() {
               defaultTitle={`${drafter.name} — ${session.name}`}
               songCount={soundcloudSongsFor(drafter.id).length}
               creating={creatingPlaylistId === drafter.id}
-              onCreate={(title) => handleCreatePlaylistFor(drafter.id, title)}
+              onCreate={(title, sharing) => handleCreatePlaylistFor(drafter.id, title, sharing)}
               onClose={() => setPlaylistModalDrafterId(null)}
             />
           )
