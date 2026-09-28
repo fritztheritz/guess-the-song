@@ -75,8 +75,11 @@ export default function CreatePopularityGame() {
         .then(setCatalogPool)
         .catch(() => setCatalogPool(top)) // decoys are a nice-to-have; the real answers alone still make a playable pool
     } catch (err) {
+      // `artist` stays set here (not reset to null) — the loadError branch below only
+      // renders while `artist` is truthy, so clearing it would silently drop back to the
+      // search results with no error shown at all, indistinguishable from the click having
+      // done nothing.
       setLoadError(errorMessage(err))
-      setArtist(null)
     } finally {
       setLoadingArtist(false)
     }
@@ -169,6 +172,7 @@ export default function CreatePopularityGame() {
                 {artistResults.map((a) => (
                   <button
                     key={a.id}
+                    type="button"
                     onClick={() => void pickArtist(a)}
                     className="flex flex-col items-center gap-2 rounded-xl border border-arena-600 bg-arena-800 p-4 text-center hover:border-hardwood-500"
                   >
