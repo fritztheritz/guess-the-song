@@ -11,9 +11,11 @@ import { createSoundCloudPlaylist } from '../lib/soundcloud/soundcloud-tracks'
 import { buildDraftResultsShareUrl } from '../lib/draft-share'
 import Spinner from '../components/Spinner'
 
-// SoundCloud's widget accepts any playlist permalink (private ones included, since the
-// permalink already carries its own secret_token query param) — no oEmbed round-trip needed,
-// just build the iframe src directly.
+// SoundCloud's widget accepts any playlist permalink — private ones included, as long as
+// createSoundCloudPlaylist() appended the secret_token query param (see soundcloud-tracks.ts;
+// without it a private playlist 404s in the unauthenticated widget iframe even though the
+// bare link still works for the owner's own logged-in click-through). No oEmbed round-trip
+// needed, just build the iframe src directly.
 function soundCloudWidgetSrc(playlistUrl: string): string {
   const params = new URLSearchParams({
     url: playlistUrl,
@@ -30,6 +32,7 @@ function DrafterRoster({
   songs,
   highlight,
   onCreatePlaylist,
+  onResetPlaylist,
   showPlayer,
 }: {
   drafter: Drafter
@@ -38,6 +41,10 @@ function DrafterRoster({
   /** Opens the naming modal. Only passed on the listening screen, and only when the drafter
    *  has an eligible song. */
   onCreatePlaylist?: () => void
+  /** Clears a stale/broken playlist link so "Create" reappears. Only passed on the listening
+   *  screen, alongside onCreatePlaylist — covers links made before the secret_token fix, or a
+   *  playlist deleted on SoundCloud's side. */
+  onResetPlaylist?: () => void
   /** Renders the embedded SoundCloud player when a playlist exists. Only passed on the
    *  listening screen — keeps the roster grid compact everywhere else. */
   showPlayer?: boolean
@@ -50,14 +57,16 @@ function DrafterRoster({
           {drafter.name}
         </div>
         {drafter.soundcloudPlaylistUrl ? (
-          <a
-            href={drafter.soundcloudPlaylistUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="shrink-0 text-xs text-[#ff7733] hover:text-[#ff5500]"
-          >
-            🎵 Playlist ↗
-          </a>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <a href={drafter.soundcloudPlaylistUrl} target="_blank" rel="noreferrer" className="text-xs text-[#ff7733] hover:text-[#ff5500]">
+              🎵 Playlist ↗
+            </a>
+            {onResetPlaylist && (
+              <button onClick={onResetPlaylist} aria-label="Reset playlist link" title="Reset playlist link" className="text-xs text-slate-500 hover:text-slate-300">
+                ↻
+              </button>
+            )}
+          </div>
         ) : (
           onCreatePlaylist && (
             <button onClick={onCreatePlaylist} className="shrink-0 text-xs text-slate-400 hover:text-[#ff7733]">
@@ -238,6 +247,22 @@ export default function DraftSessionRoom() {
     } finally {
       setCreatingPlaylistId(null)
     }
+  }
+
+  async function resetPlaylistFor(drafterId: string) {
+    if (!board || !session) return
+    const drafter = session.drafters.find((d) => d.id === drafterId)
+    if (!drafter) return
+    const ok = await confirm(`Forget ${drafter.name}'s playlist link? The playlist itself stays on SoundCloud — this just lets you create a fresh link.`)
+    if (!ok) return
+    persist({
+      ...board,
+      sessions: board.sessions.map((s) =>
+        s.id === session.id
+          ? { ...s, drafters: s.drafters.map((d) => (d.id === drafterId ? { ...d, soundcloudPlaylistUrl: undefined } : d)) }
+          : s,
+      ),
+    })
   }
 
   async function handleShareResults() {
@@ -473,6 +498,7 @@ export default function DraftSessionRoom() {
                       ? () => setPlaylistModalDrafterId(drafter.id)
                       : undefined
                   }
+                  onResetPlaylist={isSoundCloudConfigured() && soundcloud.connection ? () => resetPlaylistFor(drafter.id) : undefined}
                 />
               ))}
             </div>

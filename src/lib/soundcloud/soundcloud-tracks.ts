@@ -174,22 +174,32 @@ export interface CreatedSoundCloudPlaylist {
 }
 
 // The one write call in this file (everything else here is read-only). Private by default —
-// this is meant for a group's own listening party, not a public release — but SoundCloud still
-// hands back a permalink_url that works as a share link for anyone who has it.
+// this is meant for a group's own listening party, not a public release.
 //
 // The current (Open API) /playlists endpoint requires each track as { urn: "soundcloud:tracks:<id>" },
 // not { id: <number> } — the latter matches SoundCloud's older/classic API docs but 422s against
 // the live endpoint's strict deserializer (confirmed against their published OpenAPI spec at
 // developers.soundcloud.com/docs/api/explorer/open-api.json after a real 422 in testing).
+//
+// A private playlist's bare permalink_url only resolves for the owner's own authenticated
+// session (e.g. clicking it themselves) — anything unauthenticated, like the embedded widget
+// iframe, gets "You have not provided a valid SoundCloud URL" unless the response's
+// secret_token is appended as a query param, the same convention this app already uses for
+// the private-track streams API call (soundcloud-playback.ts). Confirmed against a real 422-free
+// creation in production where the plain permalink_url failed in the widget but the owner's
+// own click-through worked — the tell that it was an auth-vs-no-auth gap, not a broken link.
 export async function createSoundCloudPlaylist(
   title: string,
   trackIds: string[],
   sharing: 'public' | 'private' = 'private',
 ): Promise<CreatedSoundCloudPlaylist> {
-  const raw = await scFetchJson<{ id: number; permalink_url: string }>('/playlists', {
+  const raw = await scFetchJson<{ id: number; permalink_url: string; secret_token?: string }>('/playlists', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playlist: { title, sharing, tracks: trackIds.map((id) => ({ urn: `soundcloud:tracks:${id}` })) } }),
   })
-  return { id: String(raw.id), permalinkUrl: raw.permalink_url }
+  const permalinkUrl = raw.secret_token
+    ? `${raw.permalink_url}?secret_token=${encodeURIComponent(raw.secret_token)}`
+    : raw.permalink_url
+  return { id: String(raw.id), permalinkUrl }
 }
