@@ -55,6 +55,8 @@ export default function PlayerBuzzer() {
   const [iced, setIced] = useState<string[]>([])
   const [myConnId, setMyConnId] = useState<string | null>(null)
   const [roundState, setRoundState] = useState<PhoneRoundState | null>(null)
+  const [guessInput, setGuessInput] = useState('')
+  const [guessSent, setGuessSent] = useState(false)
   const socketRef = useRef<BuzzerSocket | null>(null)
 
   const activeCode = params.code?.toUpperCase() ?? null
@@ -110,6 +112,23 @@ export default function PlayerBuzzer() {
 
   function handleBuzz() {
     socketRef.current?.send({ type: 'buzz' })
+  }
+
+  // A fresh buzzer window (a new clue, or reopened after a wrong judgment) always means
+  // whatever was typed for the last one is stale.
+  useEffect(() => {
+    if (buzzState === 'open') {
+      setGuessInput('')
+      setGuessSent(false)
+    }
+  }, [buzzState])
+
+  function handleGuessSubmit(e: FormEvent) {
+    e.preventDefault()
+    const text = guessInput.trim()
+    if (!text) return
+    socketRef.current?.send({ type: 'guess', text })
+    setGuessSent(true)
   }
 
   if (!activeCode) {
@@ -241,9 +260,34 @@ export default function PlayerBuzzer() {
 
           {buzzState === 'locked' && winner ? (
             winner.connId === myConnId ? (
-              <div className="flex h-56 w-56 flex-col items-center justify-center rounded-full bg-scoreboard-green text-arena-950 shadow-2xl">
-                <div className="text-4xl">✅</div>
-                <div className="mt-1 font-display text-xl">YOU GOT IT!</div>
+              <div className="flex w-full max-w-xs flex-col items-center gap-4">
+                <div className="flex h-40 w-40 flex-col items-center justify-center rounded-full bg-scoreboard-green text-arena-950 shadow-2xl">
+                  <div className="text-4xl">✅</div>
+                  <div className="mt-1 font-display text-xl">YOU GOT IT!</div>
+                </div>
+                {/* Lets the host read the answer instead of everyone shouting across the
+                    room — optional, host still judges correct/wrong same as always. */}
+                {guessSent ? (
+                  <p className="text-sm text-slate-400">Sent to the host — go ahead and say it too!</p>
+                ) : (
+                  <form onSubmit={handleGuessSubmit} className="flex w-full gap-2">
+                    <input
+                      value={guessInput}
+                      onChange={(e) => setGuessInput(e.target.value)}
+                      placeholder="Type your answer for the host…"
+                      autoFocus
+                      maxLength={200}
+                      className="w-full rounded-xl border border-arena-600 bg-arena-800 px-3 py-2 text-sm text-white outline-none focus:border-hardwood-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!guessInput.trim()}
+                      className="shrink-0 rounded-xl bg-hardwood-500 px-4 py-2 text-sm font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
+                    >
+                      Send
+                    </button>
+                  </form>
+                )}
               </div>
             ) : (
               <div className="flex h-56 w-56 flex-col items-center justify-center rounded-full border-4 border-arena-600 bg-arena-800 text-slate-400">

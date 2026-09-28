@@ -101,6 +101,10 @@ export default function HostController({ gameId }: { gameId: string }) {
   const [buzzState, setBuzzState] = useState<BuzzState>('closed')
   const [buzzWinner, setBuzzWinner] = useState<BuzzerWinner | null>(null)
   const [buzzIced, setBuzzIced] = useState<string[]>([])
+  // Keyed by connId, not just held as a bare string, so a stale guess for a since-cleared
+  // or since-reassigned winner can never render under the wrong name — see the render-time
+  // connId check below.
+  const [buzzGuess, setBuzzGuess] = useState<{ connId: string; text: string } | null>(null)
   const [buzzerConnected, setBuzzerConnected] = useState(false)
   const [buzzerPanelOpen, setBuzzerPanelOpen] = useState(false)
 
@@ -205,6 +209,8 @@ export default function HostController({ gameId }: { gameId: string }) {
         setBuzzWinner(msg.winner)
         setBuzzIced(msg.iced)
         if (msg.winner && recordBuzzReaction(msg.winner)) playBuzzIn()
+      } else if (msg.type === 'guess') {
+        setBuzzGuess({ connId: msg.connId, text: msg.text })
       }
     })
     socket.connect()
@@ -1123,6 +1129,9 @@ export default function HostController({ gameId }: { gameId: string }) {
                 <div className="text-sm font-semibold text-scoreboard-amber">
                   🔔 {buzzWinner.name} ({game.teams.find((t) => t.id === buzzWinner.teamId)?.name ?? '—'}) buzzed in!
                 </div>
+                {buzzGuess?.connId === buzzWinner.connId && (
+                  <div className="rounded-lg bg-black/30 px-3 py-2 text-sm italic text-slate-200">"{buzzGuess.text}"</div>
+                )}
                 <div className="flex gap-2">
                   <button
                     onClick={markBuzzCorrect}

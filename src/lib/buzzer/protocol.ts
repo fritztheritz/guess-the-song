@@ -57,7 +57,11 @@ export type HostOutMessage =
   /** The team that just buzzed got it wrong — ice them out and reopen for everyone else. */
   | { type: 'wrong'; teamId: string }
 
-export type PlayerOutMessage = { type: 'join'; name: string; teamId: string } | { type: 'buzz' }
+export type PlayerOutMessage =
+  | { type: 'join'; name: string; teamId: string }
+  | { type: 'buzz' }
+  /** Only accepted from whoever's currently locked in as the buzz winner — see buzzer-room.js. */
+  | { type: 'guess'; text: string }
 
 export type ServerMessage =
   | { type: 'state'; buzzState: BuzzState; winner: BuzzerWinner | null; order: BuzzerWinner[]; iced: string[] }
@@ -65,3 +69,5 @@ export type ServerMessage =
   | { type: 'teams'; teams: BuzzerTeam[] }
   | { type: 'round'; state: PhoneRoundState }
   | { type: 'joined'; connId: string }
+  /** Host-only — never relayed to other players. What the current buzz winner typed. */
+  | { type: 'guess'; connId: string; text: string }

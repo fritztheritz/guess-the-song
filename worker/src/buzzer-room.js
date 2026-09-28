@@ -161,6 +161,13 @@ export class BuzzerRoom {
         this.buzzState = 'locked'
       }
       this.broadcastAll(this.stateMessage())
+    } else if (msg.type === 'guess' && typeof msg.text === 'string') {
+      // Host-only, never broadcast to other players — same "don't leak more than the
+      // current phase allows" discipline as roundState. Only the team that's actually
+      // locked in the buzzer can submit one, so a guess can't be spoofed for someone else's turn.
+      const player = this.players.get(socket)
+      if (!player || this.buzzState !== 'locked' || this.winner?.connId !== player.connId) return
+      this.broadcastToHost({ type: 'guess', connId: player.connId, text: msg.text.slice(0, 200) })
     }
   }
 
