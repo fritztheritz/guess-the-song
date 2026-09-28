@@ -21,6 +21,9 @@ import {
 import { SoundCloudApiError, SoundCloudNotConnectedError, SoundCloudRateLimitError } from '../lib/soundcloud/soundcloud-api'
 import { TrackNotPlayableError } from '../lib/soundcloud/soundcloud-playback'
 import { useSoundCloudPreview } from '../lib/soundcloud/use-soundcloud-preview'
+import ModalShell from './ui/ModalShell'
+import TextInput from './ui/TextInput'
+import Button from './ui/Button'
 
 type Tab = 'mine' | 'liked' | 'playlists' | 'search' | 'paste'
 
@@ -289,21 +292,17 @@ export default function ImportSoundCloudModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-arena-600 bg-arena-900 shadow-2xl">
-        <div className="flex items-start justify-between border-b border-arena-700 px-6 py-4">
-          <div>
-            <h2 className="font-display text-3xl tracking-wide text-hardwood-400">IMPORT FROM SOUNDCLOUD</h2>
-            <p className="text-sm text-slate-400">Choose tracks from your SoundCloud library to build this game.</p>
-          </div>
-          <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-arena-700 hover:text-white" aria-label="Close">
-            ✕
-          </button>
-        </div>
-
-        <div className="border-b border-arena-700 px-6 py-3">
-          <SoundCloudConnectPanel />
-        </div>
+    <ModalShell
+      title="IMPORT FROM SOUNDCLOUD"
+      titleClassName="text-3xl"
+      subtitle="Choose tracks from your SoundCloud library to build this game."
+      maxWidth="max-w-5xl"
+      bodyHeight="h-[90vh]"
+      onClose={onClose}
+    >
+      <div className="border-b border-arena-700 px-6 py-3">
+        <SoundCloudConnectPanel />
+      </div>
 
         {connection && (
           <>
@@ -334,13 +333,13 @@ export default function ImportSoundCloudModal({
               {tab === 'search' && (
                 <>
                   <form onSubmit={runSearch} className="mb-4 flex gap-2">
-                    <input
+                    <TextInput
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search by title, artist, or paste a SoundCloud link…"
-                      className="flex-1 rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+                      className="flex-1"
                     />
-                    <button className="rounded-lg bg-hardwood-500 px-4 py-2 font-medium text-arena-950 hover:bg-hardwood-400">Search</button>
+                    <Button size="sm">Search</Button>
                   </form>
 
                   {searchResolvedTrack && (
@@ -363,15 +362,16 @@ export default function ImportSoundCloudModal({
                           isPreviewing={previewingId === searchResolvedTrack.soundcloudTrackId}
                         />
                       </div>
-                      <button
+                      <Button
+                        size="sm"
+                        className="mt-3"
                         onClick={() => {
                           onImport([searchResolvedTrack])
                           onClose()
                         }}
-                        className="mt-3 rounded-lg bg-hardwood-500 px-6 py-2 font-semibold text-arena-950 hover:bg-hardwood-400"
                       >
                         ADD TO GAME
-                      </button>
+                      </Button>
                     </div>
                   )}
 
@@ -408,15 +408,10 @@ export default function ImportSoundCloudModal({
                 <div className="mx-auto max-w-md space-y-4">
                   <form onSubmit={runResolve} className="flex flex-col gap-2">
                     <label className="text-sm text-slate-400">Paste a SoundCloud link</label>
-                    <input
-                      value={pasteUrl}
-                      onChange={(e) => setPasteUrl(e.target.value)}
-                      placeholder="https://soundcloud.com/…"
-                      className="rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
-                    />
-                    <button className="rounded-lg bg-hardwood-500 py-2 font-semibold text-arena-950 hover:bg-hardwood-400">
+                    <TextInput value={pasteUrl} onChange={(e) => setPasteUrl(e.target.value)} placeholder="https://soundcloud.com/…" />
+                    <Button size="sm" fullWidth>
                       IMPORT TRACK
-                    </button>
+                    </Button>
                   </form>
 
                   {resolvedTrack && (
@@ -435,15 +430,16 @@ export default function ImportSoundCloudModal({
                       <div className="mx-auto max-w-[220px]">
                         <TrackCard track={resolvedTrack} onPreview={() => togglePreview(resolvedTrack)} isPreviewing={previewingId === resolvedTrack.soundcloudTrackId} />
                       </div>
-                      <button
+                      <Button
+                        size="sm"
+                        className="mt-3"
                         onClick={() => {
                           onImport([resolvedTrack])
                           onClose()
                         }}
-                        className="mt-3 rounded-lg bg-hardwood-500 px-6 py-2 font-semibold text-arena-950 hover:bg-hardwood-400"
                       >
                         ADD TO GAME
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -481,11 +477,11 @@ export default function ImportSoundCloudModal({
                   )}
 
                   {showsFilterBox && tracks.length > 0 && (
-                    <input
+                    <TextInput
                       value={filterQuery}
                       onChange={(e) => setFilterQuery(e.target.value)}
                       placeholder="Filter by title or artist…"
-                      className="mb-2 w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+                      className="mb-2 w-full"
                     />
                   )}
 
@@ -531,13 +527,9 @@ export default function ImportSoundCloudModal({
                   )}
 
                   {!loading && nextHref && (tab === 'mine' || tab === 'liked' || tab === 'search') && (
-                    <button
-                      onClick={loadMore}
-                      disabled={loadingMore}
-                      className="mx-auto mt-4 block rounded-full border border-arena-500 px-6 py-2 text-sm text-slate-300 hover:border-hardwood-500 disabled:opacity-50"
-                    >
+                    <Button variant="outline" size="sm" className="mx-auto mt-4 block" onClick={loadMore} disabled={loadingMore}>
                       {loadingMore ? 'Loading…' : 'Load more'}
-                    </button>
+                    </Button>
                   )}
                 </>
               )}
@@ -545,17 +537,12 @@ export default function ImportSoundCloudModal({
 
             <div className="flex items-center justify-between border-t border-arena-700 px-6 py-3">
               <SoundCloudAttribution />
-              <button
-                disabled={selectedList.length === 0}
-                onClick={handleImportSelected}
-                className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 disabled:cursor-not-allowed disabled:opacity-30 hover:bg-hardwood-400"
-              >
+              <Button disabled={selectedList.length === 0} onClick={handleImportSelected}>
                 ADD {selectedList.length || ''} TRACK{selectedList.length === 1 ? '' : 'S'} TO GAME
-              </button>
+              </Button>
             </div>
           </>
         )}
-      </div>
-    </div>
+    </ModalShell>
   )
 }

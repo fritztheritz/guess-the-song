@@ -13,6 +13,10 @@ import { TrackNotPlayableError } from '../lib/soundcloud/soundcloud-playback'
 import { useSoundCloudPreview, type PreviewableTrack } from '../lib/soundcloud/use-soundcloud-preview'
 import { buildDraftResultsShareUrl } from '../lib/draft-share'
 import Spinner from '../components/Spinner'
+import DialogShell from '../components/ui/DialogShell'
+import TextInput from '../components/ui/TextInput'
+import Button from '../components/ui/Button'
+import Panel from '../components/ui/Panel'
 
 function DrafterRoster({
   drafter,
@@ -40,7 +44,7 @@ function DrafterRoster({
   previewingSongId?: string | null
 }) {
   return (
-    <div className={`rounded-xl border p-3 ${highlight ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 bg-arena-800/60'}`}>
+    <Panel padding="sm" highlight={highlight}>
       <div className="mb-1.5 flex items-center justify-between gap-1.5">
         <div className="flex items-center gap-1.5 truncate text-sm font-semibold" style={{ color: drafter.color }}>
           {drafter.avatar ? `${drafter.avatar} ` : ''}
@@ -91,7 +95,7 @@ function DrafterRoster({
           })}
         </ul>
       )}
-    </div>
+    </Panel>
   )
 }
 
@@ -111,55 +115,46 @@ function CreatePlaylistModal({
   const [title, setTitle] = useState(defaultTitle)
   const [sharing, setSharing] = useState<'public' | 'private'>('private')
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-sm rounded-2xl border border-arena-600 bg-arena-900 p-6 shadow-2xl">
-        <h2 className="font-display text-xl tracking-wide text-hardwood-400">NAME THE PLAYLIST</h2>
-        <p className="mt-1 text-sm text-slate-400">
-          {songCount} song{songCount === 1 ? '' : 's'} will be added to SoundCloud.
-        </p>
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          autoFocus
-          className="mt-4 w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
-        />
-        <div className="mt-4 flex gap-2 rounded-lg border border-arena-600 bg-arena-800 p-1 text-xs">
-          <button
-            onClick={() => setSharing('private')}
-            className={`flex-1 rounded-md py-1.5 ${sharing === 'private' ? 'bg-arena-700 text-white' : 'text-slate-400'}`}
-          >
-            🔒 Private
-          </button>
-          <button
-            onClick={() => setSharing('public')}
-            className={`flex-1 rounded-md py-1.5 ${sharing === 'public' ? 'bg-arena-700 text-white' : 'text-slate-400'}`}
-          >
-            🌐 Public
-          </button>
-        </div>
-        <p className="mt-1.5 text-[11px] text-slate-500">
-          {sharing === 'private'
-            ? 'Only you can open it on SoundCloud — matches your tracks. Listening on this screen works either way.'
-            : 'Anyone can find and play it on SoundCloud.'}
-        </p>
-        <div className="mt-4 flex gap-2">
-          <button
-            onClick={onClose}
-            disabled={creating}
-            className="flex-1 rounded-full border border-arena-500 py-2 text-sm text-slate-300 disabled:opacity-40 hover:border-hardwood-500"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={() => onCreate(title.trim() || defaultTitle, sharing)}
-            disabled={creating || !title.trim()}
-            className="flex-[2] rounded-full bg-[#ff5500] py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-[#ff7733]"
-          >
-            {creating ? 'Creating…' : '🎵 Create Playlist'}
-          </button>
-        </div>
+    <DialogShell onClose={onClose} closeOnBackdrop={!creating}>
+      <h2 className="font-display text-xl tracking-wide text-hardwood-400">NAME THE PLAYLIST</h2>
+      <p className="mt-1 text-sm text-slate-400">
+        {songCount} song{songCount === 1 ? '' : 's'} will be added to SoundCloud.
+      </p>
+      <TextInput value={title} onChange={(e) => setTitle(e.target.value)} autoFocus className="mt-4 w-full" />
+      <div className="mt-4 flex gap-2 rounded-lg border border-arena-600 bg-arena-800 p-1 text-xs">
+        <button
+          onClick={() => setSharing('private')}
+          className={`flex-1 rounded-md py-1.5 ${sharing === 'private' ? 'bg-arena-700 text-white' : 'text-slate-400'}`}
+        >
+          🔒 Private
+        </button>
+        <button
+          onClick={() => setSharing('public')}
+          className={`flex-1 rounded-md py-1.5 ${sharing === 'public' ? 'bg-arena-700 text-white' : 'text-slate-400'}`}
+        >
+          🌐 Public
+        </button>
       </div>
-    </div>
+      <p className="mt-1.5 text-[11px] text-slate-500">
+        {sharing === 'private'
+          ? 'Only you can open it on SoundCloud — matches your tracks. Listening on this screen works either way.'
+          : 'Anyone can find and play it on SoundCloud.'}
+      </p>
+      <div className="mt-4 flex gap-2">
+        <Button variant="outline" size="sm" onClick={onClose} disabled={creating} className="flex-1">
+          Cancel
+        </Button>
+        {/* SoundCloud's own brand orange, not the app's hardwood accent — deliberate, this is a
+            SoundCloud-branded action (creating a real playlist in their product). */}
+        <button
+          onClick={() => onCreate(title.trim() || defaultTitle, sharing)}
+          disabled={creating || !title.trim()}
+          className="flex-[2] rounded-full bg-[#ff5500] py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-[#ff7733]"
+        >
+          {creating ? 'Creating…' : '🎵 Create Playlist'}
+        </button>
+      </div>
+    </DialogShell>
   )
 }
 
@@ -528,15 +523,16 @@ export default function DraftSessionRoom() {
             </div>
 
             {soundcloudPlaylistsEnabled && !soundcloud.connection && (
-              <div className="rounded-xl border border-arena-600 bg-arena-800/60 p-4 text-center">
+              <Panel className="text-center">
                 <p className="mb-2 text-sm text-slate-400">Connect SoundCloud to listen along and save a playlist per drafter.</p>
+                {/* SoundCloud's own brand orange, not the app's hardwood accent — deliberate. */}
                 <button
                   onClick={() => soundcloud.connect()}
                   className="rounded-full border border-[#ff5500] px-5 py-2 font-semibold text-[#ff7733] hover:bg-[#ff5500]/10"
                 >
                   Connect SoundCloud
                 </button>
-              </div>
+              </Panel>
             )}
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -562,12 +558,12 @@ export default function DraftSessionRoom() {
               })}
             </div>
 
-            <button
+            <Button
               onClick={() => persist({ ...board, sessions: board.sessions.map((s) => (s.id === session.id ? { ...s, phase: 'ranking' } : s)) })}
-              className="w-full rounded-full bg-hardwood-500 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400"
+              fullWidth
             >
               START RANKING →
-            </button>
+            </Button>
           </div>
         )}
 
@@ -597,7 +593,7 @@ export default function DraftSessionRoom() {
                 const drafter = session.drafters.find((d) => d.id === drafterId)
                 if (!drafter) return null
                 return (
-                  <div key={drafterId} className="flex items-center gap-3 rounded-xl border border-arena-600 bg-arena-800/60 p-3">
+                  <Panel key={drafterId} padding="sm" className="flex items-center gap-3">
                     <div className="flex shrink-0 flex-col">
                       <button
                         onClick={() => moveBallotEntry(i, -1)}
@@ -626,14 +622,14 @@ export default function DraftSessionRoom() {
                         {rosterFor(drafterId).map((s) => s.title).join(' · ')}
                       </div>
                     </div>
-                  </div>
+                  </Panel>
                 )
               })}
             </div>
 
-            <button onClick={submitBallot} className="w-full rounded-full bg-hardwood-500 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400">
+            <Button onClick={submitBallot} fullWidth>
               SUBMIT BALLOT →
-            </button>
+            </Button>
           </div>
         )}
 
@@ -644,19 +640,16 @@ export default function DraftSessionRoom() {
             </div>
 
             <div className="flex flex-col items-center gap-2">
-              <button
-                onClick={handleShareResults}
-                disabled={sharing}
-                className="rounded-full border border-arena-500 px-5 py-2 text-sm text-slate-200 disabled:opacity-40 hover:border-hardwood-500"
-              >
+              <Button variant="outline" onClick={handleShareResults} disabled={sharing}>
                 {sharing ? 'Generating link…' : '🔗 Share Results'}
-              </button>
+              </Button>
               {shareUrl && (
-                <input
+                <TextInput
                   readOnly
                   value={shareUrl}
                   onFocus={(e) => e.currentTarget.select()}
-                  className="w-full max-w-md rounded-lg border border-arena-600 bg-arena-800 px-3 py-1.5 text-center text-xs text-slate-400 outline-none focus:border-hardwood-500"
+                  inputSize="sm"
+                  className="w-full max-w-md text-center text-xs"
                 />
               )}
             </div>

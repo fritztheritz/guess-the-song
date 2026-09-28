@@ -12,6 +12,8 @@ import ImportSpotifyModal from '../components/ImportSpotifyModal'
 import NewDraftSessionModal from '../components/NewDraftSessionModal'
 import TagInput from '../components/TagInput'
 import Spinner from '../components/Spinner'
+import Panel from '../components/ui/Panel'
+import Button from '../components/ui/Button'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
 
@@ -136,18 +138,15 @@ export default function DraftBoardHome() {
           />
         </div>
 
-        <div className="rounded-xl border border-arena-600 bg-arena-800/60 p-5">
+        <Panel padding="lg">
           <div className="mb-3 flex items-center justify-between">
             <div className="font-display text-xl tracking-wide text-hardwood-400">
               SONG POOL <span className="text-sm text-slate-500">({availableSongs.length} available{takenSongs.length > 0 ? `, ${takenSongs.length} taken` : ''})</span>
             </div>
             <div className="flex gap-2">
-              <button
-                onClick={() => setImportOpen(true)}
-                className="rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-200 hover:border-hardwood-500"
-              >
+              <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
                 + From SoundCloud
-              </button>
+              </Button>
               {spotifyImportEnabled && (
                 <button
                   onClick={() => setSpotifyImportOpen(true)}
@@ -206,18 +205,14 @@ export default function DraftBoardHome() {
               })}
             </div>
           )}
-        </div>
+        </Panel>
 
         <div>
           <div className="mb-3 flex items-center justify-between">
             <div className="font-display text-xl tracking-wide text-hardwood-400">DRAFT SESSIONS</div>
-            <button
-              onClick={() => setNewSessionOpen(true)}
-              disabled={availableSongs.length === 0}
-              className="rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-200 disabled:cursor-not-allowed disabled:opacity-30 hover:border-hardwood-500"
-            >
+            <Button variant="outline" size="sm" onClick={() => setNewSessionOpen(true)} disabled={availableSongs.length === 0}>
               + New Session
-            </button>
+            </Button>
           </div>
 
           {board.sessions.length === 0 ? (
@@ -225,10 +220,7 @@ export default function DraftBoardHome() {
           ) : (
             <div className="space-y-2">
               {[...board.sessions].reverse().map((session) => (
-                <div
-                  key={session.id}
-                  className="group flex items-center gap-2 rounded-xl border border-arena-600 bg-arena-800/60 p-3 hover:border-hardwood-500"
-                >
+                <Panel key={session.id} padding="sm" className="group flex items-center gap-2 hover:border-hardwood-500">
                   <Link to={`/drafts/${board.id}/sessions/${session.id}`} className="flex min-w-0 flex-1 items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="truncate font-semibold text-slate-100">{session.name}</div>
@@ -245,7 +237,7 @@ export default function DraftBoardHome() {
                   >
                     ✕
                   </button>
-                </div>
+                </Panel>
               ))}
             </div>
           )}

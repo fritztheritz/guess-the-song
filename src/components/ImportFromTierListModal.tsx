@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { TierList, TierListSong } from '../types/tierlist'
+import ModalShell from './ui/ModalShell'
+import Button from './ui/Button'
 
 export default function ImportFromTierListModal({
   tierList,
@@ -60,19 +62,14 @@ export default function ImportFromTierListModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="flex h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-arena-600 bg-arena-900 shadow-2xl">
-        <div className="flex items-start justify-between border-b border-arena-700 px-6 py-4">
-          <div>
-            <h2 className="font-display text-2xl tracking-wide text-hardwood-400">PICK SONGS TO QUIZ</h2>
-            <p className="text-sm text-slate-400">From "{tierList.name}" — only ranked songs can be guessed.</p>
-          </div>
-          <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-arena-700 hover:text-white" aria-label="Close">
-            ✕
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4">
+    <ModalShell
+      title="PICK SONGS TO QUIZ"
+      subtitle={<>From "{tierList.name}" — only ranked songs can be guessed.</>}
+      maxWidth="max-w-2xl"
+      bodyHeight="h-[85vh]"
+      onClose={onClose}
+    >
+      <div className="flex-1 overflow-y-auto p-4">
           {allAvailable.length === 0 ? (
             <div className="p-6 text-center text-sm text-slate-400">
               Every ranked song from this tier list is already in this game.
@@ -139,16 +136,11 @@ export default function ImportFromTierListModal({
           )}
         </div>
 
-        <div className="flex items-center justify-end border-t border-arena-700 px-6 py-3">
-          <button
-            disabled={selected.size === 0}
-            onClick={handleImport}
-            className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 disabled:cursor-not-allowed disabled:opacity-30 hover:bg-hardwood-400"
-          >
-            ADD {selected.size || ''} SONG{selected.size === 1 ? '' : 'S'} TO GAME
-          </button>
-        </div>
+      <div className="flex items-center justify-end border-t border-arena-700 px-6 py-3">
+        <Button disabled={selected.size === 0} onClick={handleImport}>
+          ADD {selected.size || ''} SONG{selected.size === 1 ? '' : 'S'} TO GAME
+        </Button>
       </div>
-    </div>
+    </ModalShell>
   )
 }

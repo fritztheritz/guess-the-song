@@ -3,6 +3,9 @@ import { teamColorForIndex } from '../types'
 import { listTeamPresets, type TeamPreset } from '../lib/team-presets'
 import type { Drafter } from '../types/draft'
 import DraftOrderWheel from './DraftOrderWheel'
+import ModalShell from './ui/ModalShell'
+import TextInput from './ui/TextInput'
+import Button from './ui/Button'
 
 const MIN_DRAFTERS = 2
 const MAX_DRAFTERS = 8
@@ -84,26 +87,12 @@ export default function NewDraftSessionModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-arena-600 bg-arena-900 shadow-2xl">
-        <div className="flex items-start justify-between border-b border-arena-700 px-6 py-4">
-          <div>
-            <h2 className="font-display text-2xl tracking-wide text-hardwood-400">NEW DRAFT SESSION</h2>
-            <p className="text-sm text-slate-400">Who's drafting, and how many picks each?</p>
-          </div>
-          <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-arena-700 hover:text-white" aria-label="Close">
-            ✕
-          </button>
-        </div>
-
+    <>
+      <ModalShell title="NEW DRAFT SESSION" subtitle="Who's drafting, and how many picks each?" onClose={onClose}>
         <div className="flex-1 space-y-5 overflow-y-auto p-6">
           <div>
             <label className="mb-1 block text-sm text-slate-400">Session name</label>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
-            />
+            <TextInput value={name} onChange={(e) => setName(e.target.value)} className="w-full" />
           </div>
 
           <div>
@@ -152,11 +141,7 @@ export default function NewDraftSessionModal({
                   >
                     {drafter.avatar ?? ''}
                   </span>
-                  <input
-                    value={drafter.name}
-                    onChange={(e) => renameDrafter(i, e.target.value)}
-                    className="w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-1.5 text-slate-100 outline-none focus:border-hardwood-500"
-                  />
+                  <TextInput value={drafter.name} onChange={(e) => renameDrafter(i, e.target.value)} inputSize="sm" className="w-full" />
                   {presets.length > 0 && (
                     <button
                       type="button"
@@ -215,13 +200,14 @@ export default function NewDraftSessionModal({
 
           <div>
             <label className="mb-1 block text-sm text-slate-400">Picks per drafter</label>
-            <input
+            <TextInput
               type="number"
               min={1}
               max={20}
               value={picksPerDrafter}
               onChange={(e) => setPicksPerDrafter(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
-              className="w-24 rounded-lg border border-arena-600 bg-arena-800 px-3 py-1.5 text-center text-slate-100 outline-none focus:border-hardwood-500"
+              inputSize="sm"
+              className="w-24 text-center"
             />
           </div>
 
@@ -232,15 +218,11 @@ export default function NewDraftSessionModal({
         </div>
 
         <div className="border-t border-arena-700 px-6 py-3">
-          <button
-            disabled={notEnough}
-            onClick={handleCreate}
-            className="w-full rounded-full bg-hardwood-500 py-2.5 font-semibold text-arena-950 disabled:cursor-not-allowed disabled:opacity-30 hover:bg-hardwood-400"
-          >
+          <Button disabled={notEnough} onClick={handleCreate} fullWidth>
             START DRAFT →
-          </button>
+          </Button>
         </div>
-      </div>
+      </ModalShell>
 
       {wheelOpen && (
         <DraftOrderWheel
@@ -249,6 +231,6 @@ export default function NewDraftSessionModal({
           onClose={() => setWheelOpen(false)}
         />
       )}
-    </div>
+    </>
   )
 }

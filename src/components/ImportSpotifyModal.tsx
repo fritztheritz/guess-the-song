@@ -13,6 +13,9 @@ import {
   type SpotifyPlaylistSummary,
 } from '../lib/spotify/spotify-tracks'
 import { SpotifyApiError, SpotifyNotConnectedError, SpotifyPremiumRequiredError, SpotifyRateLimitError } from '../lib/spotify/spotify-api'
+import ModalShell from './ui/ModalShell'
+import TextInput from './ui/TextInput'
+import Button from './ui/Button'
 
 function errorMessage(err: unknown): string {
   if (err instanceof SpotifyNotConnectedError) return 'Connect Spotify to search tracks.'
@@ -192,21 +195,17 @@ export default function ImportSpotifyModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="flex h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-arena-600 bg-arena-900 shadow-2xl">
-        <div className="flex items-start justify-between border-b border-arena-700 px-6 py-4">
-          <div>
-            <h2 className="font-display text-3xl tracking-wide text-hardwood-400">IMPORT FROM SPOTIFY</h2>
-            <p className="text-sm text-slate-400">Search Spotify's catalog for tracks to build this game.</p>
-          </div>
-          <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-arena-700 hover:text-white" aria-label="Close">
-            ✕
-          </button>
-        </div>
-
-        <div className="border-b border-arena-700 px-6 py-3">
-          <SpotifyConnectPanel />
-        </div>
+    <ModalShell
+      title="IMPORT FROM SPOTIFY"
+      titleClassName="text-3xl"
+      subtitle="Search Spotify's catalog for tracks to build this game."
+      maxWidth="max-w-5xl"
+      bodyHeight="h-[90vh]"
+      onClose={onClose}
+    >
+      <div className="border-b border-arena-700 px-6 py-3">
+        <SpotifyConnectPanel />
+      </div>
 
         {connection && (
           <>
@@ -227,14 +226,14 @@ export default function ImportSpotifyModal({
             {tab === 'search' && (
               <div className="px-6 pt-4">
                 <form onSubmit={runSearch} className="flex gap-2">
-                  <input
+                  <TextInput
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search by title or artist…"
                     autoFocus
-                    className="flex-1 rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
+                    className="flex-1"
                   />
-                  <button className="rounded-lg bg-hardwood-500 px-4 py-2 font-medium text-arena-950 hover:bg-hardwood-400">Search</button>
+                  <Button size="sm">Search</Button>
                 </form>
               </div>
             )}
@@ -365,30 +364,21 @@ export default function ImportSpotifyModal({
 
               {!viewingArtist && !loading && results.length > 0 && results.length < total && (
                 <div className="mt-4 flex justify-center">
-                  <button
-                    onClick={() => void handleLoadMore()}
-                    disabled={loadingMore}
-                    className="rounded-full border border-arena-600 px-5 py-2 text-sm text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400 disabled:cursor-not-allowed disabled:opacity-40"
-                  >
+                  <Button variant="outline" size="sm" onClick={() => void handleLoadMore()} disabled={loadingMore}>
                     {loadingMore ? 'Loading…' : 'Load more results'}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
 
             <div className="flex items-center justify-between border-t border-arena-700 px-6 py-3">
               <span className="text-xs text-slate-500">Full-track playback requires the host's Spotify Premium account.</span>
-              <button
-                disabled={selectedList.length === 0}
-                onClick={handleImportSelected}
-                className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 disabled:cursor-not-allowed disabled:opacity-30 hover:bg-hardwood-400"
-              >
+              <Button disabled={selectedList.length === 0} onClick={handleImportSelected}>
                 ADD {selectedList.length || ''} TRACK{selectedList.length === 1 ? '' : 'S'} TO GAME
-              </button>
+              </Button>
             </div>
           </>
         )}
-      </div>
-    </div>
+    </ModalShell>
   )
 }

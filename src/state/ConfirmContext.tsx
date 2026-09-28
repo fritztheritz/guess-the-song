@@ -1,4 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import DialogShell from '../components/ui/DialogShell'
+import Button from '../components/ui/Button'
 
 interface ConfirmOptions {
   title?: string
@@ -57,34 +59,18 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       {state && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" onClick={() => settle(false)}>
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-sm animate-pop-in rounded-2xl border border-arena-600 bg-arena-900 p-6 shadow-2xl"
-          >
-            {state.title && <h2 className="mb-2 font-display text-xl tracking-wide text-hardwood-400">{state.title}</h2>}
-            <p className="text-sm text-slate-300">{state.message}</p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                autoFocus
-                onClick={() => settle(false)}
-                className="rounded-full border border-arena-500 px-4 py-2 text-sm text-slate-300 hover:border-arena-400"
-              >
-                {state.cancelLabel ?? 'Cancel'}
-              </button>
-              <button
-                onClick={() => settle(true)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold text-arena-950 ${
-                  state.danger ? 'bg-scoreboard-500 hover:bg-scoreboard-400' : 'bg-hardwood-500 hover:bg-hardwood-400'
-                }`}
-              >
-                {state.confirmLabel ?? 'Confirm'}
-              </button>
-            </div>
+        <DialogShell onClose={() => settle(false)} zIndex="z-[100]" role="alertdialog">
+          {state.title && <h2 className="mb-2 font-display text-xl tracking-wide text-hardwood-400">{state.title}</h2>}
+          <p className="text-sm text-slate-300">{state.message}</p>
+          <div className="mt-5 flex justify-end gap-2">
+            <Button variant="outline" size="sm" autoFocus onClick={() => settle(false)}>
+              {state.cancelLabel ?? 'Cancel'}
+            </Button>
+            <Button variant={state.danger ? 'danger' : 'primary'} size="sm" onClick={() => settle(true)}>
+              {state.confirmLabel ?? 'Confirm'}
+            </Button>
           </div>
-        </div>
+        </DialogShell>
       )}
     </ConfirmContext.Provider>
   )
