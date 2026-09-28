@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createEmptyTierList } from '../types/tierlist'
 import { saveTierList } from '../lib/storage/tierlist-repository'
+import TextInput from '../components/ui/TextInput'
+import Button from '../components/ui/Button'
 
 export default function CreateTierList() {
   const navigate = useNavigate()
@@ -24,17 +26,12 @@ export default function CreateTierList() {
 
         <div>
           <label className="mb-1 block text-sm text-slate-400">Tier list name</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-arena-600 bg-arena-800 px-4 py-3 text-lg text-slate-100 outline-none focus:border-hardwood-500"
-            autoFocus
-          />
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} inputSize="lg" className="w-full" autoFocus />
         </div>
 
-        <button type="submit" className="w-full rounded-full bg-hardwood-500 py-3 text-lg font-semibold text-arena-950 hover:bg-hardwood-400">
+        <Button type="submit" fullWidth size="lg">
           ADD SONGS & TIERS →
-        </button>
+        </Button>
       </form>
     </div>
   )

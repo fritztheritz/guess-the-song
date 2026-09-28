@@ -21,6 +21,7 @@ import { useToast } from '../state/ToastContext'
 import SoundCloudAttribution from '../components/SoundCloudAttribution'
 import SoundCloudConnectPanel from '../components/SoundCloudConnectPanel'
 import SpotifyConnectPanel from '../components/SpotifyConnectPanel'
+import Panel from '../components/ui/Panel'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -266,7 +267,7 @@ export default function Home() {
               {visibleGames.map((game) => {
                 const thumbnailUrl = game.rounds.find((r) => r.artworkUrl)?.artworkUrl
                 return (
-                <div key={game.id} className="flex items-start gap-3 rounded-xl border border-arena-600 bg-arena-800/60 p-4 sm:items-center">
+                <Panel key={game.id} padding="md" className="flex items-start gap-3 sm:items-center">
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-arena-700">
                     {thumbnailUrl ? (
                       <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
@@ -312,7 +313,7 @@ export default function Home() {
                     </button>
                   </div>
                   </div>
-                </div>
+                </Panel>
                 )
               })}
             </div>
@@ -330,7 +331,7 @@ export default function Home() {
               {visibleTierLists.map((list) => {
                 const ranked = list.songs.filter((s) => s.tierId !== null).length
                 return (
-                  <div key={list.id} className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-4">
+                  <Panel key={list.id} className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs">🏆</span>
@@ -378,7 +379,7 @@ export default function Home() {
                         ✕
                       </button>
                     </div>
-                  </div>
+                  </Panel>
                 )
               })}
             </div>
@@ -394,7 +395,7 @@ export default function Home() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {visibleTournaments.map((tournament) => (
-                  <div key={tournament.id} className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-4">
+                  <Panel key={tournament.id} className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs">🏆</span>
@@ -436,7 +437,7 @@ export default function Home() {
                         ✕
                       </button>
                     </div>
-                  </div>
+                  </Panel>
                 ))}
               </div>
             )}
@@ -453,7 +454,7 @@ export default function Home() {
                 {visibleDraftBoards.map((board) => {
                   const available = board.songPool.filter((s) => !s.takenBySessionId).length
                   return (
-                    <div key={board.id} className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-4">
+                    <Panel key={board.id} className="flex items-center justify-between">
                       <div>
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs">🎧</span>
@@ -487,7 +488,7 @@ export default function Home() {
                           ✕
                         </button>
                       </div>
-                    </div>
+                    </Panel>
                   )
                 })}
               </div>

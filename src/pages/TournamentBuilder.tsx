@@ -9,6 +9,8 @@ import type { Tournament } from '../types/tournament'
 import GamePickerModal from '../components/GamePickerModal'
 import TagInput from '../components/TagInput'
 import Spinner from '../components/Spinner'
+import Panel from '../components/ui/Panel'
+import Button from '../components/ui/Button'
 
 export default function TournamentBuilder() {
   const { tournamentId } = useParams()
@@ -102,7 +104,7 @@ export default function TournamentBuilder() {
           />
         </div>
 
-        <div className="rounded-xl border border-arena-600 bg-arena-800/60 p-5">
+        <Panel padding="lg">
           <div className="mb-3 font-display text-xl tracking-wide text-hardwood-400">STANDINGS</div>
           {standings.length === 0 ? (
             <p className="text-sm text-slate-500">
@@ -124,17 +126,14 @@ export default function TournamentBuilder() {
               ))}
             </div>
           )}
-        </div>
+        </Panel>
 
         <div>
           <div className="mb-3 flex items-center justify-between">
             <div className="font-display text-xl tracking-wide text-hardwood-400">GAMES</div>
-            <button
-              onClick={() => setPickerOpen(true)}
-              className="rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-200 hover:border-hardwood-500"
-            >
+            <Button variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
               + Add Game
-            </button>
+            </Button>
           </div>
 
           {games.length === 0 ? (
@@ -142,7 +141,7 @@ export default function TournamentBuilder() {
           ) : (
             <div className="space-y-2">
               {games.map((game, i) => (
-                <div key={game.id} className="flex items-center gap-3 rounded-xl border border-arena-600 bg-arena-800/60 p-3">
+                <Panel key={game.id} padding="sm" className="flex items-center gap-3">
                   <div className="flex shrink-0 flex-col">
                     <button
                       onClick={() => moveGame(i, -1)}
@@ -192,7 +191,7 @@ export default function TournamentBuilder() {
                       ✕
                     </button>
                   </div>
-                </div>
+                </Panel>
               ))}
             </div>
           )}

@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createEmptyTournament } from '../types/tournament'
 import { saveTournament } from '../lib/storage/tournament-repository'
+import TextInput from '../components/ui/TextInput'
+import Button from '../components/ui/Button'
 
 export default function CreateTournament() {
   const navigate = useNavigate()
@@ -24,17 +26,12 @@ export default function CreateTournament() {
 
         <div>
           <label className="mb-1 block text-sm text-slate-400">Tournament name</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-arena-600 bg-arena-800 px-4 py-3 text-lg text-slate-100 outline-none focus:border-hardwood-500"
-            autoFocus
-          />
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} inputSize="lg" className="w-full" autoFocus />
         </div>
 
-        <button type="submit" className="w-full rounded-full bg-hardwood-500 py-3 text-lg font-semibold text-arena-950 hover:bg-hardwood-400">
+        <Button type="submit" fullWidth size="lg">
           ADD GAMES →
-        </button>
+        </Button>
       </form>
     </div>
   )

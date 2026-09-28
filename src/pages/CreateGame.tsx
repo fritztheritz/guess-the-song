@@ -4,6 +4,8 @@ import { createGame, createTeam, teamColorForIndex, type GameMode } from '../typ
 import { saveGame } from '../lib/storage/game-repository'
 import { listTeamPresets, type TeamPreset } from '../lib/team-presets'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
+import TextInput from '../components/ui/TextInput'
+import Button from '../components/ui/Button'
 
 const MIN_TEAMS = 2
 const MAX_TEAMS = 8
@@ -111,12 +113,7 @@ export default function CreateGame() {
 
         <div>
           <label className="mb-1 block text-sm text-slate-400">Game name</label>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-arena-600 bg-arena-800 px-4 py-3 text-lg text-slate-100 outline-none focus:border-hardwood-500"
-            autoFocus
-          />
+          <TextInput value={name} onChange={(e) => setName(e.target.value)} inputSize="lg" className="w-full" autoFocus />
         </div>
 
         <div>
@@ -188,9 +185,9 @@ export default function CreateGame() {
           )}
         </div>
 
-        <button type="submit" className="w-full rounded-full bg-hardwood-500 py-3 text-lg font-semibold text-arena-950 hover:bg-hardwood-400">
+        <Button type="submit" fullWidth size="lg">
           {mode === 'lyric' ? 'ADD LYRIC ROUNDS →' : mode === 'tierguess' ? 'PICK YOUR TIER LIST →' : 'ADD TRACKS →'}
-        </button>
+        </Button>
       </form>
     </div>
   )

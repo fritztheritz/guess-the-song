@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useFeatureFlags } from '../state/FeatureFlagsContext'
 import { useConfirm } from '../state/ConfirmContext'
 import { useToast } from '../state/ToastContext'
+import Panel from '../components/ui/Panel'
 
 export default function Admin() {
   const { flags, setOverride, resetOverride, refresh } = useFeatureFlags()
@@ -33,7 +34,7 @@ export default function Admin() {
         ) : (
           <div className="space-y-3">
             {flags.map((flag) => (
-              <div key={flag.key} className="rounded-xl border border-arena-600 bg-arena-800/60 p-4">
+              <Panel key={flag.key}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
@@ -68,7 +69,7 @@ export default function Admin() {
                     )}
                   </div>
                 </div>
-              </div>
+              </Panel>
             ))}
 
             <div className="pt-2 text-center">

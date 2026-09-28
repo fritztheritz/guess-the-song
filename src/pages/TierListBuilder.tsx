@@ -6,6 +6,7 @@ import { generatePlaceholderArtwork } from '../lib/placeholder-artwork'
 import ImportSoundCloudModal from '../components/ImportSoundCloudModal'
 import TagInput from '../components/TagInput'
 import Spinner from '../components/Spinner'
+import TextInput from '../components/ui/TextInput'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 
 export default function TierListBuilder() {
@@ -126,11 +127,7 @@ export default function TierListBuilder() {
             {list.tiers.map((tier) => (
               <div key={tier.id} className="flex items-center gap-2">
                 <span className="h-6 w-6 shrink-0 rounded-md" style={{ background: tier.color }} />
-                <input
-                  value={tier.name}
-                  onChange={(e) => renameTier(tier.id, e.target.value)}
-                  className="w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
-                />
+                <TextInput value={tier.name} onChange={(e) => renameTier(tier.id, e.target.value)} className="w-full" />
                 {list.tiers.length > MIN_TIERS && (
                   <button
                     onClick={() => removeTier(tier.id)}

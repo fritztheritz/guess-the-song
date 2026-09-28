@@ -31,6 +31,8 @@ import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
 import { isSpotifyConfigured } from '../lib/spotify/config'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import { useConfirm } from '../state/ConfirmContext'
+import Panel from '../components/ui/Panel'
+import Button from '../components/ui/Button'
 import { useToast } from '../state/ToastContext'
 
 const MIN_TEAMS = 2
@@ -627,19 +629,16 @@ export default function GameBuilder() {
                     ? 'No songs yet — add some from your tier list to get started.'
                     : 'Pick a tier list to build this game from.'}
                 </p>
-                <button onClick={openTierGuessImport} className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400">
+                <Button onClick={openTierGuessImport}>
                   {game.sourceTierListId ? '+ ADD SONGS' : 'PICK A TIER LIST'}
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-slate-400">
                 <p>{isLyric ? 'No rounds yet. Add one and type in the clues.' : 'No possessions yet. Import tracks from SoundCloud to get started.'}</p>
-                <button
-                  onClick={() => (isLyric ? handleAddLyricRound() : setImportOpen(true))}
-                  className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400"
-                >
+                <Button onClick={() => (isLyric ? handleAddLyricRound() : setImportOpen(true))}>
                   {isLyric ? '+ ADD LYRIC ROUND' : '+ ADD FROM SOUNDCLOUD'}
-                </button>
+                </Button>
               </div>
             )
           ) : (
@@ -702,7 +701,7 @@ export default function GameBuilder() {
               </div>
 
               {isYear && (
-                <div className="rounded-xl border border-arena-600 bg-arena-800/60 p-4">
+                <Panel>
                   <div className="mb-2 text-sm text-slate-400">The answer for this round</div>
                   <div className="flex items-center gap-3">
                     <div>
@@ -731,13 +730,13 @@ export default function GameBuilder() {
                       </select>
                     </div>
                   </div>
-                </div>
+                </Panel>
               )}
 
               {isLyric ? (
                 <LyricEditor round={selectedRound} onChange={updateRound} />
               ) : isTierGuess ? (
-                <div className="rounded-xl border border-arena-600 bg-arena-800/60 p-4">
+                <Panel>
                   <div className="mb-2 text-sm text-slate-400">The answer for this round</div>
                   {(() => {
                     const tier = game.tierListTiers?.find((t) => t.id === selectedRound.tierId)
@@ -758,7 +757,7 @@ export default function GameBuilder() {
                     Snapshotted from the tier list when this song was added — re-add it from the tier list to refresh if the
                     ranking has changed since.
                   </p>
-                </div>
+                </Panel>
               ) : (
                 <ClipEditor round={selectedRound} onChange={updateRound} />
               )}

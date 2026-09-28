@@ -8,6 +8,7 @@ import type { InputHTMLAttributes } from 'react'
 const SIZE_CLASSES = {
   sm: 'px-3 py-1.5',
   md: 'px-3 py-2',
+  lg: 'px-4 py-3 text-lg',
 } as const
 
 export default function TextInput({
