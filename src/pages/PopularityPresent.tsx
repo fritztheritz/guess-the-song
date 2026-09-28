@@ -14,11 +14,10 @@ import TextInput from '../components/ui/TextInput'
 // (TIER_GUESS_TIER_POINTS etc. in HostController.tsx).
 const POPULARITY_POINTS = 2
 
-// How many filtered pool matches to show at once — same "don't dump the whole pool on
-// screen" lesson as the position guess's number picker: with up to ~50 songs in the pool,
-// showing all of them (even filtered) would still be clutter, so this stays capped and
-// leans on typing to narrow it down instead.
-const MAX_SUGGESTIONS = 8
+// How many filtered pool matches to show at once — a backstop against a big pool (up to
+// ~50 songs for a prolific artist) dumping the whole thing on screen at once, not a hard
+// limit meant to bite for every artist: a smaller catalog's pool should just show in full.
+const MAX_SUGGESTIONS = 20
 
 export default function PopularityPresent() {
   const { gameId } = useParams()
