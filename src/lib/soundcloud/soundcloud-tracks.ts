@@ -181,25 +181,20 @@ export interface CreatedSoundCloudPlaylist {
 // the live endpoint's strict deserializer (confirmed against their published OpenAPI spec at
 // developers.soundcloud.com/docs/api/explorer/open-api.json after a real 422 in testing).
 //
-// A private playlist's bare permalink_url only resolves for the owner's own authenticated
-// session (e.g. clicking it themselves) — anything unauthenticated, like the embedded widget
-// iframe, gets "You have not provided a valid SoundCloud URL" unless the response's
-// secret_token is appended as a query param, the same convention this app already uses for
-// the private-track streams API call (soundcloud-playback.ts). Confirmed against a real 422-free
-// creation in production where the plain permalink_url failed in the widget but the owner's
-// own click-through worked — the tell that it was an auth-vs-no-auth gap, not a broken link.
+// For a private playlist, permalink_url already IS the working share link — SoundCloud embeds
+// the secret token as a path segment (".../sets/<slug>/s-<token>?utm_medium=api&..."), not as a
+// query param. A prior version of this function appended "?secret_token=..." on top of that,
+// producing a URL with two "?" in it that 404s in the widget — confirmed against a real create
+// response in production. Nothing needs to be added here; just pass permalink_url through.
 export async function createSoundCloudPlaylist(
   title: string,
   trackIds: string[],
   sharing: 'public' | 'private' = 'private',
 ): Promise<CreatedSoundCloudPlaylist> {
-  const raw = await scFetchJson<{ id: number; permalink_url: string; secret_token?: string }>('/playlists', {
+  const raw = await scFetchJson<{ id: number; permalink_url: string }>('/playlists', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ playlist: { title, sharing, tracks: trackIds.map((id) => ({ urn: `soundcloud:tracks:${id}` })) } }),
   })
-  const permalinkUrl = raw.secret_token
-    ? `${raw.permalink_url}?secret_token=${encodeURIComponent(raw.secret_token)}`
-    : raw.permalink_url
-  return { id: String(raw.id), permalinkUrl }
+  return { id: String(raw.id), permalinkUrl: raw.permalink_url }
 }

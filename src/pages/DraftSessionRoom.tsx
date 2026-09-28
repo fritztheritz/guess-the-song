@@ -11,11 +11,10 @@ import { createSoundCloudPlaylist } from '../lib/soundcloud/soundcloud-tracks'
 import { buildDraftResultsShareUrl } from '../lib/draft-share'
 import Spinner from '../components/Spinner'
 
-// SoundCloud's widget accepts any playlist permalink — private ones included, as long as
-// createSoundCloudPlaylist() appended the secret_token query param (see soundcloud-tracks.ts;
-// without it a private playlist 404s in the unauthenticated widget iframe even though the
-// bare link still works for the owner's own logged-in click-through). No oEmbed round-trip
-// needed, just build the iframe src directly.
+// SoundCloud's widget accepts any playlist permalink as-is — private ones included, since
+// createSoundCloudPlaylist() (soundcloud-tracks.ts) stores the API's permalink_url unmodified,
+// which already embeds the private share token as a path segment. No oEmbed round-trip needed,
+// just build the iframe src directly.
 function soundCloudWidgetSrc(playlistUrl: string): string {
   const params = new URLSearchParams({
     url: playlistUrl,
