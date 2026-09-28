@@ -190,6 +190,63 @@ export async function getArtistTopTracks(artistId: string): Promise<ImportableSp
   return (data.tracks ?? []).map(mapToImportableSpotifyTrack)
 }
 
+/** Artist-only search (no tracks) — Guess the Popularity's "pick an artist" step wants a
+ *  proper pick-from-a-list, not the single best-guess chip the combined track search above
+ *  surfaces (same `type=artist,track` endpoint, minus `track` and returning every match
+ *  instead of just `items[0]`). */
+export async function searchSpotifyArtists(query: string): Promise<SpotifyArtistMatch[]> {
+  if (!query.trim()) return []
+  const { page } = await withLimitFallback((limit) =>
+    spotifyFetchJson<{ artists?: { items: RawSpotifyArtist[] } }>(`/search?type=artist&limit=${limit}&q=${encodeURIComponent(query)}`),
+  )
+  return (page.artists?.items ?? []).map(mapToArtistMatch)
+}
+
+const CATALOG_TARGET = 50
+
+/**
+ * A bounded pool (~50 tracks, not the artist's whole discography) for Guess the
+ * Popularity's guess picker — reuses the same artist-scoped search + pagination as the
+ * search tab above rather than walking every album/single via `/artists/{id}/albums`,
+ * which for a prolific artist could mean dozens of extra round trips against this app's
+ * already-low per-request quota (see CANDIDATE_LIMITS). Deduped by normalized title —
+ * remixes/remasters surfacing as separate hits are harmless noise in a decoy pool, not
+ * worth the extra work to collapse. `mustInclude` (the real top-10 answers) is always
+ * folded in first, since search isn't guaranteed to surface every one of them itself.
+ */
+export async function getArtistCatalog(artistName: string, mustInclude: ImportableSpotifyTrack[]): Promise<ImportableSpotifyTrack[]> {
+  const query = `artist:"${artistName}"`
+  const seen = new Map<string, ImportableSpotifyTrack>()
+  const keyOf = (t: ImportableSpotifyTrack) => t.title.trim().toLowerCase()
+  for (const t of mustInclude) seen.set(keyOf(t), t)
+
+  function addPage(rawItems: RawSpotifyTrack[]) {
+    for (const raw of rawItems) {
+      const mapped = mapToImportableSpotifyTrack(raw)
+      const k = keyOf(mapped)
+      if (!seen.has(k)) seen.set(k, mapped)
+    }
+  }
+
+  const { page: first, limit } = await withLimitFallback((limit) => fetchSearchPage(query, 'track', limit, 0))
+  addPage(first.tracks?.items ?? [])
+  const total = first.tracks?.total ?? (first.tracks?.items?.length ?? 0)
+  let offset = first.tracks?.items?.length ?? 0
+
+  // The `offset < CATALOG_TARGET * 4` cap is a backstop against a query that keeps
+  // returning pages full of near-duplicate titles (already deduped away) without ever
+  // reaching CATALOG_TARGET unique ones — bounds the round trips either way.
+  while (limit > 0 && seen.size < CATALOG_TARGET && offset < total && offset < CATALOG_TARGET * 4) {
+    const page = await fetchSearchPage(query, 'track', limit, offset)
+    const pageItems = page.tracks?.items ?? []
+    if (pageItems.length === 0) break
+    addPage(pageItems)
+    offset += pageItems.length
+  }
+
+  return [...seen.values()].sort((a, b) => a.title.localeCompare(b.title))
+}
+
 const PLAYLIST_TARGET = 50 // most hosts won't have more than this many of their own playlists
 
 /** Lists the connected account's own playlists, for the import modal's "Playlists" tab. */

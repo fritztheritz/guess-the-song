@@ -18,6 +18,8 @@ import CreateDraftBoard from './pages/CreateDraftBoard'
 import DraftBoardHome from './pages/DraftBoardHome'
 import DraftSessionRoom from './pages/DraftSessionRoom'
 import DraftPresentation from './pages/DraftPresentation'
+import CreatePopularityGame from './pages/CreatePopularityGame'
+import PopularityPresent from './pages/PopularityPresent'
 import RequireFlag from './components/RequireFlag'
 
 export default function App() {
@@ -103,6 +105,22 @@ export default function App() {
         element={
           <RequireFlag flag="draft">
             <DraftPresentation />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/popularity/new"
+        element={
+          <RequireFlag flag="popularity">
+            <CreatePopularityGame />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/popularity/:gameId/present"
+        element={
+          <RequireFlag flag="popularity">
+            <PopularityPresent />
           </RequireFlag>
         }
       />

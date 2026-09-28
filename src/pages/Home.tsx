@@ -10,11 +10,13 @@ import {
   importTournaments,
 } from '../lib/storage/tournament-repository'
 import { listDraftBoards, deleteDraftBoard, exportAllDraftBoards, importDraftBoards } from '../lib/storage/draft-repository'
+import { listPopularityGames, deletePopularityGame } from '../lib/storage/popularity-repository'
 import { downloadBackupFile, parseBackupFile, BackupFileError } from '../lib/game-backup'
 import { duplicateGame, isLyricMode, isTierGuessMode, type Game } from '../types'
 import { duplicateTierList, type TierList } from '../types/tierlist'
 import { duplicateTournament, type Tournament } from '../types/tournament'
 import type { DraftBoard } from '../types/draft'
+import type { PopularityGame } from '../types/popularity'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import { useConfirm } from '../state/ConfirmContext'
 import { useToast } from '../state/ToastContext'
@@ -31,10 +33,12 @@ export default function Home() {
   const spotifyImportEnabled = useFeatureFlag('spotify-import')
   const tournamentsEnabled = useFeatureFlag('tournaments')
   const draftEnabled = useFeatureFlag('draft')
+  const popularityEnabled = useFeatureFlag('popularity')
   const [games, setGames] = useState<Game[]>([])
   const [tierLists, setTierLists] = useState<TierList[]>([])
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [draftBoards, setDraftBoards] = useState<DraftBoard[]>([])
+  const [popularityGames, setPopularityGames] = useState<PopularityGame[]>([])
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
   const [activeTags, setActiveTags] = useState<string[]>([])
   const importFileInput = useRef<HTMLInputElement | null>(null)
@@ -44,7 +48,8 @@ export default function Home() {
     if (tierListsEnabled) setTierLists(listTierLists())
     if (tournamentsEnabled) setTournaments(listTournaments())
     if (draftEnabled) setDraftBoards(listDraftBoards())
-  }, [tierListsEnabled, tournamentsEnabled, draftEnabled])
+    if (popularityEnabled) setPopularityGames(listPopularityGames())
+  }, [tierListsEnabled, tournamentsEnabled, draftEnabled, popularityEnabled])
 
   async function handleDeleteTierList(id: string) {
     if (!(await confirm('Delete this tier list? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
@@ -83,6 +88,13 @@ export default function Home() {
     if (!(await confirm('Delete this game? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
     deleteGame(id)
     setGames(listGames())
+    showToast('Game deleted')
+  }
+
+  async function handleDeletePopularityGame(id: string) {
+    if (!(await confirm('Delete this Guess the Popularity game? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
+    deletePopularityGame(id)
+    setPopularityGames(listPopularityGames())
     showToast('Game deleted')
   }
 
@@ -218,6 +230,14 @@ export default function Home() {
                 className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
               >
                 + CREATE DRAFT
+              </Link>
+            )}
+            {popularityEnabled && (
+              <Link
+                to="/popularity/new"
+                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
+              >
+                + GUESS THE POPULARITY
               </Link>
             )}
           </div>
@@ -493,6 +513,45 @@ export default function Home() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {popularityEnabled && popularityGames.length > 0 && (
+          <div className="mt-16">
+            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR POPULARITY GAMES</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {popularityGames.map((game) => {
+                const solvedCount = Object.keys(game.progress.solved).length
+                return (
+                  <Panel key={game.id} className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs">📈</span>
+                        <div className="font-semibold text-slate-100">{game.name}</div>
+                      </div>
+                      <div className="text-sm text-slate-500">
+                        {game.artistName} · {solvedCount}/{game.ranks.length} ranks solved
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/popularity/${game.id}/present`}
+                        className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                      >
+                        {game.progress.completed ? 'View' : solvedCount > 0 ? 'Continue' : 'Play'}
+                      </Link>
+                      <button
+                        onClick={() => handleDeletePopularityGame(game.id)}
+                        className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
+                        aria-label="Delete game"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </Panel>
+                )
+              })}
+            </div>
           </div>
         )}
 

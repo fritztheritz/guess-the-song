@@ -49,6 +49,13 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     default: false,
   },
   {
+    key: 'popularity',
+    label: 'Guess the Popularity',
+    description:
+      "Pick a Spotify artist, pull their top 10 most popular tracks, and guess which song holds each rank — teams take turns guessing, cycling until someone gets it right, then move to the next rank. Needs Spotify connected.",
+    default: false,
+  },
+  {
     key: 'draft-soundcloud-playlists',
     label: 'Draft: SoundCloud Playlists',
     description:
