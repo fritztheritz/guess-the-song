@@ -348,10 +348,11 @@ export default function HostController({ gameId }: { gameId: string }) {
         clueText,
         revealed,
         teams: game.teams.map((t) => ({ id: t.id, name: t.name, color: t.color, score: t.score, avatar: t.avatar })),
+        tiers: isTierGuess ? game.tierListTiers?.map((t) => ({ name: t.name, color: t.color })) : undefined,
       },
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, possessionIndex, round?.id, teamsWithScoreKey, buzzerConnected])
+  }, [phase, possessionIndex, round?.id, teamsWithScoreKey, buzzerConnected, isTierGuess])
 
   useEffect(() => {
     if (phase === 'final') playFanfare()
@@ -1155,6 +1156,26 @@ export default function HostController({ gameId }: { gameId: string }) {
                     </a>
                   )}
                 </div>
+
+                {modeGuesses.size > 0 && (
+                  <div className="w-full max-w-sm space-y-1.5">
+                    <div className="text-xs uppercase tracking-widest text-slate-500">Submitted so far ({modeGuesses.size})</div>
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                      {[...modeGuesses.values()].map((g, i) => {
+                        const team = game.teams.find((t) => t.id === g.teamId)
+                        return (
+                          <span
+                            key={i}
+                            className="rounded-full px-2.5 py-1 text-xs font-semibold"
+                            style={{ background: `${team?.color ?? '#888'}22`, color: team?.color }}
+                          >
+                            {g.name}: {g.text}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </>
             ) : isYear ? (
               <>
@@ -1188,6 +1209,26 @@ export default function HostController({ gameId }: { gameId: string }) {
                   <div className="font-display text-2xl text-white">{round.title}</div>
                   <div className="text-slate-400">{round.artist}</div>
                 </div>
+
+                {modeGuesses.size > 0 && (
+                  <div className="w-full max-w-sm space-y-1.5">
+                    <div className="text-xs uppercase tracking-widest text-slate-500">Submitted so far ({modeGuesses.size})</div>
+                    <div className="flex flex-wrap items-center justify-center gap-1.5">
+                      {[...modeGuesses.values()].map((g, i) => {
+                        const team = game.teams.find((t) => t.id === g.teamId)
+                        return (
+                          <span
+                            key={i}
+                            className="rounded-full px-2.5 py-1 text-xs font-semibold"
+                            style={{ background: `${team?.color ?? '#888'}22`, color: team?.color }}
+                          >
+                            {g.name}: {g.text}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
               </>
             ) : (
               <>

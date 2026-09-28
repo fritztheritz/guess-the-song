@@ -47,6 +47,11 @@ export interface PhoneRoundState {
   /** Only set once phase is 'revealed' — the answer, simplified (no tier/year staging). */
   revealed: { title: string; artist: string; artworkUrl?: string; lyricAnswer?: string } | null
   teams: Array<{ id: string; name: string; color: string; score: number; avatar?: string }>
+  /** mode: "tierguess" only — the tier list's own defined tiers (e.g. S/A/B/C/D), so a
+   *  phone can offer them as tap targets instead of free text. This is the tier *names*,
+   *  never which song is in which one — same "only what's already safe to show" discipline
+   *  as clueText/revealed above. */
+  tiers?: Array<{ name: string; color: string }>
 }
 
 export type HostOutMessage =

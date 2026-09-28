@@ -146,12 +146,16 @@ export default function PlayerBuzzer() {
     setModeGuessSubmitted(null)
   }, [roundState?.possessionIndex])
 
-  function handleModeGuessSubmit(e: FormEvent) {
-    e.preventDefault()
-    const text = modeGuessInput.trim()
+  function submitModeGuess(text: string) {
     if (!text) return
     socketRef.current?.send({ type: 'guess', text })
     setModeGuessSubmitted(text)
+    setModeGuessInput(text)
+  }
+
+  function handleModeGuessSubmit(e: FormEvent) {
+    e.preventDefault()
+    submitModeGuess(modeGuessInput.trim())
   }
 
   if (!activeCode) {
@@ -285,12 +289,36 @@ export default function PlayerBuzzer() {
             <div className="w-full max-w-xs space-y-3">
               {roundState.phase === 'clue' ? (
                 <>
+                  {/* Tap-to-guess: the tier list's own tier names (not which song is in
+                      which one — that's still the actual guess) are safe to hand over as
+                      one-tap buttons, faster and typo-proof compared to typing them. Free
+                      text below still works for a tier list with more tiers than fit here,
+                      or if you'd rather type. */}
+                  {roundState.mode === 'tierguess' && roundState.tiers && roundState.tiers.length > 0 && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {roundState.tiers.map((tier) => (
+                        <button
+                          key={tier.name}
+                          onClick={() => submitModeGuess(tier.name)}
+                          className="truncate rounded-xl border-2 px-2 py-3 font-display text-lg font-semibold"
+                          style={{
+                            background: `${tier.color}22`,
+                            color: tier.color,
+                            borderColor: modeGuessSubmitted === tier.name ? tier.color : 'transparent',
+                          }}
+                        >
+                          {modeGuessSubmitted === tier.name ? '✓ ' : ''}
+                          {tier.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <form onSubmit={handleModeGuessSubmit} className="flex gap-2">
                     <input
                       value={modeGuessInput}
                       onChange={(e) => setModeGuessInput(e.target.value)}
                       placeholder={roundState.mode === 'year' ? 'Year, e.g. 2003' : 'Tier, e.g. S'}
-                      autoFocus
+                      autoFocus={roundState.mode === 'year'}
                       maxLength={roundState.mode === 'year' ? 4 : 40}
                       inputMode={roundState.mode === 'year' ? 'numeric' : 'text'}
                       pattern={roundState.mode === 'year' ? '[0-9]*' : undefined}
@@ -310,7 +338,7 @@ export default function PlayerBuzzer() {
                     </button>
                   </form>
                   {modeGuessSubmitted && (
-                    <p className="text-sm text-slate-400">✓ Sent "{modeGuessSubmitted}" — change your mind? Just type a new one.</p>
+                    <p className="text-sm text-slate-400">✓ Sent "{modeGuessSubmitted}" — change your mind? Just tap or type a new one.</p>
                   )}
                   <p className="text-xs text-slate-500">No need to buzz — everyone can guess, right answers score automatically.</p>
                 </>
