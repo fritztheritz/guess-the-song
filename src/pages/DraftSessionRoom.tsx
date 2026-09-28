@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { DraftBoard, DraftPoolSong, Drafter } from '../types/draft'
 import { snakeOrder, computeDraftStandings } from '../types/draft'
@@ -6,34 +6,12 @@ import { getDraftBoard, saveDraftBoard } from '../lib/storage/draft-repository'
 import { useConfirm } from '../state/ConfirmContext'
 import { useToast } from '../state/ToastContext'
 import { useSoundCloud } from '../state/SoundCloudContext'
+import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import { isSoundCloudConfigured } from '../lib/soundcloud/config'
 import { createSoundCloudPlaylist } from '../lib/soundcloud/soundcloud-tracks'
+import { getTrackPlayback, TrackNotPlayableError } from '../lib/soundcloud/soundcloud-playback'
 import { buildDraftResultsShareUrl } from '../lib/draft-share'
 import Spinner from '../components/Spinner'
-
-// The embeddable widget (w.soundcloud.com/player) only works for PUBLIC resources — confirmed
-// against SoundCloud directly: a private playlist/track's permalink_url resolves fine through
-// their metadata API (api-widget.soundcloud.com/resolve) even with its secret_token, but the
-// widget itself 404s on it regardless of URL format, while the same request for a public track
-// succeeds. It's a platform restriction, not something fixable from a URL shape here. A private
-// resource's permalink_url always has its secret token as a "/s-<token>" path segment (public
-// ones never do), so that's a reliable way to detect "don't even try to embed this."
-const PRIVATE_SHARE_TOKEN_PATTERN = /\/s-[\w-]+(?:[/?]|$)/
-
-function isEmbeddablePlaylistUrl(url: string): boolean {
-  return !PRIVATE_SHARE_TOKEN_PATTERN.test(url)
-}
-
-function soundCloudWidgetSrc(playlistUrl: string): string {
-  const params = new URLSearchParams({
-    url: playlistUrl,
-    color: 'ff5500',
-    auto_play: 'false',
-    show_comments: 'false',
-    visual: 'false',
-  })
-  return `https://w.soundcloud.com/player/?${params.toString()}`
-}
 
 function DrafterRoster({
   drafter,
@@ -41,7 +19,8 @@ function DrafterRoster({
   highlight,
   onCreatePlaylist,
   onResetPlaylist,
-  showPlayer,
+  onPreviewSong,
+  previewingSongId,
 }: {
   drafter: Drafter
   songs: DraftPoolSong[]
@@ -53,9 +32,11 @@ function DrafterRoster({
    *  screen, alongside onCreatePlaylist — covers links made before the secret_token fix, or a
    *  playlist deleted on SoundCloud's side. */
   onResetPlaylist?: () => void
-  /** Renders the embedded SoundCloud player when a playlist exists. Only passed on the
-   *  listening screen — keeps the roster grid compact everywhere else. */
-  showPlayer?: boolean
+  /** Plays/pauses a song via this app's own authenticated SoundCloud connection — works for
+   *  private tracks (unlike embedding SoundCloud's public widget, which cannot play private
+   *  content at all, full stop). Only passed on the listening screen. */
+  onPreviewSong?: (song: DraftPoolSong) => void
+  previewingSongId?: string | null
 }) {
   return (
     <div className={`rounded-xl border p-3 ${highlight ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 bg-arena-800/60'}`}>
@@ -87,25 +68,27 @@ function DrafterRoster({
         <p className="text-xs text-slate-500">No picks yet</p>
       ) : (
         <ul className="space-y-1 text-xs text-slate-300">
-          {songs.map((song) => (
-            <li key={song.id} className="truncate">
-              {song.title} <span className="text-slate-500">— {song.artist}</span>
-            </li>
-          ))}
+          {songs.map((song) => {
+            const canPreview = onPreviewSong && song.source === 'soundcloud' && song.soundcloudTrackId
+            const isPreviewing = previewingSongId === song.id
+            return (
+              <li key={song.id} className="flex items-center gap-1.5 truncate">
+                {canPreview && (
+                  <button
+                    onClick={() => onPreviewSong(song)}
+                    aria-label={isPreviewing ? `Stop ${song.title}` : `Play ${song.title}`}
+                    className={`shrink-0 ${isPreviewing ? 'text-hardwood-400' : 'text-slate-500 hover:text-hardwood-400'}`}
+                  >
+                    {isPreviewing ? '■' : '▶'}
+                  </button>
+                )}
+                <span className="truncate">
+                  {song.title} <span className="text-slate-500">— {song.artist}</span>
+                </span>
+              </li>
+            )
+          })}
         </ul>
-      )}
-      {showPlayer && drafter.soundcloudPlaylistUrl && (
-        isEmbeddablePlaylistUrl(drafter.soundcloudPlaylistUrl) ? (
-          <iframe
-            title={`${drafter.name}'s playlist`}
-            className="mt-2 w-full rounded-md"
-            height="120"
-            src={soundCloudWidgetSrc(drafter.soundcloudPlaylistUrl)}
-            allow="autoplay"
-          />
-        ) : (
-          <p className="mt-2 text-xs text-slate-500">Private playlist — open on SoundCloud to listen (private playlists can't be embedded here).</p>
-        )
       )}
     </div>
   )
@@ -155,8 +138,8 @@ function CreatePlaylistModal({
         </div>
         <p className="mt-1.5 text-[11px] text-slate-500">
           {sharing === 'private'
-            ? "Only opens for you when you click through — SoundCloud's private links can't be embedded inline here."
-            : 'Anyone can find and play it, but it embeds right on this screen for everyone to listen along.'}
+            ? 'Only you can open it on SoundCloud — matches your tracks. Listening on this screen works either way.'
+            : 'Anyone can find and play it on SoundCloud.'}
         </p>
         <div className="mt-4 flex gap-2">
           <button
@@ -184,6 +167,9 @@ export default function DraftSessionRoom() {
   const confirm = useConfirm()
   const showToast = useToast()
   const soundcloud = useSoundCloud()
+  // Still being worked through (see feature-flags.ts) — playback via the connected account
+  // isn't confirmed working yet, so this stays off by default until that's sorted out.
+  const soundcloudPlaylistsEnabled = useFeatureFlag('draft-soundcloud-playlists') && isSoundCloudConfigured()
   const [board, setBoard] = useState<DraftBoard | null>(null)
   const [filterQuery, setFilterQuery] = useState('')
   const [ballotOrder, setBallotOrder] = useState<string[]>([])
@@ -191,11 +177,20 @@ export default function DraftSessionRoom() {
   const [creatingPlaylistId, setCreatingPlaylistId] = useState<string | null>(null)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
+  const [previewingSongId, setPreviewingSongId] = useState<string | null>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     if (!boardId) return
     setBoard(getDraftBoard(boardId))
   }, [boardId])
+
+  useEffect(() => {
+    audioRef.current = new Audio()
+    return () => {
+      audioRef.current?.pause()
+    }
+  }, [])
 
   const session = board?.sessions.find((s) => s.id === sessionId)
 
@@ -253,6 +248,49 @@ export default function DraftSessionRoom() {
 
   function soundcloudSongsFor(drafterId: string): DraftPoolSong[] {
     return rosterFor(drafterId).filter((s) => s.source === 'soundcloud' && s.soundcloudTrackId)
+  }
+
+  // Plays through a drafter's own picks via this app's authenticated SoundCloud connection —
+  // works for private tracks, unlike SoundCloud's embeddable widget (which flatly refuses
+  // private/secret-token content, confirmed directly against their API: a public track 200s at
+  // w.soundcloud.com/player, the same private content 404s there even with a valid secret token,
+  // while their own metadata API resolves it fine). Auto-advances through the rest of that
+  // drafter's roster on end, so clicking one song plays the "set" much like a real playlist would.
+  async function playSongAt(queue: DraftPoolSong[], index: number) {
+    const audio = audioRef.current
+    const song = queue[index]
+    if (!audio || !song?.soundcloudTrackId) return
+    try {
+      const url = await getTrackPlayback(song.soundcloudTrackId, song.soundcloudSecretToken)
+      audio.src = url
+      audio.currentTime = 0
+      await audio.play()
+      setPreviewingSongId(song.id)
+      audio.onended = () => {
+        const next = index + 1
+        if (next < queue.length && queue[next].soundcloudTrackId) {
+          playSongAt(queue, next)
+        } else {
+          setPreviewingSongId(null)
+        }
+      }
+    } catch (err) {
+      showToast(err instanceof TrackNotPlayableError ? err.message : 'Could not play that track')
+      setPreviewingSongId(null)
+    }
+  }
+
+  function togglePreviewSong(queue: DraftPoolSong[], song: DraftPoolSong) {
+    const audio = audioRef.current
+    if (!audio) return
+    if (previewingSongId === song.id) {
+      audio.pause()
+      setPreviewingSongId(null)
+      return
+    }
+    const index = queue.findIndex((s) => s.id === song.id)
+    if (index === -1) return
+    playSongAt(queue, index)
   }
 
   async function handleCreatePlaylistFor(drafterId: string, title: string, sharing: 'public' | 'private') {
@@ -506,9 +544,9 @@ export default function DraftSessionRoom() {
               )}
             </div>
 
-            {isSoundCloudConfigured() && !soundcloud.connection && (
+            {soundcloudPlaylistsEnabled && !soundcloud.connection && (
               <div className="rounded-xl border border-arena-600 bg-arena-800/60 p-4 text-center">
-                <p className="mb-2 text-sm text-slate-400">Connect SoundCloud to build a listening playlist per drafter.</p>
+                <p className="mb-2 text-sm text-slate-400">Connect SoundCloud to listen along and save a playlist per drafter.</p>
                 <button
                   onClick={() => soundcloud.connect()}
                   className="rounded-full border border-[#ff5500] px-5 py-2 font-semibold text-[#ff7733] hover:bg-[#ff5500]/10"
@@ -519,20 +557,26 @@ export default function DraftSessionRoom() {
             )}
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {session.drafters.map((drafter) => (
-                <DrafterRoster
-                  key={drafter.id}
-                  drafter={drafter}
-                  songs={rosterFor(drafter.id)}
-                  showPlayer
-                  onCreatePlaylist={
-                    isSoundCloudConfigured() && soundcloud.connection && soundcloudSongsFor(drafter.id).length > 0
-                      ? () => setPlaylistModalDrafterId(drafter.id)
-                      : undefined
-                  }
-                  onResetPlaylist={isSoundCloudConfigured() && soundcloud.connection ? () => resetPlaylistFor(drafter.id) : undefined}
-                />
-              ))}
+              {session.drafters.map((drafter) => {
+                const songs = rosterFor(drafter.id)
+                return (
+                  <DrafterRoster
+                    key={drafter.id}
+                    drafter={drafter}
+                    songs={songs}
+                    onCreatePlaylist={
+                      soundcloudPlaylistsEnabled && soundcloud.connection && soundcloudSongsFor(drafter.id).length > 0
+                        ? () => setPlaylistModalDrafterId(drafter.id)
+                        : undefined
+                    }
+                    onResetPlaylist={soundcloudPlaylistsEnabled && soundcloud.connection ? () => resetPlaylistFor(drafter.id) : undefined}
+                    onPreviewSong={
+                      soundcloudPlaylistsEnabled && soundcloud.connection ? (song) => togglePreviewSong(songs, song) : undefined
+                    }
+                    previewingSongId={previewingSongId}
+                  />
+                )
+              })}
             </div>
 
             <button

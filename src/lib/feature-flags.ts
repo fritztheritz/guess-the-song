@@ -48,6 +48,13 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
       'A shared song pool that teams snake-draft 5 songs from, one pick at a time on a shared screen — once a song is picked, it\'s off the board for every future draft too. Ends with everyone ranking every other team\'s roster to crown a winner.',
     default: false,
   },
+  {
+    key: 'draft-soundcloud-playlists',
+    label: 'Draft: SoundCloud Playlists',
+    description:
+      "On the draft's Listening Time screen: save each drafter's picks as a SoundCloud playlist, and play tracks inline via this app's own SoundCloud connection. Still being worked through — playback via the connected account isn't confirmed working yet.",
+    default: false,
+  },
 ]
 
 const STORAGE_KEY = 'gts.flags.v1'
