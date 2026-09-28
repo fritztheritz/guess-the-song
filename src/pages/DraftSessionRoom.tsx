@@ -8,13 +8,29 @@ import { useToast } from '../state/ToastContext'
 import { useSoundCloud } from '../state/SoundCloudContext'
 import { isSoundCloudConfigured } from '../lib/soundcloud/config'
 import { createSoundCloudPlaylist } from '../lib/soundcloud/soundcloud-tracks'
+import { buildDraftResultsShareUrl } from '../lib/draft-share'
 import Spinner from '../components/Spinner'
+
+// SoundCloud's widget accepts any playlist permalink (private ones included, since the
+// permalink already carries its own secret_token query param) — no oEmbed round-trip needed,
+// just build the iframe src directly.
+function soundCloudWidgetSrc(playlistUrl: string): string {
+  const params = new URLSearchParams({
+    url: playlistUrl,
+    color: 'ff5500',
+    auto_play: 'false',
+    show_comments: 'false',
+    visual: 'false',
+  })
+  return `https://w.soundcloud.com/player/?${params.toString()}`
+}
 
 function DrafterRoster({
   drafter,
   songs,
   highlight,
   onCreatePlaylist,
+  showPlayer,
 }: {
   drafter: Drafter
   songs: DraftPoolSong[]
@@ -22,6 +38,9 @@ function DrafterRoster({
   /** Opens the naming modal. Only passed on the listening screen, and only when the drafter
    *  has an eligible song. */
   onCreatePlaylist?: () => void
+  /** Renders the embedded SoundCloud player when a playlist exists. Only passed on the
+   *  listening screen — keeps the roster grid compact everywhere else. */
+  showPlayer?: boolean
 }) {
   return (
     <div className={`rounded-xl border p-3 ${highlight ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 bg-arena-800/60'}`}>
@@ -57,6 +76,15 @@ function DrafterRoster({
             </li>
           ))}
         </ul>
+      )}
+      {showPlayer && drafter.soundcloudPlaylistUrl && (
+        <iframe
+          title={`${drafter.name}'s playlist`}
+          className="mt-2 w-full rounded-md"
+          height="120"
+          src={soundCloudWidgetSrc(drafter.soundcloudPlaylistUrl)}
+          allow="autoplay"
+        />
       )}
     </div>
   )
@@ -120,6 +148,8 @@ export default function DraftSessionRoom() {
   const [ballotOrder, setBallotOrder] = useState<string[]>([])
   const [playlistModalDrafterId, setPlaylistModalDrafterId] = useState<string | null>(null)
   const [creatingPlaylistId, setCreatingPlaylistId] = useState<string | null>(null)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [sharing, setSharing] = useState(false)
 
   useEffect(() => {
     if (!boardId) return
@@ -139,6 +169,16 @@ export default function DraftSessionRoom() {
   const currentDrafterIndex = order[currentPickNumber]
   const currentDrafter = session && currentDrafterIndex !== undefined ? session.drafters[currentDrafterIndex] : undefined
   const currentRound = session ? Math.floor(currentPickNumber / drafterCount) + 1 : 1
+  const onDeck = useMemo(
+    () =>
+      session
+        ? order
+            .slice(currentPickNumber + 1, currentPickNumber + 5)
+            .map((i) => session.drafters[i])
+            .filter((d): d is Drafter => !!d)
+        : [],
+    [session, order, currentPickNumber],
+  )
 
   const availableSongs = useMemo(() => board?.songPool.filter((s) => !s.takenBySessionId) ?? [], [board])
   const filteredSongs = useMemo(() => {
@@ -197,6 +237,25 @@ export default function DraftSessionRoom() {
       showToast(err instanceof Error ? err.message : 'Could not create the playlist')
     } finally {
       setCreatingPlaylistId(null)
+    }
+  }
+
+  async function handleShareResults() {
+    if (!board || !session) return
+    setSharing(true)
+    try {
+      const url = await buildDraftResultsShareUrl(board, session)
+      setShareUrl(url)
+      try {
+        await navigator.clipboard.writeText(url)
+        showToast('Link copied to clipboard!')
+      } catch {
+        showToast('Could not copy — select the link below.')
+      }
+    } catch {
+      showToast('Could not generate a share link.')
+    } finally {
+      setSharing(false)
     }
   }
 
@@ -302,6 +361,26 @@ export default function DraftSessionRoom() {
                   ↩ Undo Last Pick
                 </button>
               )}
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-arena-700">
+                <div
+                  className="h-full rounded-full bg-hardwood-500 transition-[width]"
+                  style={{ width: `${(currentPickNumber / totalPicks) * 100}%` }}
+                />
+              </div>
+              {onDeck.length > 0 && (
+                <div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-slate-500">
+                  <span className="uppercase tracking-widest">On deck</span>
+                  {onDeck.map((drafter, i) => (
+                    <span key={i} className="flex items-center gap-1.5">
+                      {i > 0 && <span className="text-arena-600">→</span>}
+                      <span style={{ color: drafter.color }}>
+                        {drafter.avatar ? `${drafter.avatar} ` : ''}
+                        {drafter.name}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
@@ -388,6 +467,7 @@ export default function DraftSessionRoom() {
                   key={drafter.id}
                   drafter={drafter}
                   songs={rosterFor(drafter.id)}
+                  showPlayer
                   onCreatePlaylist={
                     isSoundCloudConfigured() && soundcloud.connection && soundcloudSongsFor(drafter.id).length > 0
                       ? () => setPlaylistModalDrafterId(drafter.id)
@@ -476,6 +556,24 @@ export default function DraftSessionRoom() {
           <div className="space-y-6">
             <div className="text-center">
               <div className="font-display text-4xl tracking-widest text-hardwood-400">FINAL STANDINGS</div>
+            </div>
+
+            <div className="flex flex-col items-center gap-2">
+              <button
+                onClick={handleShareResults}
+                disabled={sharing}
+                className="rounded-full border border-arena-500 px-5 py-2 text-sm text-slate-200 disabled:opacity-40 hover:border-hardwood-500"
+              >
+                {sharing ? 'Generating link…' : '🔗 Share Results'}
+              </button>
+              {shareUrl && (
+                <input
+                  readOnly
+                  value={shareUrl}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="w-full max-w-md rounded-lg border border-arena-600 bg-arena-800 px-3 py-1.5 text-center text-xs text-slate-400 outline-none focus:border-hardwood-500"
+                />
+              )}
             </div>
             <div className="space-y-2">
               {computeDraftStandings(session).map((standing, i) => (
