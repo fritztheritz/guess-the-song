@@ -10,6 +10,10 @@ interface RawSpotifyTrack {
   album?: { images?: Array<{ url: string; width: number; height: number }> }
   duration_ms: number
   external_urls?: { spotify?: string }
+  /** 0-100, Spotify's own score — search results carry it same as any other track object.
+   *  Used to rank Guess the Popularity's top 10 from search results instead of the
+   *  Get Artist's Top Tracks endpoint (see getArtistTopTracksBySearch below). */
+  popularity?: number
 }
 
 interface RawSpotifyArtist {
@@ -38,6 +42,9 @@ export interface ImportableSpotifyTrack {
   artist: string
   artworkUrl?: string
   duration: number // seconds
+  /** 0-100 — see RawSpotifyTrack.popularity. Absent on tracks fetched from endpoints that
+   *  don't return it (e.g. playlist tracks); only guaranteed present from search results. */
+  popularity?: number
 }
 
 export interface SpotifyArtistMatch {
@@ -73,6 +80,7 @@ function mapToImportableSpotifyTrack(raw: RawSpotifyTrack): ImportableSpotifyTra
     artist: raw.artists.map((a) => a.name).join(', '),
     artworkUrl,
     duration: Math.round(raw.duration_ms / 1000),
+    popularity: raw.popularity,
   }
 }
 
@@ -206,19 +214,16 @@ const CATALOG_TARGET = 50
 
 /**
  * A bounded pool (~50 tracks, not the artist's whole discography) for Guess the
- * Popularity's guess picker — reuses the same artist-scoped search + pagination as the
- * search tab above rather than walking every album/single via `/artists/{id}/albums`,
- * which for a prolific artist could mean dozens of extra round trips against this app's
- * already-low per-request quota (see CANDIDATE_LIMITS). Deduped by normalized title —
- * remixes/remasters surfacing as separate hits are harmless noise in a decoy pool, not
- * worth the extra work to collapse. `mustInclude` (the real top-10 answers) is always
- * folded in first, since search isn't guaranteed to surface every one of them itself.
+ * Popularity — reuses the same artist-scoped search + pagination as the search tab above
+ * rather than walking every album/single via `/artists/{id}/albums`, which for a prolific
+ * artist could mean dozens of extra round trips against this app's already-low per-request
+ * quota (see CANDIDATE_LIMITS). Deduped by normalized title — remixes/remasters surfacing
+ * as separate hits are harmless noise in a decoy pool, not worth the extra work to collapse.
  */
-export async function getArtistCatalog(artistName: string, mustInclude: ImportableSpotifyTrack[]): Promise<ImportableSpotifyTrack[]> {
+async function collectArtistSearchTracks(artistName: string): Promise<ImportableSpotifyTrack[]> {
   const query = `artist:"${artistName}"`
   const seen = new Map<string, ImportableSpotifyTrack>()
   const keyOf = (t: ImportableSpotifyTrack) => t.title.trim().toLowerCase()
-  for (const t of mustInclude) seen.set(keyOf(t), t)
 
   function addPage(rawItems: RawSpotifyTrack[]) {
     for (const raw of rawItems) {
@@ -244,7 +249,25 @@ export async function getArtistCatalog(artistName: string, mustInclude: Importab
     offset += pageItems.length
   }
 
-  return [...seen.values()].sort((a, b) => a.title.localeCompare(b.title))
+  return [...seen.values()]
+}
+
+/**
+ * Guess the Popularity's artist fetch: ranks the top 10 by each track's own `popularity`
+ * score out of the SAME artist-scoped search results used for the guess pool below — one
+ * fetch doing double duty, rather than calling Get Artist's Top Tracks. Spotify restricted
+ * that endpoint for Development Mode apps as of their Nov 2024 policy change; it 403s even
+ * for an app's own added testers, while Search isn't restricted the same way. This is an
+ * approximation of Spotify's own top-tracks ranking, not identical to it (their ranking
+ * likely also weighs recent listening trends) — but search relevance for an artist-scoped
+ * query surfaces well-known tracks first in practice, so the true top 10 should reliably
+ * land within CATALOG_TARGET results for any artist with a normal-sized catalog.
+ */
+export async function getArtistTopTracksBySearch(artistName: string): Promise<{ top: ImportableSpotifyTrack[]; pool: ImportableSpotifyTrack[] }> {
+  const items = await collectArtistSearchTracks(artistName)
+  const top = [...items].sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0)).slice(0, 10)
+  const pool = [...items].sort((a, b) => a.title.localeCompare(b.title))
+  return { top, pool }
 }
 
 const PLAYLIST_TARGET = 50 // most hosts won't have more than this many of their own playlists

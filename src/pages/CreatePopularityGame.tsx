@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useSpotify } from '../state/SpotifyContext'
 import {
   searchSpotifyArtists,
-  getArtistTopTracks,
-  getArtistCatalog,
+  getArtistTopTracksBySearch,
   type SpotifyArtistMatch,
   type ImportableSpotifyTrack,
 } from '../lib/spotify/spotify-tracks'
@@ -66,14 +65,10 @@ export default function CreatePopularityGame() {
     setLoadingArtist(true)
     setLoadError(null)
     try {
-      const top = await getArtistTopTracks(picked.id)
+      const { top, pool } = await getArtistTopTracksBySearch(picked.name)
       setTopTracks(top)
+      setCatalogPool(pool)
       setName(`Guess the Popularity — ${picked.name}`)
-      // Pool building can run after the top-10 preview is already visible — no need to
-      // block the page on it, and it's the slower of the two calls (more pages).
-      getArtistCatalog(picked.name, top)
-        .then(setCatalogPool)
-        .catch(() => setCatalogPool(top)) // decoys are a nice-to-have; the real answers alone still make a playable pool
     } catch (err) {
       // `artist` stays set here (not reset to null) — the loadError branch below only
       // renders while `artist` is truthy, so clearing it would silently drop back to the
@@ -220,7 +215,7 @@ export default function CreatePopularityGame() {
                 <div className="font-semibold text-slate-100">{artist.name}</div>
                 <div className="text-xs text-slate-500">
                   Top {topTracks.length} track{topTracks.length === 1 ? '' : 's'} loaded
-                  {catalogPool.length > 0 ? ` · ${catalogPool.length}-song guess pool` : ' · building guess pool…'}
+                  · {catalogPool.length}-song guess pool
                 </div>
               </div>
             </Panel>
