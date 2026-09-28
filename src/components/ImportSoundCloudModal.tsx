@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import TrackCard from './TrackCard'
 import SoundCloudConnectPanel from './SoundCloudConnectPanel'
 import SoundCloudAttribution from './SoundCloudAttribution'
@@ -18,9 +18,9 @@ import {
   type ImportableTrack,
   type TrackPage,
 } from '../lib/soundcloud/soundcloud-tracks'
-import { getTrackPlayback } from '../lib/soundcloud/soundcloud-playback'
 import { SoundCloudApiError, SoundCloudNotConnectedError, SoundCloudRateLimitError } from '../lib/soundcloud/soundcloud-api'
 import { TrackNotPlayableError } from '../lib/soundcloud/soundcloud-playback'
+import { useSoundCloudPreview } from '../lib/soundcloud/use-soundcloud-preview'
 
 type Tab = 'mine' | 'liked' | 'playlists' | 'search' | 'paste'
 
@@ -70,15 +70,9 @@ export default function ImportSoundCloudModal({
   const [activeArtist, setActiveArtist] = useState<ImportableArtist | null>(null)
   const [pasteUrl, setPasteUrl] = useState('')
   const [resolvedTrack, setResolvedTrack] = useState<ImportableTrack | null>(null)
-  const [previewingId, setPreviewingId] = useState<string | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-
-  useEffect(() => {
-    audioRef.current = new Audio()
-    return () => {
-      audioRef.current?.pause()
-    }
-  }, [])
+  const { previewingKey: previewingId, toggle: togglePreviewTrack } = useSoundCloudPreview((err) =>
+    setError(err instanceof TrackNotPlayableError ? err.message : errorMessage(err)),
+  )
 
   useEffect(() => {
     if (!connection) return
@@ -252,24 +246,8 @@ export default function ImportSoundCloudModal({
     }
   }
 
-  async function togglePreview(track: ImportableTrack) {
-    const audio = audioRef.current
-    if (!audio) return
-    if (previewingId === track.soundcloudTrackId) {
-      audio.pause()
-      setPreviewingId(null)
-      return
-    }
-    try {
-      const url = await getTrackPlayback(track.soundcloudTrackId, track.soundcloudSecretToken)
-      audio.src = url
-      audio.currentTime = 0
-      await audio.play()
-      setPreviewingId(track.soundcloudTrackId)
-      audio.onended = () => setPreviewingId(null)
-    } catch (err) {
-      setError(err instanceof TrackNotPlayableError ? err.message : errorMessage(err))
-    }
+  function togglePreview(track: ImportableTrack) {
+    togglePreviewTrack({ key: track.soundcloudTrackId, soundcloudTrackId: track.soundcloudTrackId, soundcloudSecretToken: track.soundcloudSecretToken })
   }
 
   function toggleSelect(track: ImportableTrack) {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { DraftBoard, DraftPoolSong, Drafter } from '../types/draft'
 import { snakeOrder, computeDraftStandings } from '../types/draft'
@@ -9,7 +9,8 @@ import { useSoundCloud } from '../state/SoundCloudContext'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import { isSoundCloudConfigured } from '../lib/soundcloud/config'
 import { createSoundCloudPlaylist } from '../lib/soundcloud/soundcloud-tracks'
-import { getTrackPlayback, TrackNotPlayableError } from '../lib/soundcloud/soundcloud-playback'
+import { TrackNotPlayableError } from '../lib/soundcloud/soundcloud-playback'
+import { useSoundCloudPreview, type PreviewableTrack } from '../lib/soundcloud/use-soundcloud-preview'
 import { buildDraftResultsShareUrl } from '../lib/draft-share'
 import Spinner from '../components/Spinner'
 
@@ -177,20 +178,14 @@ export default function DraftSessionRoom() {
   const [creatingPlaylistId, setCreatingPlaylistId] = useState<string | null>(null)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [sharing, setSharing] = useState(false)
-  const [previewingSongId, setPreviewingSongId] = useState<string | null>(null)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const { previewingKey: previewingSongId, toggle: togglePreviewTrack } = useSoundCloudPreview((err) =>
+    showToast(err instanceof TrackNotPlayableError ? err.message : 'Could not play that track'),
+  )
 
   useEffect(() => {
     if (!boardId) return
     setBoard(getDraftBoard(boardId))
   }, [boardId])
-
-  useEffect(() => {
-    audioRef.current = new Audio()
-    return () => {
-      audioRef.current?.pause()
-    }
-  }, [])
 
   const session = board?.sessions.find((s) => s.id === sessionId)
 
@@ -229,17 +224,34 @@ export default function DraftSessionRoom() {
     return songIds.map((id) => board.songPool.find((s) => s.id === id)).filter((s): s is DraftPoolSong => !!s)
   }
 
+  // Reads fresh from storage rather than closing over the `board`/`session` state bound at
+  // render time — two picks fired back-to-back (fast double-click/tap) before React re-renders
+  // would otherwise both compute their write from the same stale picks list, and the second
+  // persist() would silently overwrite the first. Re-deriving whose turn it is from the latest
+  // picks (instead of the outer currentDrafter/currentRound closures) keeps the two picks
+  // correctly attributed to different drafters/rounds instead of both landing on the same one.
   function pickSong(song: DraftPoolSong) {
-    if (!board || !session || !currentDrafter) return
+    if (!boardId || !sessionId) return
+    const latestBoard = getDraftBoard(boardId)
+    const latestSession = latestBoard?.sessions.find((s) => s.id === sessionId)
+    if (!latestBoard || !latestSession) return
+    if (latestBoard.songPool.find((s) => s.id === song.id)?.takenBySessionId) return
+    const pickNumber = latestSession.picks.length
+    const drafters = latestSession.drafters
+    const drafterIndex = snakeOrder(drafters.length, latestSession.picksPerDrafter)[pickNumber]
+    const drafter = drafterIndex !== undefined ? drafters[drafterIndex] : undefined
+    if (!drafter) return
+    const round = Math.floor(pickNumber / drafters.length) + 1
+    const total = drafters.length * latestSession.picksPerDrafter
     persist({
-      ...board,
-      songPool: board.songPool.map((s) => (s.id === song.id ? { ...s, takenBySessionId: session.id, takenByDrafterId: currentDrafter.id } : s)),
-      sessions: board.sessions.map((s) =>
-        s.id === session.id
+      ...latestBoard,
+      songPool: latestBoard.songPool.map((s) => (s.id === song.id ? { ...s, takenBySessionId: sessionId, takenByDrafterId: drafter.id } : s)),
+      sessions: latestBoard.sessions.map((s) =>
+        s.id === sessionId
           ? {
               ...s,
-              picks: [...s.picks, { songId: song.id, drafterId: currentDrafter.id, round: currentRound }],
-              phase: s.picks.length + 1 >= totalPicks ? 'listening' : s.phase,
+              picks: [...s.picks, { songId: song.id, drafterId: drafter.id, round }],
+              phase: pickNumber + 1 >= total ? 'listening' : s.phase,
             }
           : s,
       ),
@@ -256,41 +268,12 @@ export default function DraftSessionRoom() {
   // w.soundcloud.com/player, the same private content 404s there even with a valid secret token,
   // while their own metadata API resolves it fine). Auto-advances through the rest of that
   // drafter's roster on end, so clicking one song plays the "set" much like a real playlist would.
-  async function playSongAt(queue: DraftPoolSong[], index: number) {
-    const audio = audioRef.current
-    const song = queue[index]
-    if (!audio || !song?.soundcloudTrackId) return
-    try {
-      const url = await getTrackPlayback(song.soundcloudTrackId, song.soundcloudSecretToken)
-      audio.src = url
-      audio.currentTime = 0
-      await audio.play()
-      setPreviewingSongId(song.id)
-      audio.onended = () => {
-        const next = index + 1
-        if (next < queue.length && queue[next].soundcloudTrackId) {
-          playSongAt(queue, next)
-        } else {
-          setPreviewingSongId(null)
-        }
-      }
-    } catch (err) {
-      showToast(err instanceof TrackNotPlayableError ? err.message : 'Could not play that track')
-      setPreviewingSongId(null)
-    }
+  function toPreviewableTrack(song: DraftPoolSong): PreviewableTrack {
+    return { key: song.id, soundcloudTrackId: song.soundcloudTrackId ?? '', soundcloudSecretToken: song.soundcloudSecretToken }
   }
 
   function togglePreviewSong(queue: DraftPoolSong[], song: DraftPoolSong) {
-    const audio = audioRef.current
-    if (!audio) return
-    if (previewingSongId === song.id) {
-      audio.pause()
-      setPreviewingSongId(null)
-      return
-    }
-    const index = queue.findIndex((s) => s.id === song.id)
-    if (index === -1) return
-    playSongAt(queue, index)
+    togglePreviewTrack(toPreviewableTrack(song), queue.map(toPreviewableTrack))
   }
 
   async function handleCreatePlaylistFor(drafterId: string, title: string, sharing: 'public' | 'private') {

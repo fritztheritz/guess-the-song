@@ -174,13 +174,13 @@ export interface CreatedSoundCloudPlaylist {
 }
 
 // The one write call in this file (everything else here is read-only). Caller picks public vs.
-// private (DraftSessionRoom's CreatePlaylistModal) — it's a real tradeoff, not just privacy vs.
-// not: SoundCloud's embeddable widget (w.soundcloud.com/player) flatly refuses private/secret-token
-// resources with a 404, even though their own metadata API resolves them fine with a valid token.
-// Only a public playlist can be embedded inline on the Listening Time screen; a private one only
-// ever works as a click-through link. Confirmed directly against SoundCloud (curl A/B: a public
-// track 200s at /player, the same private track and a private playlist both 404 there while
-// resolving fine via api-widget.soundcloud.com/resolve) — not fixable by reshaping the URL.
+// private (DraftSessionRoom's CreatePlaylistModal) — purely a SoundCloud-side discoverability
+// choice at this point, not a playback one: the Listening Time screen plays tracks natively via
+// this app's own authenticated connection (see use-soundcloud-preview.ts), which works the same
+// for public and private tracks alike. That replaced an earlier attempt to embed SoundCloud's
+// public widget (w.soundcloud.com/player) inline, which flatly refuses private/secret-token
+// resources with a 404 regardless of URL shape, confirmed directly against SoundCloud — not
+// something fixable from this end, hence playing tracks through the app's own connection instead.
 //
 // The current (Open API) /playlists endpoint requires each track as { urn: "soundcloud:tracks:<id>" },
 // not { id: <number> } — the latter matches SoundCloud's older/classic API docs but 422s against
