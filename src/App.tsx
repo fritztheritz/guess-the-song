@@ -17,6 +17,7 @@ import TournamentBuilder from './pages/TournamentBuilder'
 import CreateDraftBoard from './pages/CreateDraftBoard'
 import DraftBoardHome from './pages/DraftBoardHome'
 import DraftSessionRoom from './pages/DraftSessionRoom'
+import DraftPresentation from './pages/DraftPresentation'
 import RequireFlag from './components/RequireFlag'
 
 export default function App() {
@@ -94,6 +95,14 @@ export default function App() {
         element={
           <RequireFlag flag="draft">
             <DraftSessionRoom />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/drafts/:boardId/sessions/:sessionId/present"
+        element={
+          <RequireFlag flag="draft">
+            <DraftPresentation />
           </RequireFlag>
         }
       />

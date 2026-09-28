@@ -121,6 +121,11 @@ export default function HostController({ gameId }: { gameId: string }) {
   const [halftimePrompt, setHalftimePrompt] = useState('')
   const latestSnapshotRef = useRef<PresentationSnapshot | null>(null)
   const buzzerSocketRef = useRef<BuzzerSocket | null>(null)
+  // Teams the keyboard buzz-in path has marked wrong for the current clue — a client-side
+  // mirror of BuzzerRoom's `iced` set (see buzzer-room.js) for when there's no phone
+  // connection to enforce it server-side. A ref, not state: it only ever gates a keydown
+  // handler, never rendered.
+  const keyboardIcedRef = useRef<Set<string>>(new Set())
   // Recap stats for the final screen — live counters, not persisted, so they only cover
   // scoring that happened in this browser tab's current playthrough (a "continue" after
   // closing the tab starts these back at zero, same tradeoff as tierCredits/lastAward etc.).
@@ -235,6 +240,17 @@ export default function HostController({ gameId }: { gameId: string }) {
     buzzerSocketRef.current.sendAndRemember(phase === 'clue' ? { type: 'open' } : { type: 'close' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, buzzerConnected])
+
+  // Local (keyboard) buzz-in — a phone-free fallback so a "who answers first" race still
+  // exists without Phone Buzz-In configured or connected. Mirrors BuzzerRoom's open/close
+  // cycle client-side, reusing the same buzzState/buzzWinner the phone path drives; steps
+  // aside once a real phone connection is live so the two never fight over state.
+  useEffect(() => {
+    if (buzzerConnected || isTierGuess || isYear) return
+    keyboardIcedRef.current = new Set()
+    setBuzzWinner(null)
+    setBuzzState(phase === 'clue' ? 'open' : 'closed')
+  }, [phase, buzzerConnected, isTierGuess, isYear])
 
   // Phone-only mode: pushes a phone-safe summary of what's on screen (never the answer
   // before it's actually revealed) down to every connected player, so a group can follow
@@ -473,7 +489,16 @@ export default function HostController({ gameId }: { gameId: string }) {
   function markBuzzWrong() {
     if (!buzzWinner) return
     playWrong()
-    buzzerSocketRef.current?.send({ type: 'wrong', teamId: buzzWinner.teamId })
+    if (buzzerSocketRef.current) {
+      // Team-scoped, not device-scoped — the server ices this team regardless of whether
+      // the buzz that just got judged actually came from a phone or the local keyboard path.
+      buzzerSocketRef.current.send({ type: 'wrong', teamId: buzzWinner.teamId })
+    } else {
+      keyboardIcedRef.current.add(buzzWinner.teamId)
+      if (game && keyboardIcedRef.current.size >= game.teams.length) keyboardIcedRef.current = new Set()
+      setBuzzWinner(null)
+      setBuzzState('open')
+    }
   }
 
   // Tier Guess (and Year Guess) scoring is unlike award() above: any number of teams can
@@ -685,12 +710,27 @@ export default function HostController({ gameId }: { gameId: string }) {
         case 'Escape':
           exitPresentation()
           break
+        default: {
+          // Local (keyboard) buzz-in: digit N buzzes for game.teams[N-1]. Only meaningful
+          // where Phone Buzz-In's own buzzWinner banner/judging already applies (see
+          // markBuzzCorrect's comment) — same mode/wager restrictions, same buzzState gate.
+          if (phase !== 'clue' || isTierGuess || isYear || wagerPending) break
+          if (buzzState !== 'open' || buzzWinner) break
+          const digitMatch = /^Digit([1-9])$/.exec(e.code)
+          if (!digitMatch) break
+          const team = game?.teams[Number(digitMatch[1]) - 1]
+          if (!team || keyboardIcedRef.current.has(team.id)) break
+          e.preventDefault()
+          setBuzzWinner({ connId: `local:${team.id}`, name: team.name, teamId: team.id, at: Date.now(), reactionMs: null })
+          setBuzzState('locked')
+          playBuzzIn()
+        }
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, clueIndex, isPlaying, possessionIndex, showHelp, isLyric, isTierGuess, isYear, tierGuessStage, yearGuessStage, round?.wager, wagerTeamId])
+  }, [phase, clueIndex, isPlaying, possessionIndex, showHelp, isLyric, isTierGuess, isYear, tierGuessStage, yearGuessStage, round?.wager, wagerTeamId, buzzState, buzzWinner])
 
   const sortedFinal = useMemo(() => [...(game?.teams ?? [])].sort((a, b) => b.score - a.score), [game])
 
@@ -827,6 +867,9 @@ export default function HostController({ gameId }: { gameId: string }) {
                 ['Enter', 'Reveal answer / next possession'],
                 ['→', 'Next possession'],
                 ['←', 'Previous possession'],
+                ...(!isTierGuess && !isYear && game.teams.length > 0
+                  ? ([[`1–${game.teams.length}`, 'Buzz in for that team (no phone needed)']] as const)
+                  : []),
                 ['Esc', 'Exit presentation'],
                 ['?', 'Toggle this help'],
               ].map(([key, desc]) => (
@@ -836,6 +879,17 @@ export default function HostController({ gameId }: { gameId: string }) {
                 </div>
               ))}
             </dl>
+            {!isTierGuess && !isYear && game.teams.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-arena-700 pt-3">
+                {game.teams.map((team, i) => (
+                  <span key={team.id} className="flex items-center gap-1.5 rounded-full bg-arena-800 py-1 pl-1 pr-2.5 text-xs" style={{ color: team.color }}>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-arena-700 font-mono text-[11px] text-slate-200">{i + 1}</span>
+                    {team.avatar ? `${team.avatar} ` : ''}
+                    {team.name}
+                  </span>
+                ))}
+              </div>
+            )}
             <button
               onClick={() => setShowHelp(false)}
               className="mt-5 w-full rounded-full bg-hardwood-500 py-2 text-sm font-semibold text-arena-950 hover:bg-hardwood-400"

@@ -374,6 +374,13 @@ export default function DraftSessionRoom() {
     })
   }
 
+  function openPresentation() {
+    // Built off the current URL (not a hand-written absolute path) so it works unchanged
+    // under GitHub Pages' /guess-the-song/ base path — same approach as Game Present mode's
+    // "Public Display" button.
+    window.open(`${window.location.href.replace(/\/$/, '')}/present`, `gts-draft-present-${sessionId}`, 'noopener')
+  }
+
   function submitBallot() {
     if (!board || !session || !nextRanker) return
     const rankings = [...session.rankings, { drafterId: nextRanker.id, rankedDrafterIds: ballotOrder }]
@@ -406,14 +413,22 @@ export default function DraftSessionRoom() {
   return (
     <div className="min-h-svh court-lines px-6 py-10">
       <div className="mx-auto max-w-4xl space-y-6">
-        <div className="flex items-center gap-3">
-          <Link to={`/drafts/${board.id}`} className="text-2xl text-hardwood-400 hover:text-hardwood-300">
-            ←
-          </Link>
-          <div>
-            <div className="font-display text-2xl tracking-wide text-white">{session.name}</div>
-            <div className="text-xs text-slate-500">{board.name}</div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Link to={`/drafts/${board.id}`} className="text-2xl text-hardwood-400 hover:text-hardwood-300">
+              ←
+            </Link>
+            <div>
+              <div className="font-display text-2xl tracking-wide text-white">{session.name}</div>
+              <div className="text-xs text-slate-500">{board.name}</div>
+            </div>
           </div>
+          <button
+            onClick={openPresentation}
+            className="shrink-0 rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-300 hover:border-hardwood-500"
+          >
+            🖥️ Present
+          </button>
         </div>
 
         {session.phase === 'drafting' && currentDrafter && (
