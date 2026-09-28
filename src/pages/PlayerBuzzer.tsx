@@ -10,6 +10,10 @@ const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   lyric: '📝 Finish the lyric',
 }
 
+// Short labels for the month tap-grid (guessStage: 'guessMonth') — full names would wrap
+// awkwardly at 3-per-row on a phone width.
+const MONTH_SHORT_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
 function storageKey(code: string) {
   return `gts.buzzer.player.${code.toUpperCase()}`
 }
@@ -144,7 +148,7 @@ export default function PlayerBuzzer() {
   useEffect(() => {
     setModeGuessInput('')
     setModeGuessSubmitted(null)
-  }, [roundState?.possessionIndex])
+  }, [roundState?.possessionIndex, roundState?.guessStage])
 
   function submitModeGuess(text: string) {
     if (!text) return
@@ -341,6 +345,71 @@ export default function PlayerBuzzer() {
                     <p className="text-sm text-slate-400">✓ Sent "{modeGuessSubmitted}" — change your mind? Just tap or type a new one.</p>
                   )}
                   <p className="text-xs text-slate-500">No need to buzz — everyone can guess, right answers score automatically.</p>
+                </>
+              ) : roundState.phase === 'revealed' && roundState.guessStage === 'guessPosition' ? (
+                <>
+                  <p className="text-sm text-slate-300">Which position in the tier?</p>
+                  {/* A dropdown, not a button grid — unlike the tier list's tap buttons
+                      above (always a handful of tiers), a tier can hold dozens of songs, and
+                      a grid that big would just be clutter. A native <select> stays a single
+                      tap either way (the OS's own picker/wheel scales fine to any count) —
+                      same "trust the platform's own UI over an app-built one" call as the
+                      guess-box's plain autoCorrect/spellCheck instead of a suggestion list. */}
+                  {roundState.positionCount ? (
+                    <select
+                      value={modeGuessSubmitted ?? ''}
+                      onChange={(e) => submitModeGuess(e.target.value)}
+                      className="w-full rounded-xl border border-arena-600 bg-arena-800 px-4 py-3 text-center font-display text-xl text-white outline-none focus:border-hardwood-500"
+                    >
+                      <option value="" disabled>
+                        Pick a position…
+                      </option>
+                      {Array.from({ length: roundState.positionCount }, (_, i) => String(i + 1)).map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  ) : null}
+                  <form onSubmit={handleModeGuessSubmit} className="flex gap-2">
+                    <input
+                      value={modeGuessInput}
+                      onChange={(e) => setModeGuessInput(e.target.value)}
+                      placeholder="Position, e.g. 2"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      autoComplete="off"
+                      spellCheck={false}
+                      enterKeyHint="send"
+                      className="w-full rounded-xl border border-arena-600 bg-arena-800 px-4 py-3 text-center font-display text-2xl tracking-widest text-white outline-none focus:border-hardwood-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!modeGuessInput.trim()}
+                      className="shrink-0 rounded-xl bg-hardwood-500 px-4 font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
+                    >
+                      Send
+                    </button>
+                  </form>
+                  {modeGuessSubmitted && <p className="text-sm text-slate-400">✓ Sent "{modeGuessSubmitted}"</p>}
+                </>
+              ) : roundState.phase === 'revealed' && roundState.guessStage === 'guessMonth' ? (
+                <>
+                  <p className="text-sm text-slate-300">Which month?</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {MONTH_SHORT_NAMES.map((m) => (
+                      <button
+                        key={m}
+                        onClick={() => submitModeGuess(m)}
+                        className="rounded-xl border-2 border-arena-600 bg-arena-800 px-2 py-3 font-display text-base font-semibold text-white"
+                        style={{ borderColor: modeGuessSubmitted === m ? '#f59e0b' : undefined }}
+                      >
+                        {modeGuessSubmitted === m ? '✓ ' : ''}
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                  {modeGuessSubmitted && <p className="text-sm text-slate-400">✓ Sent "{modeGuessSubmitted}"</p>}
                 </>
               ) : (
                 <p className="text-sm text-slate-400">⏳ Time's up — check the screen for the answer.</p>

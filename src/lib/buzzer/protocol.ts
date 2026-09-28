@@ -52,6 +52,15 @@ export interface PhoneRoundState {
    *  never which song is in which one — same "only what's already safe to show" discipline
    *  as clueText/revealed above. */
   tiers?: Array<{ name: string; color: string }>
+  /** tierguess/year only — the reveal is staged (tier → guessPosition → position, year →
+   *  guessMonth → month) but `phase` alone stays 'revealed' across all three beats. This
+   *  flags the one beat, besides the primary phase:'clue' window, where a second guess is
+   *  being collected — closest-position/closest-month, still host-judged (not auto-scored),
+   *  but relayed the same way so the host can see what came in while picking who's closest. */
+  guessStage?: 'guessPosition' | 'guessMonth'
+  /** mode: "tierguess", guessStage: "guessPosition" only — how many songs share the
+   *  now-revealed tier, so phones can offer 1..N as tap targets instead of free typing. */
+  positionCount?: number
 }
 
 export type HostOutMessage =

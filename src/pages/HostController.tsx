@@ -262,14 +262,20 @@ export default function HostController({ gameId }: { gameId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamsKey, buzzerConnected])
 
-  // The buzzer is open exactly when the room is in 'clue' phase, for every mode/phase-entry
-  // path (fresh possession, resume, "TIP OFF", prev/next) — simpler and more robust than
-  // threading an open/close call through each of those individually.
+  // The buzzer/guess channel is open in 'clue' phase for every mode, plus one extra window
+  // for Tier Guess/Year: the guessPosition/guessMonth beat, where the primary answer is
+  // already shown but the closest-position/month follow-up is still being collected from
+  // phones. Without this it'd stay closed there (phase is 'revealed' the whole time), and
+  // the worker would silently drop every guess message sent during that beat.
+  const guessChannelOpen =
+    phase === 'clue' ||
+    (isTierGuess && phase === 'revealed' && tierGuessStage === 'guessPosition') ||
+    (isYear && phase === 'revealed' && yearGuessStage === 'guessMonth')
   useEffect(() => {
     if (!buzzerSocketRef.current) return
-    buzzerSocketRef.current.sendAndRemember(phase === 'clue' ? { type: 'open' } : { type: 'close' })
+    buzzerSocketRef.current.sendAndRemember(guessChannelOpen ? { type: 'open' } : { type: 'close' })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, buzzerConnected])
+  }, [guessChannelOpen, buzzerConnected])
 
   // Local (keyboard) buzz-in — a phone-free fallback so a "who answers first" race still
   // exists without Phone Buzz-In configured or connected. Mirrors BuzzerRoom's open/close
@@ -337,6 +343,12 @@ export default function HostController({ gameId }: { gameId: string }) {
             lyricAnswer: isLyric ? round.lyricAnswer : undefined,
           }
         : null
+    const guessStage: PhoneRoundState['guessStage'] =
+      isTierGuess && tierGuessStage === 'guessPosition'
+        ? 'guessPosition'
+        : isYear && yearGuessStage === 'guessMonth'
+          ? 'guessMonth'
+          : undefined
     buzzerSocketRef.current.sendAndRemember({
       type: 'sync-round',
       state: {
@@ -349,10 +361,12 @@ export default function HostController({ gameId }: { gameId: string }) {
         revealed,
         teams: game.teams.map((t) => ({ id: t.id, name: t.name, color: t.color, score: t.score, avatar: t.avatar })),
         tiers: isTierGuess ? game.tierListTiers?.map((t) => ({ name: t.name, color: t.color })) : undefined,
+        guessStage,
+        positionCount: guessStage === 'guessPosition' ? round?.tierSize : undefined,
       },
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, possessionIndex, round?.id, teamsWithScoreKey, buzzerConnected, isTierGuess])
+  }, [phase, possessionIndex, round?.id, teamsWithScoreKey, buzzerConnected, isTierGuess, isYear, tierGuessStage, yearGuessStage])
 
   useEffect(() => {
     if (phase === 'final') playFanfare()
@@ -596,6 +610,32 @@ export default function HostController({ gameId }: { gameId: string }) {
   const togglePositionCredit = (team: Team) => toggleCredit(positionCredits, setPositionCredits, team, TIER_GUESS_POSITION_POINTS)
   const toggleYearCredit = (team: Team) => toggleCredit(yearCredits, setYearCredits, team, YEAR_GUESS_YEAR_POINTS)
   const toggleMonthCredit = (team: Team) => toggleCredit(monthCredits, setMonthCredits, team, YEAR_GUESS_MONTH_POINTS)
+
+  // Live view of whatever's in modeGuesses right now — reused for both the primary (auto-
+  // scored) tier/year guess window and the closest-position/month follow-up, where it's
+  // purely reference for the host's own judgment call rather than anything auto-graded.
+  function submittedSoFarPanel() {
+    if (!game || modeGuesses.size === 0) return null
+    return (
+      <div className="w-full max-w-sm space-y-1.5">
+        <div className="text-xs uppercase tracking-widest text-slate-500">Submitted so far ({modeGuesses.size})</div>
+        <div className="flex flex-wrap items-center justify-center gap-1.5">
+          {[...modeGuesses.values()].map((g, i) => {
+            const team = game.teams.find((t) => t.id === g.teamId)
+            return (
+              <span
+                key={i}
+                className="rounded-full px-2.5 py-1 text-xs font-semibold"
+                style={{ background: `${team?.color ?? '#888'}22`, color: team?.color }}
+              >
+                {g.name}: {g.text}
+              </span>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   // Grades every typed guess collected in modeGuesses against `match` in one shot — used by
   // Guess the Year/Tier's no-buzz guessing (see PlayerBuzzer), where any number of players
@@ -1157,25 +1197,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                   )}
                 </div>
 
-                {modeGuesses.size > 0 && (
-                  <div className="w-full max-w-sm space-y-1.5">
-                    <div className="text-xs uppercase tracking-widest text-slate-500">Submitted so far ({modeGuesses.size})</div>
-                    <div className="flex flex-wrap items-center justify-center gap-1.5">
-                      {[...modeGuesses.values()].map((g, i) => {
-                        const team = game.teams.find((t) => t.id === g.teamId)
-                        return (
-                          <span
-                            key={i}
-                            className="rounded-full px-2.5 py-1 text-xs font-semibold"
-                            style={{ background: `${team?.color ?? '#888'}22`, color: team?.color }}
-                          >
-                            {g.name}: {g.text}
-                          </span>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
+                {submittedSoFarPanel()}
               </>
             ) : isYear ? (
               <>
@@ -1210,25 +1232,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                   <div className="text-slate-400">{round.artist}</div>
                 </div>
 
-                {modeGuesses.size > 0 && (
-                  <div className="w-full max-w-sm space-y-1.5">
-                    <div className="text-xs uppercase tracking-widest text-slate-500">Submitted so far ({modeGuesses.size})</div>
-                    <div className="flex flex-wrap items-center justify-center gap-1.5">
-                      {[...modeGuesses.values()].map((g, i) => {
-                        const team = game.teams.find((t) => t.id === g.teamId)
-                        return (
-                          <span
-                            key={i}
-                            className="rounded-full px-2.5 py-1 text-xs font-semibold"
-                            style={{ background: `${team?.color ?? '#888'}22`, color: team?.color }}
-                          >
-                            {g.name}: {g.text}
-                          </span>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
+                {submittedSoFarPanel()}
               </>
             ) : (
               <>
@@ -1488,7 +1492,9 @@ export default function HostController({ gameId }: { gameId: string }) {
           )}
 
           {isTierGuess ? (
-            tierGuessStage === 'guessPosition' ? null : (
+            tierGuessStage === 'guessPosition' ? (
+              <div className="relative z-10 w-full max-w-lg space-y-3">{submittedSoFarPanel()}</div>
+            ) : (
               <div className="relative z-10 w-full max-w-lg space-y-3">
                 {tierGuessStage === 'tier' ? (
                   <div>
@@ -1512,7 +1518,8 @@ export default function HostController({ gameId }: { gameId: string }) {
                     </div>
                   </div>
                 ) : (
-                  <div>
+                  <div className="space-y-3">
+                    {submittedSoFarPanel()}
                     <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
                       Closest to position? (+{TIER_GUESS_POSITION_POINTS})
                     </div>
@@ -1536,7 +1543,9 @@ export default function HostController({ gameId }: { gameId: string }) {
               </div>
             )
           ) : isYear ? (
-            yearGuessStage === 'guessMonth' ? null : (
+            yearGuessStage === 'guessMonth' ? (
+              <div className="relative z-10 w-full max-w-lg space-y-3">{submittedSoFarPanel()}</div>
+            ) : (
               <div className="relative z-10 w-full max-w-lg space-y-3">
                 {yearGuessStage === 'year' ? (
                   <div>
@@ -1560,7 +1569,8 @@ export default function HostController({ gameId }: { gameId: string }) {
                     </div>
                   </div>
                 ) : (
-                  <div>
+                  <div className="space-y-3">
+                    {submittedSoFarPanel()}
                     <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
                       Got the month right? (+{YEAR_GUESS_MONTH_POINTS})
                     </div>
