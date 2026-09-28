@@ -617,7 +617,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   function submittedSoFarPanel() {
     if (!game || modeGuesses.size === 0) return null
     return (
-      <div className="w-full max-w-sm space-y-1.5">
+      <div className="mx-auto w-full max-w-sm space-y-1.5 text-center">
         <div className="text-xs uppercase tracking-widest text-slate-500">Submitted so far ({modeGuesses.size})</div>
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           {[...modeGuesses.values()].map((g, i) => {
