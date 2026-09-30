@@ -30,7 +30,7 @@ export default function AnswerKeyModal({ game, onClose }: { game: Game; onClose:
           readOnly
           value={text}
           onFocus={(e) => e.currentTarget.select()}
-          className="h-64 w-full resize-none rounded-lg border border-arena-600 bg-arena-800 p-3 font-mono text-xs text-slate-200 outline-none"
+          className="h-64 w-full resize-none rounded-lg border border-arena-600 bg-arena-800 p-3 font-mono text-xs text-slate-200 outline-none focus:border-hardwood-500"
         />
       </div>
       <div className="flex items-center justify-end gap-2 border-t border-arena-700 px-6 py-3">

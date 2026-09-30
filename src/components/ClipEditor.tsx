@@ -131,7 +131,7 @@ export default function ClipEditor({ round, onChange }: { round: SongRound; onCh
                 max={60}
                 value={clueDuration}
                 onChange={(e) => updateDuration(i, Number(e.target.value))}
-                className="w-9 bg-transparent text-center font-display text-lg text-hardwood-400 outline-none"
+                className="w-9 rounded bg-transparent text-center font-display text-lg text-hardwood-400 outline-none focus:ring-1 focus:ring-hardwood-500"
                 aria-label={`Clue ${i + 1} duration in seconds`}
               />
               <span className="text-xs text-slate-500">s</span>
@@ -151,7 +151,7 @@ export default function ClipEditor({ round, onChange }: { round: SongRound; onCh
                 max={99}
                 value={round.points[i]}
                 onChange={(e) => updatePoints(i, Number(e.target.value))}
-                className="w-7 bg-transparent text-center text-xs text-slate-400 outline-none"
+                className="w-7 rounded bg-transparent text-center text-xs text-slate-400 outline-none focus:ring-1 focus:ring-hardwood-500"
                 aria-label={`Clue ${i + 1} points`}
               />
               <span className="text-xs text-slate-500">pts</span>

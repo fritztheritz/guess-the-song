@@ -103,7 +103,7 @@ export default function TierListBuilder() {
             <input
               value={list.name}
               onChange={(e) => persist({ ...list, name: e.target.value })}
-              className="mt-1 w-full bg-transparent font-display text-3xl tracking-wide text-white outline-none"
+              className="mt-1 w-full bg-transparent font-display text-3xl tracking-wide text-white outline-none focus:border-b focus:border-hardwood-500"
             />
             <div className="mt-2 max-w-sm">
               <TagInput tags={list.tags ?? []} onChange={updateTags} suggestions={tagSuggestions} listId="tierlist-tag-suggestions" />
