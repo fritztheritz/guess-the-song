@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
 import type { BuzzState, BuzzerTeam, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
 import PopularityPicker from '../components/PopularityPicker'
+import { useFeatureFlag } from '../state/feature-flags-context'
 
 const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   song: '🎧 Listen up!',
@@ -16,13 +17,19 @@ const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
 // awkwardly at 3-per-row on a phone width.
 const MONTH_SHORT_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+// UI-only sentinel for the join picker's `selectedTeamId` — distinguishes "explicitly chose
+// to just watch" from "hasn't picked anything yet" (both would otherwise be `null`, which is
+// the real spectator value sent to the room). Never leaves this component.
+const SPECTATOR_CHOICE = '__spectator__'
+
 function storageKey(code: string) {
   return `gts.buzzer.player.${code.toUpperCase()}`
 }
 
 interface SavedIdentity {
   name: string
-  teamId: string
+  /** null = joined as a spectator ("just watching") — see BuzzerPlayer in protocol.ts. */
+  teamId: string | null
 }
 
 function loadIdentity(code: string): SavedIdentity | null {
@@ -56,13 +63,16 @@ export default function PlayerBuzzer() {
 
 function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
   const navigate = useNavigate()
+  const spectatorModeEnabled = useFeatureFlag('spectator-mode')
   const [saved] = useState(() => (activeCode ? loadIdentity(activeCode) : null))
   const [codeInput, setCodeInput] = useState(activeCode ?? '')
   const [connected, setConnected] = useState(false)
   const [teams, setTeams] = useState<BuzzerTeam[]>([])
   const [identity, setIdentity] = useState<SavedIdentity | null>(saved)
   const [nameInput, setNameInput] = useState(saved?.name ?? '')
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(saved?.teamId ?? null)
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(
+    saved && saved.teamId === null ? SPECTATOR_CHOICE : (saved?.teamId ?? null),
+  )
   const [buzzState, setBuzzState] = useState<BuzzState>('closed')
   const [winner, setWinner] = useState<BuzzerWinner | null>(null)
   const [iced, setIced] = useState<string[]>([])
@@ -115,7 +125,8 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
 
   function handleJoin() {
     if (!activeCode || !nameInput.trim() || !selectedTeamId) return
-    const saved: SavedIdentity = { name: nameInput.trim(), teamId: selectedTeamId }
+    const teamId = selectedTeamId === SPECTATOR_CHOICE ? null : selectedTeamId
+    const saved: SavedIdentity = { name: nameInput.trim(), teamId }
     setIdentity(saved)
     saveIdentity(activeCode, saved)
     socketRef.current?.sendAndRemember({ type: 'join', name: saved.name, teamId: saved.teamId })
@@ -280,6 +291,16 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                   ))}
                 </div>
               </div>
+              {spectatorModeEnabled && (
+                <button
+                  onClick={() => setSelectedTeamId(SPECTATOR_CHOICE)}
+                  className={`w-full rounded-xl border-2 px-3 py-2.5 text-sm font-semibold text-slate-300 ${
+                    selectedTeamId === SPECTATOR_CHOICE ? 'border-slate-300' : 'border-transparent bg-arena-800'
+                  }`}
+                >
+                  👀 Just watching (no team)
+                </button>
+              )}
               <button
                 onClick={handleJoin}
                 disabled={!nameInput.trim() || !selectedTeamId}
@@ -294,21 +315,27 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
         <div className="flex w-full max-w-xs flex-col items-center gap-4">
           <div className="text-sm text-slate-400">
             {identity?.name} ·{' '}
-            <span style={{ color: myTeam?.color }}>
-              {myTeam?.avatar ? `${myTeam.avatar} ` : ''}
-              {myTeam?.name ?? '…'}
-            </span>
+            {identity?.teamId === null ? (
+              <span className="text-slate-300">👀 Just watching</span>
+            ) : (
+              <span style={{ color: myTeam?.color }}>
+                {myTeam?.avatar ? `${myTeam.avatar} ` : ''}
+                {myTeam?.name ?? '…'}
+              </span>
+            )}
           </div>
 
           {roundState?.mode === 'popularity' ? (
             roundState.phase === 'final' || !roundState.popularity ? (
               <p className="text-sm text-slate-400">That's the board — check the screen for the results.</p>
+            ) : identity?.teamId === null ? (
+              <p className="text-sm text-slate-400">Just watching — check the screen to follow along.</p>
             ) : (
               <PopularityPicker
                 key={`${roundState.popularity.rank}:${roundState.popularity.turnTeamId}`}
                 state={roundState.popularity}
                 teams={roundState.teams}
-                myTeamId={identity?.teamId}
+                myTeamId={identity?.teamId ?? undefined}
                 onPick={(id) => socketRef.current?.send({ type: 'guess', text: id })}
               />
             )
@@ -491,10 +518,15 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                 <div className="mt-1 px-4 text-sm">{winner.name} buzzed first</div>
               </div>
             )
-          ) : identity && iced.includes(identity.teamId) ? (
+          ) : identity?.teamId && iced.includes(identity.teamId) ? (
             <div className="flex h-56 w-56 flex-col items-center justify-center rounded-full border-4 border-arena-700 bg-arena-800 text-slate-500">
               <div className="text-3xl">🚫</div>
               <div className="mt-1 px-6 text-sm">Your team already tried this one — sit tight</div>
+            </div>
+          ) : identity?.teamId === null ? (
+            <div className="flex h-56 w-56 flex-col items-center justify-center rounded-full border-4 border-arena-700 bg-arena-800 text-slate-500">
+              <div className="text-3xl">👀</div>
+              <div className="mt-1 px-6 text-sm">Just watching — no buzzing in, enjoy the show</div>
             </div>
           ) : (
             <button

@@ -82,6 +82,22 @@ export default function BuzzerPanel({
               )
             })
           )}
+          {(() => {
+            const spectators = roster.filter((p) => p.teamId === null)
+            if (spectators.length === 0) return null
+            return (
+              <div>
+                <div className="text-xs font-medium text-slate-400">👀 Spectators ({spectators.length})</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {spectators.map((p) => (
+                    <span key={p.connId} className="rounded-full bg-arena-700 px-2.5 py-1 text-xs text-slate-200">
+                      {p.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
         </div>
 
         <button onClick={onClose} className="mt-5 w-full rounded-full border border-arena-500 py-2 text-sm text-slate-300 hover:border-hardwood-500">

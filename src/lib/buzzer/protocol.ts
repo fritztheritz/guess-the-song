@@ -13,7 +13,10 @@ export interface BuzzerTeam {
 export interface BuzzerPlayer {
   connId: string
   name: string
-  teamId: string
+  /** null = spectator ("just watching") — joined without picking a team. Can't buzz and
+   *  never locks in a buzz winner, but still gets the live game mirror and (on Year/Tier
+   *  Guess's team-agnostic free-guess windows only) can guess along for fun. */
+  teamId: string | null
 }
 
 export interface BuzzerWinner {
@@ -84,13 +87,17 @@ export interface PhoneRoundState {
 export type HostOutMessage =
   | { type: 'sync-teams'; teams: BuzzerTeam[] }
   | { type: 'sync-round'; state: PhoneRoundState }
-  | { type: 'open' }
+  /** frozenTeamIds (Power-Ups' Freeze, Song/Lyric only): seeds the room's `iced` set instead
+   *  of starting this clue's buzz window empty — those teams can't buzz until another team
+   *  misses (same "ice clears once everyone's had a turn" rule as a normal wrong judgment). */
+  | { type: 'open'; frozenTeamIds?: string[] }
   | { type: 'close' }
   /** The team that just buzzed got it wrong — ice them out and reopen for everyone else. */
   | { type: 'wrong'; teamId: string }
 
 export type PlayerOutMessage =
-  | { type: 'join'; name: string; teamId: string }
+  /** teamId: null joins as a spectator — see BuzzerPlayer. */
+  | { type: 'join'; name: string; teamId: string | null }
   | { type: 'buzz' }
   /** Only accepted from whoever's currently locked in as the buzz winner — see buzzer-room.js. */
   | { type: 'guess'; text: string }

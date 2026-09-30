@@ -108,7 +108,11 @@ export class BuzzerRoom {
       this.buzzState = 'open'
       this.winner = null
       this.order = []
-      this.iced = new Set()
+      // Power-Ups' Freeze: a frozen team starts this clue already iced, same as if they'd
+      // already buzzed and missed — they can still get a turn once every other team has too
+      // (the existing all-iced-clears-the-set rule in the 'wrong' branch below applies here
+      // exactly the same way once this seed is in place).
+      this.iced = Array.isArray(msg.frozenTeamIds) ? new Set(msg.frozenTeamIds) : new Set()
       this.openedAt = Date.now()
       this.broadcastAll(this.stateMessage())
     } else if (msg.type === 'close') {
@@ -137,7 +141,10 @@ export class BuzzerRoom {
     } catch {
       return
     }
-    if (msg.type === 'join' && typeof msg.name === 'string' && typeof msg.teamId === 'string') {
+    // teamId: null joins as a spectator ("just watching") — everything else about a
+    // spectator's connection (roster entry, message handling below) is identical to a real
+    // player's, they just never have a real team id to buzz/score against.
+    if (msg.type === 'join' && typeof msg.name === 'string' && (typeof msg.teamId === 'string' || msg.teamId === null)) {
       const existing = this.players.get(socket)
       const connId = existing?.connId ?? crypto.randomUUID()
       this.players.set(socket, { connId, name: msg.name.slice(0, 40), teamId: msg.teamId })
@@ -145,7 +152,9 @@ export class BuzzerRoom {
       this.broadcastToHost({ type: 'roster', players: this.rosterList() })
     } else if (msg.type === 'buzz') {
       const player = this.players.get(socket)
-      if (!player || this.buzzState !== 'open' || this.iced.has(player.teamId)) return
+      // A spectator (teamId: null) has nothing to buzz in for — without this check they'd
+      // fall through (iced.has(null) is always false) and could jump into the buzz race.
+      if (!player || player.teamId === null || this.buzzState !== 'open' || this.iced.has(player.teamId)) return
       const now = Date.now()
       const entry = {
         connId: player.connId,
