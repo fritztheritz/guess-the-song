@@ -70,6 +70,7 @@ export default function Home() {
   const [timelineGames, setTimelineGames] = useState<TimelineGame[]>([])
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
   const [activeTags, setActiveTags] = useState<string[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
   const importFileInput = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -199,6 +200,33 @@ export default function Home() {
     navigate(`/games/${copy.id}/edit`)
   }
 
+  // "Continue" shortcut — whatever's most recently touched across every section, by
+  // `updatedAt` (every entity already bumps it on save, so this needs no separate
+  // "last opened" tracking). Deliberately reads the raw lists, not the tag/search-filtered
+  // ones below — this is a global "where were you" signal, not scoped to the current filter.
+  const resumeItem = useMemo(() => {
+    const candidates = [
+      ...games.map((g) => ({ key: `game-${g.id}`, icon: '🎵', label: 'Game', name: g.name, to: `/games/${g.id}/edit`, updatedAt: g.updatedAt })),
+      ...(tierListsEnabled
+        ? tierLists.map((l) => ({ key: `tl-${l.id}`, icon: '🏆', label: 'Tier List', name: l.name, to: `/tierlists/${l.id}/edit`, updatedAt: l.updatedAt }))
+        : []),
+      ...(tournamentsEnabled
+        ? tournaments.map((t) => ({ key: `t-${t.id}`, icon: '🏆', label: 'Tournament', name: t.name, to: `/tournaments/${t.id}`, updatedAt: t.updatedAt }))
+        : []),
+      ...(draftEnabled
+        ? draftBoards.map((b) => ({ key: `d-${b.id}`, icon: '🎧', label: 'Draft', name: b.name, to: `/drafts/${b.id}`, updatedAt: b.updatedAt }))
+        : []),
+      ...(popularityEnabled
+        ? popularityGames.map((g) => ({ key: `p-${g.id}`, icon: '📈', label: 'Popularity', name: g.name, to: `/popularity/${g.id}/present`, updatedAt: g.updatedAt }))
+        : []),
+      ...(timelineEnabled
+        ? timelineGames.map((g) => ({ key: `tm-${g.id}`, icon: '🕰️', label: 'Timeline', name: g.name, to: `/timeline/${g.id}/present`, updatedAt: g.updatedAt }))
+        : []),
+    ]
+    if (candidates.length === 0) return null
+    return candidates.reduce((best, c) => (c.updatedAt > best.updatedAt ? c : best))
+  }, [games, tierLists, tierListsEnabled, tournaments, tournamentsEnabled, draftBoards, draftEnabled, popularityGames, popularityEnabled, timelineGames, timelineEnabled])
+
   // Tier Guess rides on the tier-lists flag — fully hidden when it's off, same as the tier
   // lists section below, rather than just blocking its Edit/Present links.
   const modeVisibleGames = tierListsEnabled ? games : games.filter((g) => !isTierGuessMode(g))
@@ -222,10 +250,19 @@ export default function Home() {
   // OR semantics: matches any selected tag, not all — the more forgiving default when
   // someone's just narrowing down a long list rather than building a precise query.
   const matchesActiveTags = (tags?: string[]) => activeTags.length === 0 || (tags ?? []).some((t) => activeTags.includes(t))
-  const visibleGames = modeVisibleGames.filter((g) => matchesActiveTags(g.tags))
-  const visibleTierLists = tierLists.filter((l) => matchesActiveTags(l.tags))
-  const visibleTournaments = tournaments.filter((t) => matchesActiveTags(t.tags))
-  const visibleDraftBoards = draftBoards.filter((b) => matchesActiveTags(b.tags))
+  const searchTerm = searchQuery.trim().toLowerCase()
+  const matchesSearch = (...fields: Array<string | undefined>) =>
+    !searchTerm || fields.some((f) => f?.toLowerCase().includes(searchTerm))
+  const hasAnyContent =
+    games.length + tierLists.length + tournaments.length + draftBoards.length + popularityGames.length + timelineGames.length > 0
+  const visibleGames = modeVisibleGames.filter((g) => matchesActiveTags(g.tags) && matchesSearch(g.name))
+  const visibleTierLists = tierLists.filter((l) => matchesActiveTags(l.tags) && matchesSearch(l.name))
+  const visibleTournaments = tournaments.filter((t) => matchesActiveTags(t.tags) && matchesSearch(t.name))
+  const visibleDraftBoards = draftBoards.filter((b) => matchesActiveTags(b.tags) && matchesSearch(b.name))
+  // Neither type carries tags (no tagging UI for them yet), so these two only ever narrow
+  // by the search box, never the tag bar above.
+  const visiblePopularityGames = popularityGames.filter((g) => matchesSearch(g.name, g.artistName))
+  const visibleTimelineGames = timelineGames.filter((g) => matchesSearch(g.name))
 
   function handleExportAll() {
     // Reads straight from storage rather than the tierLists/tournaments/draftBoards state
@@ -356,6 +393,45 @@ export default function Home() {
           </div>
         )}
 
+        {resumeItem && (
+          <div className="mx-auto mt-12 max-w-md">
+            <Link
+              to={resumeItem.to}
+              className="flex items-center gap-3 rounded-xl border border-hardwood-500/40 bg-hardwood-500/10 px-4 py-3 hover:border-hardwood-500"
+            >
+              <span className="text-2xl">{resumeItem.icon}</span>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs uppercase tracking-widest text-hardwood-400">Continue where you left off</div>
+                <div className="truncate font-semibold text-slate-100">{resumeItem.name}</div>
+              </div>
+              <span className="shrink-0 text-sm text-hardwood-400">{resumeItem.label} →</span>
+            </Link>
+          </div>
+        )}
+
+        {hasAnyContent && (
+          <div className="mx-auto mt-12 max-w-md">
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
+              <input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search everything by name…"
+                className="w-full rounded-full border border-arena-600 bg-arena-800 py-2.5 pl-10 pr-9 text-sm text-slate-100 outline-none focus:border-hardwood-500"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {allTags.length > 0 && (
           <div className="mx-auto mt-12 flex max-w-2xl flex-wrap items-center justify-center gap-2">
             <span className="text-xs uppercase tracking-widest text-slate-500">Tags</span>
@@ -384,7 +460,7 @@ export default function Home() {
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR GAMES</h2>
             {visibleGames.length === 0 ? (
-              <p className="text-sm text-slate-500">No games match the selected tags.</p>
+              <p className="text-sm text-slate-500">No games match your search/filters.</p>
             ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {visibleGames.map((game) => {
@@ -448,7 +524,7 @@ export default function Home() {
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TIER LISTS</h2>
             {visibleTierLists.length === 0 ? (
-              <p className="text-sm text-slate-500">No tier lists match the selected tags.</p>
+              <p className="text-sm text-slate-500">No tier lists match your search/filters.</p>
             ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {visibleTierLists.map((list) => {
@@ -514,7 +590,7 @@ export default function Home() {
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TOURNAMENTS</h2>
             {visibleTournaments.length === 0 ? (
-              <p className="text-sm text-slate-500">No tournaments match the selected tags.</p>
+              <p className="text-sm text-slate-500">No tournaments match your search/filters.</p>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {visibleTournaments.map((tournament) => (
@@ -571,7 +647,7 @@ export default function Home() {
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR DRAFTS</h2>
             {visibleDraftBoards.length === 0 ? (
-              <p className="text-sm text-slate-500">No drafts match the selected tags.</p>
+              <p className="text-sm text-slate-500">No drafts match your search/filters.</p>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {visibleDraftBoards.map((board) => {
@@ -622,8 +698,11 @@ export default function Home() {
         {popularityEnabled && popularityGames.length > 0 && (
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR POPULARITY GAMES</h2>
+            {visiblePopularityGames.length === 0 ? (
+              <p className="text-sm text-slate-500">No popularity games match your search.</p>
+            ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {popularityGames.map((game) => {
+              {visiblePopularityGames.map((game) => {
                 const solvedCount = Object.keys(game.progress.solved).length
                 return (
                   <Panel key={game.id} className="flex items-center justify-between">
@@ -655,14 +734,18 @@ export default function Home() {
                 )
               })}
             </div>
+            )}
           </div>
         )}
 
         {timelineEnabled && timelineGames.length > 0 && (
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TIMELINE GAMES</h2>
+            {visibleTimelineGames.length === 0 ? (
+              <p className="text-sm text-slate-500">No timeline games match your search.</p>
+            ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {timelineGames.map((game) => {
+              {visibleTimelineGames.map((game) => {
                 const placedCount = game.progress.timeline.length - 1
                 return (
                   <Panel key={game.id} className="flex items-center justify-between">
@@ -694,6 +777,7 @@ export default function Home() {
                 )
               })}
             </div>
+            )}
           </div>
         )}
 
