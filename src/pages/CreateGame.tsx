@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { createGame, createTeam, teamColorForIndex, type GameMode } from '../types'
 import { saveGame } from '../lib/storage/game-repository'
 import { listTeamPresets, type TeamPreset } from '../lib/team-presets'
+import { findDuplicateTeamName } from '../lib/team-name-conflicts'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import TextInput from '../components/ui/TextInput'
 import Button from '../components/ui/Button'
@@ -28,6 +29,7 @@ export default function CreateGame() {
   const [teams, setTeams] = useState<DraftTeam[]>([draftTeam(0), draftTeam(1)])
   const [presetPickerIndex, setPresetPickerIndex] = useState<number | null>(null)
   const presets = useMemo(() => listTeamPresets(), [])
+  const duplicateTeamName = useMemo(() => findDuplicateTeamName(teams.map((t) => t.name)), [teams])
 
   function addTeam() {
     if (teams.length >= MAX_TEAMS) return
@@ -182,6 +184,12 @@ export default function CreateGame() {
             >
               + Add Team
             </button>
+          )}
+          {duplicateTeamName && (
+            <p className="mt-2 text-xs text-scoreboard-amber">
+              ⚠️ Two teams are both named "{duplicateTeamName}" — that'll look confusing on the scoreboard, and Stats merges teams with
+              the same name together across games.
+            </p>
           )}
         </div>
 
