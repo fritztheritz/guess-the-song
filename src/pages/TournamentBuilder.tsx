@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { Game } from '../types'
 import { isLyricMode, isTierGuessMode } from '../types'
@@ -11,20 +11,16 @@ import TagInput from '../components/TagInput'
 import Spinner from '../components/Spinner'
 import Panel from '../components/ui/Panel'
 import Button from '../components/ui/Button'
+import { useStoredEntity } from '../lib/use-stored-entity'
 
 export default function TournamentBuilder() {
   const { tournamentId } = useParams()
-  const [tournament, setTournament] = useState<Tournament | null>(null)
+  const [tournament, setTournament] = useStoredEntity(tournamentId, getTournament)
   const [pickerOpen, setPickerOpen] = useState(false)
   const tagSuggestions = useMemo(
     () => Array.from(new Set(listGames().flatMap((g) => g.tags ?? []))).sort(),
     [],
   )
-
-  useEffect(() => {
-    if (!tournamentId) return
-    setTournament(getTournament(tournamentId))
-  }, [tournamentId])
 
   // Games resolve fresh on every render (not stored on the tournament itself) — a game's
   // score/progress can change after it's added, and the tournament should always reflect

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { isLyricMode, isTierGuessMode, isYearMode, LYRIC_HINT_LABELS, type Game, type SongRound } from '../types'
+import { isLyricMode, isTierGuessMode, isYearMode, LYRIC_HINT_LABELS, type SongRound } from '../types'
 import { getGame } from '../lib/storage/game-repository'
+import { useStoredEntity } from '../lib/use-stored-entity'
 import { presentationChannelName, type PresentationMessage, type PresentationSnapshot } from '../lib/presentation-sync'
 import Scoreboard from '../components/Scoreboard'
 import Spinner from '../components/Spinner'
@@ -18,19 +19,18 @@ const MONTH_NAMES = [
 // plus the existing cross-tab `storage` event for score/team/progress changes (the same
 // free sync every other multi-tab feature in this app already relies on).
 export default function PublicDisplay({ gameId }: { gameId: string }) {
-  const [game, setGame] = useState<Game | null>(null)
+  const [game, setGame] = useStoredEntity(gameId, getGame)
   const [snapshot, setSnapshot] = useState<PresentationSnapshot | null>(null)
-  const [remaining, setRemaining] = useState(0)
+  const [tickedRemaining, setRemaining] = useState(0)
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
-    setGame(getGame(gameId))
     function onStorage(e: StorageEvent) {
       if (!e.key || e.key === 'gts.games.v1') setGame(getGame(gameId))
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
-  }, [gameId])
+  }, [gameId, setGame])
 
   useEffect(() => {
     if (typeof BroadcastChannel === 'undefined') return
@@ -50,10 +50,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
       clearInterval(tickRef.current)
       tickRef.current = null
     }
-    if (!snapshot?.playing) {
-      setRemaining(0)
-      return
-    }
+    if (!snapshot?.playing) return
     const { duration, startedAt } = snapshot.playing
     const tick = () => setRemaining(Math.max(0, duration - (Date.now() - startedAt) / 1000))
     tick()
@@ -62,6 +59,8 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
       if (tickRef.current) clearInterval(tickRef.current)
     }
   }, [snapshot?.playing])
+
+  const remaining = snapshot?.playing ? tickedRemaining : 0
 
   if (!game) {
     return (

@@ -5,11 +5,11 @@ import { isValidSlot, type TimelineGame } from '../types/timeline'
 import { playCorrect, playFanfare, playStreak, playWrong, isSoundMuted, setSoundMuted } from '../lib/sound-effects'
 import { betterStreak, bumpTally, streakBonus } from '../lib/streaks'
 import { useTurnTimer } from '../lib/use-turn-timer'
-import { useConfirm } from '../state/ConfirmContext'
+import { useConfirm } from '../state/confirm-context'
 import Scoreboard from '../components/Scoreboard'
-import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
 import Button from '../components/ui/Button'
+import { useStoredEntity } from '../lib/use-stored-entity'
 
 // Fixed, not host-editable — same "fixed slots" convention as Guess the Popularity.
 const TIMELINE_POINTS = 2
@@ -26,23 +26,21 @@ interface LastResult {
 export default function TimelinePresent() {
   const { gameId } = useParams()
   const confirm = useConfirm()
-  const [game, setGame] = useState<TimelineGame | null | undefined>(undefined)
+  const [game, setGame] = useStoredEntity(gameId, getTimelineGame)
   // Latest saved game, updated synchronously with setGame — the turn timer's callback
   // outlives the render it was created in, so it can't read `game` directly.
-  const gameRef = useRef<TimelineGame | null | undefined>(undefined)
+  const gameRef = useRef(game)
+  useEffect(() => {
+    gameRef.current = game
+  })
   const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
   const [lastResult, setLastResult] = useState<LastResult | null>(null)
   const [celebrating, setCelebrating] = useState(false)
 
-  function commitGame(next: TimelineGame | null | undefined) {
+  function commitGame(next: TimelineGame) {
     gameRef.current = next
     setGame(next)
   }
-
-  useEffect(() => {
-    if (!gameId) return
-    commitGame(getTimelineGame(gameId) ?? null)
-  }, [gameId])
 
   const progress = game?.progress
   const inPlay = !!game && !!progress && !progress.completed
@@ -169,15 +167,6 @@ export default function TimelinePresent() {
 
   const turnKey = progress ? `${progress.deckIndex}:${progress.turnTeamIndex}` : ''
   const { secondsLeft } = useTurnTimer(game?.turnTimerSeconds, turnKey, inPlay, passTurn)
-
-  if (game === undefined) {
-    return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-arena-950 text-slate-400">
-        <Spinner />
-        <span>Loading…</span>
-      </div>
-    )
-  }
 
   if (game === null) {
     return (

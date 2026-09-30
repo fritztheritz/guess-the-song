@@ -11,7 +11,11 @@ const TICK_FROM_SECONDS = 5
  */
 export function useTurnTimer(seconds: number | undefined, turnKey: string, active: boolean, onExpire: () => void) {
   const enabled = active && !!seconds && seconds > 0
-  const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
+  const timerKey = `${turnKey}|${seconds ?? 0}`
+  // The last tick's reading, tagged with the turn it belongs to — so a new turn reads as
+  // "full time" straight away during render instead of via a reset-in-effect that would
+  // show the previous turn's last count for a frame.
+  const [tick, setTick] = useState<{ key: string; left: number } | null>(null)
   const startedAtRef = useRef(0)
   // Read at fire time, not captured at effect setup — the caller's onExpire closes over the
   // game state as of the render it was created in, and the interval outlives that render.
@@ -21,15 +25,11 @@ export function useTurnTimer(seconds: number | undefined, turnKey: string, activ
   })
 
   useEffect(() => {
-    if (!enabled || !seconds) {
-      setSecondsLeft(null)
-      return
-    }
+    if (!enabled || !seconds) return
     startedAtRef.current = Date.now()
-    setSecondsLeft(seconds)
     const interval = setInterval(() => {
       const remaining = Math.max(0, Math.ceil(seconds - (Date.now() - startedAtRef.current) / 1000))
-      setSecondsLeft(remaining)
+      setTick({ key: timerKey, left: remaining })
       if (remaining === 0) {
         clearInterval(interval)
         onExpireRef.current()
@@ -38,7 +38,9 @@ export function useTurnTimer(seconds: number | undefined, turnKey: string, activ
       }
     }, 1000)
     return () => clearInterval(interval)
-  }, [enabled, seconds, turnKey])
+  }, [enabled, seconds, timerKey])
+
+  const secondsLeft = enabled && seconds ? (tick?.key === timerKey ? tick.left : seconds) : null
 
   /** Whole seconds left right now (not as of the last tick) — for handing a phone an
    *  accurate figure at the moment of a sync, whenever that happens to land mid-second. */

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
-import { useFeatureFlags } from '../state/FeatureFlagsContext'
-import { useConfirm } from '../state/ConfirmContext'
-import { useToast } from '../state/ToastContext'
+import { useFeatureFlags } from '../state/feature-flags-context'
+import { useConfirm } from '../state/confirm-context'
+import { useToast } from '../state/toast-context'
 import Panel from '../components/ui/Panel'
 
 export default function Admin() {

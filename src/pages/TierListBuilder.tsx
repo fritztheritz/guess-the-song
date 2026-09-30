@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { createTierDef, MAX_TIERS, MIN_TIERS, type TierList, type TierListSong } from '../types/tierlist'
 import { getTierList, listTierLists, saveTierList } from '../lib/storage/tierlist-repository'
@@ -8,17 +8,13 @@ import TagInput from '../components/TagInput'
 import Spinner from '../components/Spinner'
 import TextInput from '../components/ui/TextInput'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
+import { useStoredEntity } from '../lib/use-stored-entity'
 
 export default function TierListBuilder() {
   const { tierListId } = useParams()
-  const [list, setList] = useState<TierList | null>(null)
+  const [list, setList] = useStoredEntity(tierListId, getTierList)
   const [importOpen, setImportOpen] = useState(false)
   const tagSuggestions = useMemo(() => Array.from(new Set(listTierLists().flatMap((l) => l.tags ?? []))).sort(), [])
-
-  useEffect(() => {
-    if (!tierListId) return
-    setList(getTierList(tierListId))
-  }, [tierListId])
 
   function persist(next: TierList) {
     setList(saveTierList(next))

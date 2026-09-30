@@ -1,13 +1,14 @@
-import { useEffect, useState, type DragEvent } from 'react'
+import { useState, type DragEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { TierList, TierListSong } from '../types/tierlist'
 import { getTierList, saveTierList } from '../lib/storage/tierlist-repository'
 import { moveSong, songsInGroup } from '../lib/tierlist-ranking'
-import { useConfirm } from '../state/ConfirmContext'
-import { useToast } from '../state/ToastContext'
+import { useConfirm } from '../state/confirm-context'
+import { useToast } from '../state/toast-context'
 import { isSoundMuted, playCorrect, playFanfare, setSoundMuted } from '../lib/sound-effects'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
+import { useStoredEntity } from '../lib/use-stored-entity'
 
 // Sentinel for "currently dragging over the Unranked pool" — distinct from tier ids
 // (real uuids) and from `null` (no drag in progress), so the two are never confused.
@@ -121,16 +122,11 @@ export default function TierListPresent() {
   const { tierListId } = useParams()
   const confirm = useConfirm()
   const showToast = useToast()
-  const [list, setList] = useState<TierList | null>(null)
+  const [list, setList] = useStoredEntity(tierListId, getTierList)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverZone, setDragOverZone] = useState<string | null>(null)
   const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
   const [celebrating, setCelebrating] = useState(false)
-
-  useEffect(() => {
-    if (!tierListId) return
-    setList(getTierList(tierListId))
-  }, [tierListId])
 
   function persist(next: TierList) {
     setList(saveTierList(next))

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   connectSoundCloud,
   disconnectSoundCloud as disconnectSoundCloudAuth,
@@ -6,15 +6,7 @@ import {
   type SoundCloudConnection,
 } from '../lib/soundcloud/soundcloud-auth'
 import { isSoundCloudConfigured } from '../lib/soundcloud/config'
-
-interface SoundCloudContextValue {
-  connection: SoundCloudConnection | null
-  isConfigured: boolean
-  connect: () => Promise<void>
-  disconnect: () => void
-}
-
-const SoundCloudContext = createContext<SoundCloudContextValue | null>(null)
+import { SoundCloudContext } from './soundcloud-context'
 
 export function SoundCloudProvider({ children }: { children: ReactNode }) {
   const [connection, setConnection] = useState<SoundCloudConnection | null>(() => getStoredConnection())
@@ -47,15 +39,4 @@ export function SoundCloudProvider({ children }: { children: ReactNode }) {
       {children}
     </SoundCloudContext.Provider>
   )
-}
-
-export function useSoundCloud(): SoundCloudContextValue {
-  const ctx = useContext(SoundCloudContext)
-  if (!ctx) throw new Error('useSoundCloud must be used within a SoundCloudProvider')
-  return ctx
-}
-
-/** Call after the /callback route establishes a connection, so context re-reads sessionStorage. */
-export function refreshSoundCloudContext() {
-  window.dispatchEvent(new Event('focus'))
 }

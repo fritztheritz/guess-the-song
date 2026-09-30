@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSpotify } from '../state/SpotifyContext'
+import { useSpotify } from '../state/spotify-context'
 import { searchSpotifyTracks, loadMoreSpotifyTracks, type ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
 import { SpotifyApiError, SpotifyNotConnectedError, SpotifyRateLimitError } from '../lib/spotify/spotify-api'
 import { saveTimelineGame } from '../lib/storage/timeline-repository'

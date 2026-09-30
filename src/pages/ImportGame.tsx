@@ -8,18 +8,17 @@ export default function ImportGame() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const [preview, setPreview] = useState<Awaited<ReturnType<typeof parseShareData>> | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [loadError, setError] = useState<string | null>(null)
+
+  const data = searchParams.get('data')
+  const error = data ? loadError : 'This link is missing its game data.'
 
   useEffect(() => {
-    const data = searchParams.get('data')
-    if (!data) {
-      setError('This link is missing its game data.')
-      return
-    }
+    if (!data) return
     parseShareData(data)
       .then(setPreview)
       .catch((err) => setError(err instanceof ShareLinkError ? err.message : 'Could not open this game link.'))
-  }, [searchParams])
+  }, [data])
 
   function importGame() {
     if (!preview) return

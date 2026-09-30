@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useSpotify } from '../state/SpotifyContext'
+import { useSpotify } from '../state/spotify-context'
 import {
   searchSpotifyArtists,
   getArtistTopTracksBySearch,

@@ -2,22 +2,21 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { handleCallback as handleSoundCloudCallback } from '../lib/soundcloud/soundcloud-auth'
 import { handleCallback as handleSpotifyCallback, isSpotifyState } from '../lib/spotify/spotify-auth'
-import { refreshSoundCloudContext } from '../state/SoundCloudContext'
-import { refreshSpotifyContext } from '../state/SpotifyContext'
+import { refreshSoundCloudContext } from '../state/soundcloud-context'
+import { refreshSpotifyContext } from '../state/spotify-context'
 import Spinner from '../components/Spinner'
 
 export default function Callback() {
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
-  const [provider, setProvider] = useState<'SoundCloud' | 'Spotify'>('SoundCloud')
+  // Both providers land here (see main.tsx) — `state`'s prefix, set when the connect
+  // flow started (spotify-auth.ts's STATE_PREFIX / soundcloud-auth.ts's generateState
+  // call), is what tells us which one this redirect belongs to.
+  const [params] = useState(() => new URLSearchParams(window.location.hash.split('?')[1] ?? window.location.search))
+  const isSpotify = isSpotifyState(params.get('state'))
+  const provider = isSpotify ? 'Spotify' : 'SoundCloud'
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.hash.split('?')[1] ?? window.location.search)
-    // Both providers land here (see main.tsx) — `state`'s prefix, set when the connect
-    // flow started (spotify-auth.ts's STATE_PREFIX / soundcloud-auth.ts's generateState
-    // call), is what tells us which one this redirect belongs to.
-    const isSpotify = isSpotifyState(params.get('state'))
-    setProvider(isSpotify ? 'Spotify' : 'SoundCloud')
     const handler = isSpotify ? handleSpotifyCallback : handleSoundCloudCallback
     const refreshContext = isSpotify ? refreshSpotifyContext : refreshSoundCloudContext
 
@@ -27,7 +26,7 @@ export default function Callback() {
         navigate(returnTo || '/', { replace: true })
       })
       .catch((err) => setError(err instanceof Error ? err.message : `${isSpotify ? 'Spotify' : 'SoundCloud'} connection failed.`))
-  }, [navigate])
+  }, [navigate, params, isSpotify])
 
   return (
     <div className="min-h-svh flex items-center justify-center bg-arena-950 text-center px-6">

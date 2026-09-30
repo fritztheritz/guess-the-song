@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSoundCloud } from '../state/SoundCloudContext'
+import { useSoundCloud } from '../state/soundcloud-context'
 
 export default function SoundCloudConnectPanel() {
   const { connection, isConfigured, connect, disconnect } = useSoundCloud()

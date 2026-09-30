@@ -8,14 +8,14 @@ import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
 import type { BuzzerPlayer } from '../lib/buzzer/protocol'
 import { betterStreak, bumpTally, streakBonus } from '../lib/streaks'
 import { useTurnTimer } from '../lib/use-turn-timer'
-import { useConfirm } from '../state/ConfirmContext'
-import { useFeatureFlag } from '../state/FeatureFlagsContext'
+import { useConfirm } from '../state/confirm-context'
+import { useFeatureFlag } from '../state/feature-flags-context'
 import BuzzerPanel from '../components/BuzzerPanel'
 import Scoreboard from '../components/Scoreboard'
-import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
 import Button from '../components/ui/Button'
 import TextInput from '../components/ui/TextInput'
+import { useStoredEntity } from '../lib/use-stored-entity'
 
 // Fixed, not host-editable — same "fixed slots" convention as Tier Guess/Year's points
 // (TIER_GUESS_TIER_POINTS etc. in HostController.tsx).
@@ -29,11 +29,14 @@ const MAX_SUGGESTIONS = 20
 export default function PopularityPresent() {
   const { gameId } = useParams()
   const confirm = useConfirm()
-  const [game, setGame] = useState<PopularityGame | null | undefined>(undefined)
+  const [game, setGame] = useStoredEntity(gameId, getPopularityGame)
   // Always the latest saved game, updated synchronously alongside setGame — the socket
   // handler and timer callbacks below outlive the render they were created in, and two
   // phone guesses landing back to back would otherwise both act on the same stale game.
-  const gameRef = useRef<PopularityGame | null | undefined>(undefined)
+  const gameRef = useRef(game)
+  useEffect(() => {
+    gameRef.current = game
+  })
   const [guessInput, setGuessInput] = useState('')
   const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
   const [lastResult, setLastResult] = useState<{
@@ -53,15 +56,10 @@ export default function PopularityPresent() {
   const [buzzerConnected, setBuzzerConnected] = useState(false)
   const [buzzerPanelOpen, setBuzzerPanelOpen] = useState(false)
 
-  function commitGame(next: PopularityGame | null | undefined) {
+  function commitGame(next: PopularityGame) {
     gameRef.current = next
     setGame(next)
   }
-
-  useEffect(() => {
-    if (!gameId) return
-    commitGame(getPopularityGame(gameId) ?? null)
-  }, [gameId])
 
   // Phone Buzz-In: the host page owns the room (same shape as HostController's) — phones
   // join by code, get the current turn + guess pool pushed to them, and send a pick back as
@@ -306,15 +304,6 @@ export default function PopularityPresent() {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [game, lastResult, buzzerConnected])
-
-  if (game === undefined) {
-    return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-arena-950 text-slate-400">
-        <Spinner />
-        <span>Loading…</span>
-      </div>
-    )
-  }
 
   if (game === null) {
     return (

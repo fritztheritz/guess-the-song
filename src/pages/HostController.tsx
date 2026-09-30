@@ -14,7 +14,7 @@ import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
 import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, isSoundMuted, setSoundMuted } from '../lib/sound-effects'
 import { downloadRecapCard, type RecapCardStats } from '../lib/recap-card'
-import { useFeatureFlag } from '../state/FeatureFlagsContext'
+import { useFeatureFlag } from '../state/feature-flags-context'
 import {
   presentationChannelName,
   type PresentationMessage,
@@ -22,7 +22,7 @@ import {
   type TierGuessStage,
   type YearGuessStage,
 } from '../lib/presentation-sync'
-import { useConfirm } from '../state/ConfirmContext'
+import { useConfirm } from '../state/confirm-context'
 import Scoreboard from '../components/Scoreboard'
 import BuzzerPanel from '../components/BuzzerPanel'
 import Spinner from '../components/Spinner'
@@ -671,6 +671,13 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   // tierguess only: the "next" action on the reveal screen steps tier -> guessPosition ->
   // position before it actually advances to the next possession.
+  // What Enter/→ does on the reveal screen — each mode advances its own staged reveal.
+  function advanceReveal() {
+    if (isTierGuess) tierGuessAdvance()
+    else if (isYear) yearGuessAdvance()
+    else nextPossession()
+  }
+
   function tierGuessAdvance() {
     if (tierGuessStage === 'tier') {
       setTierGuessStage('guessPosition')
@@ -838,10 +845,10 @@ export default function HostController({ gameId }: { gameId: string }) {
         case 'Enter':
           e.preventDefault()
           if (phase === 'clue') reveal()
-          else if (phase === 'revealed') (isTierGuess ? tierGuessAdvance() : isYear ? yearGuessAdvance() : nextPossession())
+          else if (phase === 'revealed') advanceReveal()
           break
         case 'ArrowRight':
-          if (phase === 'revealed') (isTierGuess ? tierGuessAdvance() : isYear ? yearGuessAdvance() : nextPossession())
+          if (phase === 'revealed') advanceReveal()
           break
         case 'ArrowLeft':
           prevPossession()

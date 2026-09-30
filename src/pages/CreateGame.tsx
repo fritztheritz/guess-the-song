@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { createGame, createTeam, teamColorForIndex, type GameMode } from '../types'
 import { saveGame } from '../lib/storage/game-repository'
 import { listTeamPresets, type TeamPreset } from '../lib/team-presets'
-import { useFeatureFlag } from '../state/FeatureFlagsContext'
+import { useFeatureFlag } from '../state/feature-flags-context'
 import TextInput from '../components/ui/TextInput'
 import Button from '../components/ui/Button'
 

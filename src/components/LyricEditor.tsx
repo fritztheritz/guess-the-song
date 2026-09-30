@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { LYRIC_HINT_LABELS, type SongRound } from '../types'
-import { useSoundCloud } from '../state/SoundCloudContext'
+import { useSoundCloud } from '../state/soundcloud-context'
 import { resolveSoundCloudUrl } from '../lib/soundcloud/soundcloud-tracks'
 import { SoundCloudApiError, SoundCloudNotConnectedError } from '../lib/soundcloud/soundcloud-api'
 

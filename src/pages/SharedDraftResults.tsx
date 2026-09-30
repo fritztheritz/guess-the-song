@@ -8,18 +8,17 @@ import { parseDraftResultsShareData, DraftShareLinkError, type ShareableDraftRes
 export default function SharedDraftResults() {
   const [searchParams] = useSearchParams()
   const [results, setResults] = useState<ShareableDraftResults | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [loadError, setError] = useState<string | null>(null)
+
+  const data = searchParams.get('data')
+  const error = data ? loadError : 'This link is missing its results data.'
 
   useEffect(() => {
-    const data = searchParams.get('data')
-    if (!data) {
-      setError('This link is missing its results data.')
-      return
-    }
+    if (!data) return
     parseDraftResultsShareData(data)
       .then(setResults)
       .catch((err) => setError(err instanceof DraftShareLinkError ? err.message : 'Could not open this results link.'))
-  }, [searchParams])
+  }, [data])
 
   if (error) {
     return (

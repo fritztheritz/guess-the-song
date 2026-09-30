@@ -29,11 +29,11 @@ import TagInput from '../components/TagInput'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
 import { isSpotifyConfigured } from '../lib/spotify/config'
-import { useFeatureFlag } from '../state/FeatureFlagsContext'
-import { useConfirm } from '../state/ConfirmContext'
+import { useFeatureFlag } from '../state/feature-flags-context'
+import { useConfirm } from '../state/confirm-context'
 import Panel from '../components/ui/Panel'
 import Button from '../components/ui/Button'
-import { useToast } from '../state/ToastContext'
+import { useToast } from '../state/toast-context'
 
 const MIN_TEAMS = 2
 const MAX_TEAMS = 8

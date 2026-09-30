@@ -1,9 +1,6 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
-
-export function joinUrl(code: string): string {
-  return `${window.location.origin}${import.meta.env.BASE_URL}buzz/${code}`
-}
+import { joinUrl } from '../lib/buzzer/join-url'
 
 // Renders nothing on failure (e.g. QRCode throwing on a malformed URL) — the room code text
 // shown alongside this everywhere it's used is always sufficient on its own, so a missing

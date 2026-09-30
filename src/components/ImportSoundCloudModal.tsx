@@ -3,7 +3,7 @@ import TrackCard from './TrackCard'
 import SoundCloudConnectPanel from './SoundCloudConnectPanel'
 import SoundCloudAttribution from './SoundCloudAttribution'
 import Spinner from './Spinner'
-import { useSoundCloud } from '../state/SoundCloudContext'
+import { useSoundCloud } from '../state/soundcloud-context'
 import {
   getLikedTracks,
   getMyTracks,
@@ -77,16 +77,6 @@ export default function ImportSoundCloudModal({
     setError(err instanceof TrackNotPlayableError ? err.message : errorMessage(err)),
   )
 
-  useEffect(() => {
-    if (!connection) return
-    setError(null)
-    setFilterQuery('')
-    if (tab === 'mine') void loadAll(getMyTracks)
-    if (tab === 'liked') void loadAll(getLikedTracks)
-    if (tab === 'playlists') void loadPlaylists()
-    // search & paste are user-driven, no auto-load
-  }, [tab, connection])
-
   async function load(fn: () => Promise<TrackPage>) {
     setLoading(true)
     setError(null)
@@ -155,6 +145,17 @@ export default function ImportSoundCloudModal({
       setLoading(false)
     }
   }
+
+  // Declared after the loaders it calls (not next to the other state up top) so it isn't
+  // reading them before they exist.
+  useEffect(() => {
+    if (!connection) return
+    if (tab === 'mine') void loadAll(getMyTracks)
+    if (tab === 'liked') void loadAll(getLikedTracks)
+    if (tab === 'playlists') void loadPlaylists()
+    // search & paste are user-driven, no auto-load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, connection])
 
   async function openPlaylist(playlist: Playlist) {
     setActivePlaylist(playlist)
@@ -317,6 +318,7 @@ export default function ImportSoundCloudModal({
                     setArtists([])
                     setSearchResolvedTrack(null)
                     setError(null)
+                    setFilterQuery('')
                   }}
                   className={`rounded-t-lg px-4 py-2 text-sm font-medium ${
                     tab === t.id ? 'bg-arena-800 text-hardwood-400' : 'text-slate-400 hover:text-slate-200'

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useSpotify } from '../state/SpotifyContext'
+import { useSpotify } from '../state/spotify-context'
 
 export default function SpotifyConnectPanel() {
   const { connection, isConfigured, connect, disconnect } = useSpotify()

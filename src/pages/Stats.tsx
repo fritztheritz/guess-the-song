@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listGames } from '../lib/storage/game-repository'
 import { listPopularityGames } from '../lib/storage/popularity-repository'
@@ -20,17 +20,11 @@ function StatTile({ label, value }: { label: string; value: number }) {
 }
 
 export default function Stats() {
-  const [games, setGames] = useState<Game[]>([])
   // Read straight from storage regardless of the feature flags, same as backup export —
   // turning a game type off shouldn't make its history vanish from the stats.
-  const [popularityGames, setPopularityGames] = useState<PopularityGame[]>([])
-  const [timelineGames, setTimelineGames] = useState<TimelineGame[]>([])
-
-  useEffect(() => {
-    setGames(listGames())
-    setPopularityGames(listPopularityGames())
-    setTimelineGames(listTimelineGames())
-  }, [])
+  const [games] = useState<Game[]>(() => listGames())
+  const [popularityGames] = useState<PopularityGame[]>(() => listPopularityGames())
+  const [timelineGames] = useState<TimelineGame[]>(() => listTimelineGames())
 
   const completed = useMemo(() => games.filter((g) => g.progress?.completed), [games])
   const completedPopularity = useMemo(() => popularityGames.filter((g) => g.progress.completed), [popularityGames])

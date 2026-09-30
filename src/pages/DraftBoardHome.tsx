@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import type { DraftBoard, DraftPoolSong, DraftSession } from '../types/draft'
 import { createDraftSession } from '../types/draft'
 import { getDraftBoard, saveDraftBoard } from '../lib/storage/draft-repository'
-import { useFeatureFlag } from '../state/FeatureFlagsContext'
+import { useFeatureFlag } from '../state/feature-flags-context'
 import { isSpotifyConfigured } from '../lib/spotify/config'
-import { useToast } from '../state/ToastContext'
-import { useConfirm } from '../state/ConfirmContext'
+import { useToast } from '../state/toast-context'
+import { useConfirm } from '../state/confirm-context'
 import ImportSoundCloudModal from '../components/ImportSoundCloudModal'
 import ImportSpotifyModal from '../components/ImportSpotifyModal'
 import NewDraftSessionModal from '../components/NewDraftSessionModal'
@@ -16,6 +16,7 @@ import Panel from '../components/ui/Panel'
 import Button from '../components/ui/Button'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
+import { useStoredEntity } from '../lib/use-stored-entity'
 
 const PHASE_LABEL: Record<DraftSession['phase'], string> = {
   drafting: '🎧 Drafting',
@@ -30,15 +31,10 @@ export default function DraftBoardHome() {
   const showToast = useToast()
   const confirm = useConfirm()
   const spotifyImportEnabled = useFeatureFlag('spotify-import') && isSpotifyConfigured()
-  const [board, setBoard] = useState<DraftBoard | null>(null)
+  const [board, setBoard] = useStoredEntity(boardId, getDraftBoard)
   const [importOpen, setImportOpen] = useState(false)
   const [spotifyImportOpen, setSpotifyImportOpen] = useState(false)
   const [newSessionOpen, setNewSessionOpen] = useState(false)
-
-  useEffect(() => {
-    if (!boardId) return
-    setBoard(getDraftBoard(boardId))
-  }, [boardId])
 
   const availableSongs = useMemo(() => board?.songPool.filter((s) => !s.takenBySessionId) ?? [], [board])
   const takenSongs = useMemo(() => board?.songPool.filter((s) => s.takenBySessionId) ?? [], [board])

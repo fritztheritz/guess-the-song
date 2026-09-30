@@ -1,6 +1,7 @@
 import type { Team } from '../types'
 import type { BuzzerPlayer } from '../lib/buzzer/protocol'
-import JoinQrCode, { joinUrl } from './JoinQrCode'
+import JoinQrCode from './JoinQrCode'
+import { joinUrl } from '../lib/buzzer/join-url'
 
 // Host-only panel: shows the room code players type into /buzz, and who's connected on
 // which team. Doesn't touch buzz state itself — HostController owns that (open/close tied

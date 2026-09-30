@@ -1,15 +1,6 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { clearFlagOverride, getAllFlagStates, setFlagOverride, type FlagState } from '../lib/feature-flags'
-
-interface FeatureFlagsContextValue {
-  flags: FlagState[]
-  isEnabled: (key: string) => boolean
-  setOverride: (key: string, value: boolean) => void
-  resetOverride: (key: string) => void
-  refresh: () => void
-}
-
-const FeatureFlagsContext = createContext<FeatureFlagsContextValue | null>(null)
+import { FeatureFlagsContext } from './feature-flags-context'
 
 export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
   const [flags, setFlags] = useState<FlagState[]>(() => getAllFlagStates())
@@ -39,15 +30,4 @@ export function FeatureFlagsProvider({ children }: { children: ReactNode }) {
       {children}
     </FeatureFlagsContext.Provider>
   )
-}
-
-export function useFeatureFlags() {
-  const ctx = useContext(FeatureFlagsContext)
-  if (!ctx) throw new Error('useFeatureFlags must be used within FeatureFlagsProvider')
-  return ctx
-}
-
-/** Gate a piece of UI/behavior behind a flag by key, e.g. `if (useFeatureFlag('new-thing')) { ... }`. */
-export function useFeatureFlag(key: string): boolean {
-  return useFeatureFlags().isEnabled(key)
 }

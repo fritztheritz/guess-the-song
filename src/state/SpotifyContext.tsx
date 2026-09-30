@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import {
   connectSpotify,
   disconnectSpotify as disconnectSpotifyAuth,
@@ -6,15 +6,7 @@ import {
   type SpotifyConnection,
 } from '../lib/spotify/spotify-auth'
 import { isSpotifyConfigured } from '../lib/spotify/config'
-
-interface SpotifyContextValue {
-  connection: SpotifyConnection | null
-  isConfigured: boolean
-  connect: () => Promise<void>
-  disconnect: () => void
-}
-
-const SpotifyContext = createContext<SpotifyContextValue | null>(null)
+import { SpotifyContext } from './spotify-context'
 
 export function SpotifyProvider({ children }: { children: ReactNode }) {
   const [connection, setConnection] = useState<SpotifyConnection | null>(() => getStoredConnection())
@@ -45,15 +37,4 @@ export function SpotifyProvider({ children }: { children: ReactNode }) {
       {children}
     </SpotifyContext.Provider>
   )
-}
-
-export function useSpotify(): SpotifyContextValue {
-  const ctx = useContext(SpotifyContext)
-  if (!ctx) throw new Error('useSpotify must be used within a SpotifyProvider')
-  return ctx
-}
-
-/** Call after the /callback route establishes a connection, so context re-reads sessionStorage. */
-export function refreshSpotifyContext() {
-  window.dispatchEvent(new Event('focus'))
 }

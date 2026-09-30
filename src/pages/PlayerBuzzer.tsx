@@ -48,14 +48,21 @@ function saveIdentity(code: string, identity: SavedIdentity) {
 // entirely from the BuzzerRoom over the socket, so this page works without ever touching
 // this app's localStorage-based game library.
 export default function PlayerBuzzer() {
-  const params = useParams<{ code?: string }>()
+  const { code } = useParams<{ code?: string }>()
+  // Keyed on the code so joining a different room remounts with that room's saved identity
+  // (read once, below, as initial state) instead of carrying the last room's over.
+  return <PlayerBuzzerRoom key={code ?? ''} activeCode={code?.toUpperCase() ?? null} />
+}
+
+function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
   const navigate = useNavigate()
-  const [codeInput, setCodeInput] = useState(params.code?.toUpperCase() ?? '')
+  const [saved] = useState(() => (activeCode ? loadIdentity(activeCode) : null))
+  const [codeInput, setCodeInput] = useState(activeCode ?? '')
   const [connected, setConnected] = useState(false)
   const [teams, setTeams] = useState<BuzzerTeam[]>([])
-  const [identity, setIdentity] = useState<SavedIdentity | null>(null)
-  const [nameInput, setNameInput] = useState('')
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
+  const [identity, setIdentity] = useState<SavedIdentity | null>(saved)
+  const [nameInput, setNameInput] = useState(saved?.name ?? '')
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(saved?.teamId ?? null)
   const [buzzState, setBuzzState] = useState<BuzzState>('closed')
   const [winner, setWinner] = useState<BuzzerWinner | null>(null)
   const [iced, setIced] = useState<string[]>([])
@@ -71,16 +78,8 @@ export default function PlayerBuzzer() {
   const [modeGuessSubmitted, setModeGuessSubmitted] = useState<string | null>(null)
   const socketRef = useRef<BuzzerSocket | null>(null)
 
-  const activeCode = params.code?.toUpperCase() ?? null
-
   useEffect(() => {
     if (!activeCode) return
-    const saved = loadIdentity(activeCode)
-    if (saved) {
-      setIdentity(saved)
-      setNameInput(saved.name)
-      setSelectedTeamId(saved.teamId)
-    }
 
     const socket = new BuzzerSocket(activeCode, 'player')
     socketRef.current = socket
@@ -106,7 +105,7 @@ export default function PlayerBuzzer() {
       socket.close()
       socketRef.current = null
     }
-  }, [activeCode])
+  }, [activeCode, saved])
 
   function handleCodeSubmit(e: FormEvent) {
     e.preventDefault()
@@ -129,12 +128,14 @@ export default function PlayerBuzzer() {
 
   // A fresh buzzer window (a new clue, or reopened after a wrong judgment) always means
   // whatever was typed for the last one is stale.
-  useEffect(() => {
+  const [prevBuzzState, setPrevBuzzState] = useState(buzzState)
+  if (buzzState !== prevBuzzState) {
+    setPrevBuzzState(buzzState)
     if (buzzState === 'open') {
       setGuessInput('')
       setGuessSent(false)
     }
-  }, [buzzState])
+  }
 
   function handleGuessSubmit(e: FormEvent) {
     e.preventDefault()
@@ -148,10 +149,13 @@ export default function PlayerBuzzer() {
   // it right scores automatically, so unlike the buzz-race guess above there's no "only the
   // winner" gate and no locking after one submission. A fresh round means whatever was typed
   // for the last one (right or wrong) is stale.
-  useEffect(() => {
+  const roundKey = `${roundState?.possessionIndex}:${roundState?.guessStage}`
+  const [prevRoundKey, setPrevRoundKey] = useState(roundKey)
+  if (roundKey !== prevRoundKey) {
+    setPrevRoundKey(roundKey)
     setModeGuessInput('')
     setModeGuessSubmitted(null)
-  }, [roundState?.possessionIndex, roundState?.guessStage])
+  }
 
   function submitModeGuess(text: string) {
     if (!text) return

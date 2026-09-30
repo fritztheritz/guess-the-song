@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import SpotifyConnectPanel from './SpotifyConnectPanel'
 import Spinner from './Spinner'
-import { useSpotify } from '../state/SpotifyContext'
+import { useSpotify } from '../state/spotify-context'
 import {
   searchSpotifyTracks,
   getArtistTopTracksBySearch,
