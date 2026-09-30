@@ -263,6 +263,22 @@ export default function ImportSoundCloudModal({
     })
   }
 
+  const [randomCount, setRandomCount] = useState(10)
+
+  // Replaces the current selection outright (same "sets the selection" contract as Select
+  // All below, just a random subset instead of everything) rather than adding to it — the
+  // point is "build a game from N random songs", not layering randoms on top of whatever's
+  // already picked, which would leave the final total unpredictable.
+  function pickRandom(pool: ImportableTrack[]) {
+    const n = Math.max(1, Math.min(pool.length, randomCount))
+    const shuffled = [...pool]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    setSelected(new Map(shuffled.slice(0, n).map((t) => [t.soundcloudTrackId, t])))
+  }
+
   const selectedList = useMemo(() => Array.from(selected.values()), [selected])
 
   const filteredTracks = useMemo(() => {
@@ -488,7 +504,26 @@ export default function ImportSoundCloudModal({
                   )}
 
                   {filteredTracks.length > 0 && (
-                    <div className="mb-4 flex justify-end">
+                    <div className="mb-4 flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+                      <div className="flex items-center gap-1.5 text-sm text-slate-400">
+                        <span aria-hidden="true">🎲</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={filteredTracks.length}
+                          value={randomCount}
+                          onChange={(e) => setRandomCount(Math.max(1, Number(e.target.value) || 1))}
+                          aria-label="Number of random tracks to pick"
+                          className="w-14 rounded-lg border border-arena-600 bg-arena-800 px-2 py-1 text-center text-slate-100 outline-none focus:border-hardwood-500"
+                        />
+                        <span>of {filteredTracks.length}</span>
+                        <button
+                          onClick={() => pickRandom(filteredTracks)}
+                          className="text-hardwood-400 underline hover:text-hardwood-300"
+                        >
+                          Pick random{filterQuery ? ' (filtered)' : ''}
+                        </button>
+                      </div>
                       <button
                         onClick={toggleSelectAllFiltered}
                         className="text-sm text-hardwood-400 underline hover:text-hardwood-300"
