@@ -5,7 +5,8 @@ import { getTierList, saveTierList } from '../lib/storage/tierlist-repository'
 import { moveSong, songsInGroup } from '../lib/tierlist-ranking'
 import { useConfirm } from '../state/confirm-context'
 import { useToast } from '../state/toast-context'
-import { isSoundMuted, playCorrect, playFanfare, setSoundMuted } from '../lib/sound-effects'
+import { playCorrect, playFanfare } from '../lib/sound-effects'
+import SoundControl from '../components/SoundControl'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
 import { useStoredEntity } from '../lib/use-stored-entity'
@@ -125,7 +126,6 @@ export default function TierListPresent() {
   const [list, setList] = useStoredEntity(tierListId, getTierList)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverZone, setDragOverZone] = useState<string | null>(null)
-  const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
   const [celebrating, setCelebrating] = useState(false)
 
   function persist(next: TierList) {
@@ -168,12 +168,6 @@ export default function TierListPresent() {
     setDragOverZone(null)
   }
 
-  function toggleSound() {
-    const next = !soundMuted
-    setSoundMuted(next)
-    setSoundMutedState(next)
-  }
-
   function handleDragOverZone(zoneId: string) {
     setDragOverZone((prev) => (prev === zoneId ? prev : zoneId))
   }
@@ -213,13 +207,7 @@ export default function TierListPresent() {
             <h1 className="font-display text-3xl tracking-wide text-white">{list.name}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <button
-              onClick={toggleSound}
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-sm text-slate-300 hover:bg-black/60"
-              aria-label={soundMuted ? 'Unmute sound effects' : 'Mute sound effects'}
-            >
-              {soundMuted ? '🔇' : '🔊'}
-            </button>
+            <SoundControl />
             <button onClick={resetRankings} className="text-xs text-slate-500 underline hover:text-slate-300">
               ↺ Reset rankings
             </button>

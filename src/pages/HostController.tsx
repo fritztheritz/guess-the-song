@@ -12,7 +12,8 @@ import {
 } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
-import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, isSoundMuted, setSoundMuted } from '../lib/sound-effects'
+import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare } from '../lib/sound-effects'
+import SoundControl from '../components/SoundControl'
 import { downloadRecapCard, type RecapCardStats } from '../lib/recap-card'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import {
@@ -89,7 +90,6 @@ export default function HostController({ gameId }: { gameId: string }) {
   const [wagerTeamId, setWagerTeamId] = useState<string | null>(null)
   const [wagerAmount, setWagerAmount] = useState<number | null>(null)
   const [showHelp, setShowHelp] = useState(false)
-  const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
   // Host Controller / Public Display split: a second window opened via "Public Display"
   // shows a read-only, answer-free mirror of whatever's currently on screen here, synced
   // over BroadcastChannel. publicConnected only ever flips true (never back to false) —
@@ -442,12 +442,6 @@ export default function HostController({ gameId }: { gameId: string }) {
     const url = new URL(window.location.href)
     url.searchParams.set('display', 'public')
     window.open(url.toString(), `gts-public-${gameId}`, 'noopener')
-  }
-
-  function toggleSound() {
-    const next = !soundMuted
-    setSoundMuted(next)
-    setSoundMutedState(next)
   }
 
   const stopShotClock = useCallback(() => {
@@ -969,13 +963,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         <button onClick={openPublicDisplay} className="rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
           🖥️ Public Display{publicConnected ? ' ✓' : ''}
         </button>
-        <button
-          onClick={toggleSound}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-sm text-slate-300 hover:bg-black/60"
-          aria-label={soundMuted ? 'Unmute sound effects' : 'Mute sound effects'}
-        >
-          {soundMuted ? '🔇' : '🔊'}
-        </button>
+        <SoundControl />
         <button
           onClick={() => setShowHelp((v) => !v)}
           className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-sm text-slate-300 hover:bg-black/60"

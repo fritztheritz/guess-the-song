@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getPopularityGame, savePopularityGame } from '../lib/storage/popularity-repository'
 import type { PopularityGame, PopularityTrack } from '../types/popularity'
-import { playBuzzIn, playCorrect, playFanfare, playStreak, playWrong, isSoundMuted, setSoundMuted } from '../lib/sound-effects'
+import { playBuzzIn, playCorrect, playFanfare, playStreak, playWrong } from '../lib/sound-effects'
+import SoundControl from '../components/SoundControl'
 import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
 import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
 import type { BuzzerPlayer } from '../lib/buzzer/protocol'
@@ -38,7 +39,6 @@ export default function PopularityPresent() {
     gameRef.current = game
   })
   const [guessInput, setGuessInput] = useState('')
-  const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
   const [lastResult, setLastResult] = useState<{
     correct: boolean
     title: string
@@ -117,12 +117,6 @@ export default function PopularityPresent() {
     const pool = q ? unsolved.filter((t) => t.title.toLowerCase().includes(q)) : unsolved
     return pool.slice(0, MAX_SUGGESTIONS)
   }, [game, guessInput, solvedTrackIds])
-
-  function toggleSound() {
-    const next = !soundMuted
-    setSoundMuted(next)
-    setSoundMutedState(next)
-  }
 
   function celebrate() {
     setCelebrating(true)
@@ -343,13 +337,7 @@ export default function PopularityPresent() {
               🔔 {game.buzzerRoomCode} ({buzzRoster.length})
             </button>
           )}
-        <button
-          onClick={toggleSound}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-sm text-slate-300 hover:bg-black/60"
-          aria-label={soundMuted ? 'Unmute sound effects' : 'Mute sound effects'}
-        >
-          {soundMuted ? '🔇' : '🔊'}
-        </button>
+          <SoundControl />
         </div>
       </div>
 

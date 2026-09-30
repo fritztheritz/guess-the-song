@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getTimelineGame, saveTimelineGame } from '../lib/storage/timeline-repository'
 import { isValidSlot, type TimelineGame } from '../types/timeline'
-import { playCorrect, playFanfare, playStreak, playWrong, isSoundMuted, setSoundMuted } from '../lib/sound-effects'
+import { playCorrect, playFanfare, playStreak, playWrong } from '../lib/sound-effects'
+import SoundControl from '../components/SoundControl'
 import { betterStreak, bumpTally, streakBonus } from '../lib/streaks'
 import { useTurnTimer } from '../lib/use-turn-timer'
 import { useConfirm } from '../state/confirm-context'
@@ -33,7 +34,6 @@ export default function TimelinePresent() {
   useEffect(() => {
     gameRef.current = game
   })
-  const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
   const [lastResult, setLastResult] = useState<LastResult | null>(null)
   const [celebrating, setCelebrating] = useState(false)
 
@@ -46,12 +46,6 @@ export default function TimelinePresent() {
   const inPlay = !!game && !!progress && !progress.completed
   const currentSong = game && progress && !progress.completed ? game.songs[progress.deckIndex] : undefined
   const currentTeam = game && progress ? game.teams[progress.turnTeamIndex % game.teams.length] : undefined
-
-  function toggleSound() {
-    const next = !soundMuted
-    setSoundMuted(next)
-    setSoundMutedState(next)
-  }
 
   function celebrate() {
     setCelebrating(true)
@@ -232,13 +226,7 @@ export default function TimelinePresent() {
             {prog.completed ? 'Final timeline' : `Song ${prog.deckIndex} of ${game.songs.length - 1}`}
           </div>
         </div>
-        <button
-          onClick={toggleSound}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-sm text-slate-300 hover:bg-black/60"
-          aria-label={soundMuted ? 'Unmute sound effects' : 'Mute sound effects'}
-        >
-          {soundMuted ? '🔇' : '🔊'}
-        </button>
+        <SoundControl />
       </div>
 
       <div className="px-6 pb-4">

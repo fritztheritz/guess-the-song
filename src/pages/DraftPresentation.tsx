@@ -3,7 +3,8 @@ import { Link, useParams } from 'react-router-dom'
 import type { DraftBoard, DraftPoolSong, Drafter } from '../types/draft'
 import { snakeOrder, computeDraftStandings } from '../types/draft'
 import { getDraftBoard } from '../lib/storage/draft-repository'
-import { isSoundMuted, playCorrect, playFanfare, setSoundMuted } from '../lib/sound-effects'
+import { playCorrect, playFanfare } from '../lib/sound-effects'
+import SoundControl from '../components/SoundControl'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
 
@@ -17,7 +18,6 @@ const DRAFT_STORAGE_KEY = 'gts.draftboards.v1'
 export default function DraftPresentation() {
   const { boardId, sessionId } = useParams()
   const [board, setBoard] = useState<DraftBoard | null>(null)
-  const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
   const [lastPick, setLastPick] = useState<{ song: DraftPoolSong; drafter: Drafter } | null>(null)
   const [celebrating, setCelebrating] = useState(false)
   const prevPickCountRef = useRef<number | null>(null)
@@ -104,12 +104,6 @@ export default function DraftPresentation() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?.phase])
 
-  function toggleSound() {
-    const next = !soundMuted
-    setSoundMuted(next)
-    setSoundMutedState(next)
-  }
-
   if (!board || !session) {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 text-slate-400">
@@ -131,13 +125,7 @@ export default function DraftPresentation() {
           <div className="font-display text-2xl tracking-wide text-white">{session.name}</div>
           <div className="text-xs text-slate-500">{board.name}</div>
         </div>
-        <button
-          onClick={toggleSound}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-sm text-slate-300 hover:bg-black/60"
-          aria-label={soundMuted ? 'Unmute sound effects' : 'Mute sound effects'}
-        >
-          {soundMuted ? '🔇' : '🔊'}
-        </button>
+        <SoundControl />
       </div>
 
       <div className="flex flex-1 flex-col items-center justify-center gap-8 py-8">
