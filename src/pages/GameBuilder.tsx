@@ -348,7 +348,7 @@ export default function GameBuilder() {
           <input
             value={game.name}
             onChange={(e) => persist({ ...game, name: e.target.value })}
-            className="bg-transparent font-display text-2xl tracking-wide text-white outline-none"
+            className="bg-transparent font-display text-2xl tracking-wide text-white outline-none focus:border-b focus:border-hardwood-500"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -435,9 +435,35 @@ export default function GameBuilder() {
                 <div className="truncate text-sm text-slate-100">{round.title}</div>
                 <div className="truncate text-xs text-slate-500">{round.artist}</div>
               </div>
-              <div className="hidden flex-col gap-1 group-hover:flex">
-                <button onClick={(e) => { e.stopPropagation(); duplicateRound(round) }} className="text-xs text-slate-500 hover:text-slate-200" title="Duplicate">⧉</button>
-                <button onClick={(e) => { e.stopPropagation(); removeRound(round.id) }} className="text-xs text-slate-500 hover:text-scoreboard-500" title="Delete">✕</button>
+              {/* Always visible, not hover-gated — hover never fires on a touchscreen, and
+                  these (plus drag itself) were the only way to reorder or remove a round,
+                  which made both silently unreachable on a phone/tablet. The ▲▼ pair is
+                  also the keyboard-usable alternative to drag for anyone not using a mouse. */}
+              <div className="flex shrink-0 flex-col gap-0.5">
+                <div className="flex gap-0.5">
+                  <button
+                    disabled={i === 0}
+                    onClick={(e) => { e.stopPropagation(); reorder(i, i - 1) }}
+                    className="text-xs text-slate-500 hover:text-slate-200 disabled:opacity-20 disabled:hover:text-slate-500"
+                    title="Move up"
+                    aria-label={`Move "${round.title || 'this round'}" up`}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    disabled={i === game.rounds.length - 1}
+                    onClick={(e) => { e.stopPropagation(); reorder(i, i + 1) }}
+                    className="text-xs text-slate-500 hover:text-slate-200 disabled:opacity-20 disabled:hover:text-slate-500"
+                    title="Move down"
+                    aria-label={`Move "${round.title || 'this round'}" down`}
+                  >
+                    ▼
+                  </button>
+                </div>
+                <div className="flex gap-0.5">
+                  <button onClick={(e) => { e.stopPropagation(); duplicateRound(round) }} className="text-xs text-slate-500 hover:text-slate-200" title="Duplicate">⧉</button>
+                  <button onClick={(e) => { e.stopPropagation(); removeRound(round.id) }} className="text-xs text-slate-500 hover:text-scoreboard-500" title="Delete">✕</button>
+                </div>
               </div>
             </div>
           ))}
@@ -665,12 +691,12 @@ export default function GameBuilder() {
                   <input
                     value={selectedRound.title}
                     onChange={(e) => updateRound({ ...selectedRound, title: e.target.value })}
-                    className="w-full bg-transparent text-2xl font-semibold text-slate-100 outline-none"
+                    className="w-full bg-transparent text-2xl font-semibold text-slate-100 outline-none focus:border-b focus:border-hardwood-500"
                   />
                   <input
                     value={selectedRound.artist}
                     onChange={(e) => updateRound({ ...selectedRound, artist: e.target.value })}
-                    className="w-full bg-transparent text-slate-400 outline-none"
+                    className="w-full bg-transparent text-slate-400 outline-none focus:border-b focus:border-hardwood-500"
                   />
                   <div className="mt-1 flex items-center gap-2 text-xs">
                     {isTierGuess ? (
