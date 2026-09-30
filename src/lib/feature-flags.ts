@@ -18,14 +18,14 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     key: 'tier-lists',
     label: 'SoundCloud Tier Lists',
     description: 'Build a tier list from SoundCloud tracks, then rank them live with drag-and-drop on a shared screen.',
-    default: false,
+    default: true,
   },
   {
     key: 'phone-buzzer',
     label: 'Phone Buzz-In',
     description:
       "Players buzz in from their own phones instead of the host picking a team — first buzz locks in that team, host still judges correct/incorrect. Needs the Cloudflare Worker's buzzer route configured; only affects Song/Lyric/Year rounds.",
-    default: false,
+    default: true,
   },
   {
     key: 'spotify-import',
@@ -39,14 +39,14 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     label: 'Tournaments',
     description:
       'Chain several existing games together in sequence with one running leaderboard across them, aggregated by matching team name.',
-    default: false,
+    default: true,
   },
   {
     key: 'draft',
     label: 'Song Draft',
     description:
       'A shared song pool that teams snake-draft 5 songs from, one pick at a time on a shared screen — once a song is picked, it\'s off the board for every future draft too. Ends with everyone ranking every other team\'s roster to crown a winner.',
-    default: false,
+    default: true,
   },
   {
     key: 'popularity',
