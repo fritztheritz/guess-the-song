@@ -69,6 +69,27 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
       "On the draft's Listening Time screen: save each drafter's picks as a SoundCloud playlist, and play tracks inline via this app's own SoundCloud connection. Still being worked through — playback via the connected account isn't confirmed working yet.",
     default: false,
   },
+  {
+    key: 'seasons',
+    label: 'Seasons / Leagues',
+    description:
+      'Name a recurring season and give it a tag — every completed game (of any type) carrying that tag automatically counts toward its standings, so a weekly game night builds a running leaderboard with no per-game bookkeeping.',
+    default: false,
+  },
+  {
+    key: 'power-ups',
+    label: 'Power-Ups',
+    description:
+      "Host can grant a team Double Points, Steal, or Freeze during Song/Lyric rounds — Double doubles their next correct answer, Steal also docks the current leader, Freeze blocks a team from buzzing on the next clue. Needs the host to grant them from the presentation screen.",
+    default: false,
+  },
+  {
+    key: 'spectator-mode',
+    label: 'Spectator Mode',
+    description:
+      "Adds a \"Just watching\" option to the Phone Buzz-In join screen for people who aren't on a team — they see the same live game mirror and can guess along on Guess the Year/Tier rounds for fun, with no score impact.",
+    default: false,
+  },
 ]
 
 const STORAGE_KEY = 'gts.flags.v1'

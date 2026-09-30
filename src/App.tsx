@@ -14,6 +14,8 @@ import TierListPresent from './pages/TierListPresent'
 import PlayerBuzzer from './pages/PlayerBuzzer'
 import CreateTournament from './pages/CreateTournament'
 import TournamentBuilder from './pages/TournamentBuilder'
+import CreateSeason from './pages/CreateSeason'
+import SeasonBoard from './pages/SeasonBoard'
 import CreateDraftBoard from './pages/CreateDraftBoard'
 import DraftBoardHome from './pages/DraftBoardHome'
 import DraftSessionRoom from './pages/DraftSessionRoom'
@@ -75,6 +77,22 @@ export default function App() {
         element={
           <RequireFlag flag="tournaments">
             <TournamentBuilder />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/seasons/new"
+        element={
+          <RequireFlag flag="seasons">
+            <CreateSeason />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/seasons/:seasonId"
+        element={
+          <RequireFlag flag="seasons">
+            <SeasonBoard />
           </RequireFlag>
         }
       />

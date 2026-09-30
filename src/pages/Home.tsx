@@ -24,10 +24,12 @@ import {
   exportAllTimelineGames,
   importTimelineGames,
 } from '../lib/storage/timeline-repository'
+import { listSeasons, deleteSeason, saveSeason, exportAllSeasons, importSeasons } from '../lib/storage/season-repository'
 import { downloadBackupFile, parseBackupFile, BackupFileError, type BackupContents } from '../lib/game-backup'
 import { duplicateGame, isLyricMode, isTierGuessMode, type Game } from '../types'
 import { duplicateTierList, type TierList } from '../types/tierlist'
 import { duplicateTournament, type Tournament } from '../types/tournament'
+import { duplicateSeason, type Season } from '../types/season'
 import type { DraftBoard } from '../types/draft'
 import type { PopularityGame } from '../types/popularity'
 import type { TimelineGame } from '../types/timeline'
@@ -49,6 +51,7 @@ function describeBackupContents(contents: BackupContents): string[] {
     label(contents.draftBoards.length, 'draft'),
     label(contents.popularityGames.length, 'popularity game'),
     label(contents.timelineGames.length, 'timeline game'),
+    label(contents.seasons.length, 'season'),
   ].filter((part): part is string => part !== null)
 }
 
@@ -62,12 +65,14 @@ export default function Home() {
   const draftEnabled = useFeatureFlag('draft')
   const popularityEnabled = useFeatureFlag('popularity')
   const timelineEnabled = useFeatureFlag('timeline')
+  const seasonsEnabled = useFeatureFlag('seasons')
   const [games, setGames] = useState<Game[]>([])
   const [tierLists, setTierLists] = useState<TierList[]>([])
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [draftBoards, setDraftBoards] = useState<DraftBoard[]>([])
   const [popularityGames, setPopularityGames] = useState<PopularityGame[]>([])
   const [timelineGames, setTimelineGames] = useState<TimelineGame[]>([])
+  const [seasons, setSeasons] = useState<Season[]>([])
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
   const [activeTags, setActiveTags] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -80,7 +85,8 @@ export default function Home() {
     if (draftEnabled) setDraftBoards(listDraftBoards())
     if (popularityEnabled) setPopularityGames(listPopularityGames())
     if (timelineEnabled) setTimelineGames(listTimelineGames())
-  }, [tierListsEnabled, tournamentsEnabled, draftEnabled, popularityEnabled, timelineEnabled])
+    if (seasonsEnabled) setSeasons(listSeasons())
+  }, [tierListsEnabled, tournamentsEnabled, draftEnabled, popularityEnabled, timelineEnabled, seasonsEnabled])
 
   // Delete-then-offer-Undo instead of a confirm dialog, for every "remove one whole item
   // from a library section" action on this page — these are simple, self-contained
@@ -200,6 +206,27 @@ export default function Home() {
     navigate(`/games/${copy.id}/edit`)
   }
 
+  function handleDeleteSeason(id: string) {
+    const season = seasons.find((s) => s.id === id)
+    if (!season) return
+    deleteSeason(id)
+    setSeasons((prev) => prev.filter((s) => s.id !== id))
+    showToast(`"${season.name}" deleted`, {
+      action: {
+        label: 'Undo',
+        onAction: () => {
+          saveSeason(season)
+          setSeasons(listSeasons())
+        },
+      },
+    })
+  }
+
+  function handleDuplicateSeason(season: Season) {
+    const copy = saveSeason(duplicateSeason(season))
+    navigate(`/seasons/${copy.id}`)
+  }
+
   // "Continue" shortcut — whatever's most recently touched across every section, by
   // `updatedAt` (every entity already bumps it on save, so this needs no separate
   // "last opened" tracking). Deliberately reads the raw lists, not the tag/search-filtered
@@ -222,10 +249,27 @@ export default function Home() {
       ...(timelineEnabled
         ? timelineGames.map((g) => ({ key: `tm-${g.id}`, icon: '🕰️', label: 'Timeline', name: g.name, to: `/timeline/${g.id}/present`, updatedAt: g.updatedAt }))
         : []),
+      ...(seasonsEnabled
+        ? seasons.map((s) => ({ key: `sn-${s.id}`, icon: '📅', label: 'Season', name: s.name, to: `/seasons/${s.id}`, updatedAt: s.updatedAt }))
+        : []),
     ]
     if (candidates.length === 0) return null
     return candidates.reduce((best, c) => (c.updatedAt > best.updatedAt ? c : best))
-  }, [games, tierLists, tierListsEnabled, tournaments, tournamentsEnabled, draftBoards, draftEnabled, popularityGames, popularityEnabled, timelineGames, timelineEnabled])
+  }, [
+    games,
+    tierLists,
+    tierListsEnabled,
+    tournaments,
+    tournamentsEnabled,
+    draftBoards,
+    draftEnabled,
+    popularityGames,
+    popularityEnabled,
+    timelineGames,
+    timelineEnabled,
+    seasons,
+    seasonsEnabled,
+  ])
 
   // Tier Guess rides on the tier-lists flag — fully hidden when it's off, same as the tier
   // lists section below, rather than just blocking its Edit/Present links.
@@ -254,7 +298,14 @@ export default function Home() {
   const matchesSearch = (...fields: Array<string | undefined>) =>
     !searchTerm || fields.some((f) => f?.toLowerCase().includes(searchTerm))
   const hasAnyContent =
-    games.length + tierLists.length + tournaments.length + draftBoards.length + popularityGames.length + timelineGames.length > 0
+    games.length +
+      tierLists.length +
+      tournaments.length +
+      draftBoards.length +
+      popularityGames.length +
+      timelineGames.length +
+      seasons.length >
+    0
   const visibleGames = modeVisibleGames.filter((g) => matchesActiveTags(g.tags) && matchesSearch(g.name))
   const visibleTierLists = tierLists.filter((l) => matchesActiveTags(l.tags) && matchesSearch(l.name))
   const visibleTournaments = tournaments.filter((t) => matchesActiveTags(t.tags) && matchesSearch(t.name))
@@ -263,6 +314,7 @@ export default function Home() {
   // by the search box, never the tag bar above.
   const visiblePopularityGames = popularityGames.filter((g) => matchesSearch(g.name, g.artistName))
   const visibleTimelineGames = timelineGames.filter((g) => matchesSearch(g.name))
+  const visibleSeasons = seasons.filter((s) => matchesSearch(s.name, s.tag))
 
   function handleExportAll() {
     // Reads straight from storage rather than the tierLists/tournaments/draftBoards state
@@ -273,6 +325,7 @@ export default function Home() {
     const allDraftBoards = exportAllDraftBoards()
     const allPopularityGames = exportAllPopularityGames()
     const allTimelineGames = exportAllTimelineGames()
+    const allSeasons = exportAllSeasons()
     const contents = {
       games: allGames,
       tierLists: allTierLists,
@@ -280,6 +333,7 @@ export default function Home() {
       draftBoards: allDraftBoards,
       popularityGames: allPopularityGames,
       timelineGames: allTimelineGames,
+      seasons: allSeasons,
     }
     if (Object.values(contents).every((list) => list.length === 0)) {
       setBackupStatus('Nothing to back up yet.')
@@ -313,12 +367,14 @@ export default function Home() {
       importDraftBoards(imported.draftBoards)
       importPopularityGames(imported.popularityGames)
       importTimelineGames(imported.timelineGames)
+      importSeasons(imported.seasons)
       setGames(listGames())
       if (tierListsEnabled) setTierLists(listTierLists())
       if (tournamentsEnabled) setTournaments(listTournaments())
       if (draftEnabled) setDraftBoards(listDraftBoards())
       if (popularityEnabled) setPopularityGames(listPopularityGames())
       if (timelineEnabled) setTimelineGames(listTimelineGames())
+      if (seasonsEnabled) setSeasons(listSeasons())
       setBackupStatus(`Restored ${parts.join(', ')} from backup.`)
     } catch (err) {
       setBackupStatus(err instanceof BackupFileError ? err.message : 'Could not read that file.')
@@ -378,6 +434,14 @@ export default function Home() {
                 className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
               >
                 + GUESS THE TIMELINE
+              </Link>
+            )}
+            {seasonsEnabled && (
+              <Link
+                to="/seasons/new"
+                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
+              >
+                + CREATE SEASON
               </Link>
             )}
           </div>
@@ -632,6 +696,54 @@ export default function Home() {
                         onClick={() => handleDeleteTournament(tournament.id)}
                         className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
                         aria-label="Delete tournament"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </Panel>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {seasonsEnabled && seasons.length > 0 && (
+          <div className="mt-16">
+            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR SEASONS</h2>
+            {visibleSeasons.length === 0 ? (
+              <p className="text-sm text-slate-500">No seasons match your search.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {visibleSeasons.map((season) => (
+                  <Panel key={season.id} className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs">📅</span>
+                        <div className="font-semibold text-slate-100">{season.name}</div>
+                      </div>
+                      <div className="text-sm text-slate-500">
+                        Tag: <span className="rounded-full bg-arena-700 px-1.5 py-0.5 text-[10px] text-slate-400">{season.tag}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/seasons/${season.id}`}
+                        className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                      >
+                        Open
+                      </Link>
+                      <button
+                        onClick={() => handleDuplicateSeason(season)}
+                        className="rounded-lg px-2 text-slate-500 hover:text-slate-200"
+                        aria-label={`Duplicate ${season.name}`}
+                        title="Duplicate"
+                      >
+                        ⧉
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSeason(season.id)}
+                        className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
+                        aria-label="Delete season"
                       >
                         ✕
                       </button>
