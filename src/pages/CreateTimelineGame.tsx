@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSpotify } from '../state/spotify-context'
 import { searchSpotifyTracks, loadMoreSpotifyTracks, type ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
@@ -6,8 +6,9 @@ import { SpotifyApiError, SpotifyNotConnectedError, SpotifyRateLimitError } from
 import { saveTimelineGame } from '../lib/storage/timeline-repository'
 import { createInitialTimelineProgress, songFromImportable, type TimelineGame, type TimelineSong } from '../types/timeline'
 import { createTeam, teamColorForIndex, TEAM_COLORS, type Team } from '../types'
+import { findDuplicateTeamName } from '../lib/team-name-conflicts'
 import SpotifyConnectPanel from '../components/SpotifyConnectPanel'
-import Spinner from '../components/Spinner'
+import { SkeletonRows } from '../components/skeletons'
 import TextInput from '../components/ui/TextInput'
 import Button from '../components/ui/Button'
 import Panel from '../components/ui/Panel'
@@ -52,6 +53,7 @@ export default function CreateTimelineGame() {
   const [picked, setPicked] = useState<TimelineSong[]>([])
   const [name, setName] = useState('Guess the Timeline')
   const [teams, setTeams] = useState<Team[]>([createTeam('Team 1', TEAM_COLORS[0]), createTeam('Team 2', TEAM_COLORS[1])])
+  const duplicateTeamName = useMemo(() => findDuplicateTeamName(teams.map((t) => t.name)), [teams])
   const [turnTimer, setTurnTimer] = useState(0)
 
   const pickedIds = new Set(picked.map((s) => s.spotifyTrackId))
@@ -188,9 +190,7 @@ export default function CreateTimelineGame() {
             </div>
 
             {searching ? (
-              <div className="flex justify-center py-6 text-slate-400">
-                <Spinner className="h-8 w-8" />
-              </div>
+              <SkeletonRows />
             ) : (
               results.length > 0 && (
                 <div className="space-y-1.5">
@@ -319,6 +319,12 @@ export default function CreateTimelineGame() {
               <button type="button" onClick={addTeam} className="mt-2 text-sm text-hardwood-400 hover:text-hardwood-300">
                 + Add team
               </button>
+              {duplicateTeamName && (
+                <p className="mt-2 text-xs text-scoreboard-amber">
+                  ⚠️ Two teams are both named "{duplicateTeamName}" — that'll look confusing on the scoreboard, and Stats merges
+                  teams with the same name together across games.
+                </p>
+              )}
             </div>
 
             <Button type="submit" fullWidth size="lg" disabled={picked.length < MIN_SONGS}>

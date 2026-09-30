@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import SpotifyConnectPanel from './SpotifyConnectPanel'
-import Spinner from './Spinner'
+import { SkeletonTrackGrid } from './skeletons'
 import { useSpotify } from '../state/spotify-context'
 import {
   searchSpotifyTracks,
@@ -246,10 +246,7 @@ export default function ImportSpotifyModal({
               {tab === 'playlists' && !activePlaylist && (
                 <>
                   {loadingPlaylists ? (
-                    <div className="flex flex-col items-center gap-3 py-12 text-slate-400">
-                      <Spinner className="h-8 w-8" />
-                      <span>Loading playlists…</span>
-                    </div>
+                    <SkeletonTrackGrid />
                   ) : playlists.length === 0 ? (
                     <div className="py-12 text-center text-slate-500">No playlists found.</div>
                   ) : (
@@ -315,10 +312,7 @@ export default function ImportSpotifyModal({
                 ))}
 
               {(tab === 'search' || activePlaylist) && (loading ? (
-                <div className="flex flex-col items-center gap-3 py-12 text-slate-400">
-                  <Spinner className="h-8 w-8" />
-                  <span>{activePlaylist ? 'Loading tracks…' : 'Searching…'}</span>
-                </div>
+                <SkeletonTrackGrid />
               ) : results.length === 0 ? (
                 <div className="py-12 text-center text-slate-500">
                   {activePlaylist ? 'This playlist has no tracks.' : query ? `No results for "${query}".` : 'Search for a song to get started.'}

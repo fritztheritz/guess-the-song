@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import TrackCard from './TrackCard'
 import SoundCloudConnectPanel from './SoundCloudConnectPanel'
 import SoundCloudAttribution from './SoundCloudAttribution'
-import Spinner from './Spinner'
+import { SkeletonTrackGrid } from './skeletons'
 import { useSoundCloud } from '../state/soundcloud-context'
 import {
   getLikedTracks,
@@ -501,10 +501,7 @@ export default function ImportSoundCloudModal({
                   )}
 
                   {loading && tracks.length === 0 ? (
-                    <div className="flex flex-col items-center gap-3 py-12 text-slate-400">
-                      <Spinner className="h-8 w-8" />
-                      <span>Loading…</span>
-                    </div>
+                    <SkeletonTrackGrid />
                   ) : tracks.length === 0 ? (
                     <div className="py-12 text-center text-slate-500">No tracks here yet.</div>
                   ) : filteredTracks.length === 0 ? (

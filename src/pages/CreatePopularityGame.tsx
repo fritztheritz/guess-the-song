@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useSpotify } from '../state/spotify-context'
 import {
@@ -11,8 +11,10 @@ import { SpotifyApiError, SpotifyNotConnectedError, SpotifyRateLimitError } from
 import { savePopularityGame } from '../lib/storage/popularity-repository'
 import { trackFromImportable, createInitialProgress, type PopularityGame, type PopularityRank } from '../types/popularity'
 import { createTeam, teamColorForIndex, TEAM_COLORS, type Team } from '../types'
+import { findDuplicateTeamName } from '../lib/team-name-conflicts'
 import SpotifyConnectPanel from '../components/SpotifyConnectPanel'
 import Spinner from '../components/Spinner'
+import { SkeletonArtistGrid } from '../components/skeletons'
 import TextInput from '../components/ui/TextInput'
 import Button from '../components/ui/Button'
 import Panel from '../components/ui/Panel'
@@ -46,6 +48,7 @@ export default function CreatePopularityGame() {
 
   const [name, setName] = useState('')
   const [teams, setTeams] = useState<Team[]>([createTeam('Team 1', TEAM_COLORS[0]), createTeam('Team 2', TEAM_COLORS[1])])
+  const duplicateTeamName = useMemo(() => findDuplicateTeamName(teams.map((t) => t.name)), [teams])
   const [turnTimer, setTurnTimer] = useState(0)
   const [saving, setSaving] = useState(false)
 
@@ -163,9 +166,7 @@ export default function CreatePopularityGame() {
             {searchError && <div className="rounded-lg bg-scoreboard-500/10 px-4 py-2 text-sm text-scoreboard-500">{searchError}</div>}
 
             {searching ? (
-              <div className="flex justify-center py-8 text-slate-400">
-                <Spinner className="h-8 w-8" />
-              </div>
+              <SkeletonArtistGrid />
             ) : artistResults.length > 0 ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {artistResults.map((a) => (
@@ -287,6 +288,12 @@ export default function CreatePopularityGame() {
               <button type="button" onClick={addTeam} className="mt-2 text-sm text-hardwood-400 hover:text-hardwood-300">
                 + Add team
               </button>
+              {duplicateTeamName && (
+                <p className="mt-2 text-xs text-scoreboard-amber">
+                  ⚠️ Two teams are both named "{duplicateTeamName}" — that'll look confusing on the scoreboard, and Stats merges
+                  teams with the same name together across games.
+                </p>
+              )}
             </div>
 
             <Button type="submit" fullWidth size="lg" disabled={saving}>
