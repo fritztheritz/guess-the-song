@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { Team } from '../types'
 import type { BuzzerPlayer } from '../lib/buzzer/protocol'
 import JoinQrCode from './JoinQrCode'
@@ -21,10 +22,15 @@ export default function BuzzerPanel({
   onClose: () => void
 }) {
   const url = joinUrl(code)
+  // Same inline "label flips to a checkmark for 2s" feedback as AnswerKeyModal's copy
+  // button — this one used to give no confirmation at all that the click did anything.
+  const [copied, setCopied] = useState(false)
 
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
     } catch {
       // Clipboard API unavailable (e.g. non-HTTPS) — the link is still shown/selectable.
     }
@@ -44,7 +50,7 @@ export default function BuzzerPanel({
             <JoinQrCode code={code} size={140} />
           </div>
           <button onClick={copyLink} className="mt-2 text-xs text-slate-500 underline hover:text-slate-300">
-            Copy join link
+            {copied ? '✓ Copied' : 'Copy join link'}
           </button>
         </div>
 
