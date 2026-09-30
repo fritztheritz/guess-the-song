@@ -1,4 +1,11 @@
-import type { Game } from '../types'
+import type { Team } from '../types'
+
+// Structural rather than `Game[]` so Stats can fold Guess the Popularity/Timeline games
+// into the same leaderboard — anything with teams and a completed flag qualifies.
+interface StandingsSource {
+  teams: Team[]
+  progress?: { completed?: boolean }
+}
 
 export interface TournamentStanding {
   name: string
@@ -12,7 +19,7 @@ export interface TournamentStanding {
 // Teams are matched by name (case/whitespace-insensitive) across games since each Game has
 // its own independent team ids — there's no shared contestant roster in this lightweight
 // design (see types/tournament.ts).
-export function computeStandings(games: Game[]): TournamentStanding[] {
+export function computeStandings(games: StandingsSource[]): TournamentStanding[] {
   const byName = new Map<string, TournamentStanding>()
 
   for (const game of games) {

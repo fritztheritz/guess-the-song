@@ -2,12 +2,14 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
 import type { BuzzState, BuzzerTeam, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
+import PopularityPicker from '../components/PopularityPicker'
 
 const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   song: '🎧 Listen up!',
   year: '📅 What year is it from?',
   tierguess: '🎯 Guess the ranking!',
   lyric: '📝 Finish the lyric',
+  popularity: '📈 Guess the popularity rank',
 }
 
 // Short labels for the month tap-grid (guessStage: 'guessMonth') — full names would wrap
@@ -121,6 +123,7 @@ export default function PlayerBuzzer() {
   }
 
   function handleBuzz() {
+    navigator.vibrate?.(40)
     socketRef.current?.send({ type: 'buzz' })
   }
 
@@ -196,11 +199,15 @@ export default function PlayerBuzzer() {
         <div className="mb-3 w-full max-w-xs rounded-xl border border-arena-700 bg-arena-800/60 p-3 text-left">
           <div className="mb-1 text-[11px] uppercase tracking-widest text-slate-500">
             {roundState.gameName}
-            {roundState.phase === 'clue' || roundState.phase === 'revealed' ? (
+            {roundState.mode === 'popularity' ? (
+              roundState.phase === 'clue' && roundState.popularity ? (
+                <> · Rank #{roundState.popularity.rank} of {roundState.popularity.totalRanks}</>
+              ) : null
+            ) : roundState.phase === 'clue' || roundState.phase === 'revealed' ? (
               <> · Round {roundState.possessionIndex + 1}/{roundState.totalPossessions}</>
             ) : null}
           </div>
-          {roundState.phase === 'clue' && (
+          {roundState.phase === 'clue' && roundState.mode !== 'popularity' && (
             <div className="text-sm text-hardwood-300">
               {roundState.clueText ? `“${roundState.clueText}”` : MODE_CLUE_LABEL[roundState.mode]}
             </div>
@@ -289,7 +296,19 @@ export default function PlayerBuzzer() {
             </span>
           </div>
 
-          {roundState?.mode === 'year' || roundState?.mode === 'tierguess' ? (
+          {roundState?.mode === 'popularity' ? (
+            roundState.phase === 'final' || !roundState.popularity ? (
+              <p className="text-sm text-slate-400">That's the board — check the screen for the results.</p>
+            ) : (
+              <PopularityPicker
+                key={`${roundState.popularity.rank}:${roundState.popularity.turnTeamId}`}
+                state={roundState.popularity}
+                teams={roundState.teams}
+                myTeamId={identity?.teamId}
+                onPick={(id) => socketRef.current?.send({ type: 'guess', text: id })}
+              />
+            )
+          ) : roundState?.mode === 'year' || roundState?.mode === 'tierguess' ? (
             <div className="w-full max-w-xs space-y-3">
               {roundState.phase === 'clue' ? (
                 <>

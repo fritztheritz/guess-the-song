@@ -56,6 +56,13 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     default: false,
   },
   {
+    key: 'timeline',
+    label: 'Guess the Timeline',
+    description:
+      "Build a deck of Spotify songs, then teams take turns slotting each mystery song into a shared timeline by release year — right placements score (with streak bonuses) and stay on the board, misses are discarded. Needs Spotify connected.",
+    default: false,
+  },
+  {
     key: 'draft-soundcloud-playlists',
     label: 'Draft: SoundCloud Playlists',
     description:

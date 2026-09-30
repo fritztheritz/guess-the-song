@@ -1,8 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { listGames } from '../lib/storage/game-repository'
+import { listPopularityGames } from '../lib/storage/popularity-repository'
+import { listTimelineGames } from '../lib/storage/timeline-repository'
+import { computeAccuracy, findLongestStreak, tallySources } from '../lib/guess-stats'
 import { computeStandings } from '../lib/tournament-standings'
 import type { Game } from '../types'
+import type { PopularityGame } from '../types/popularity'
+import type { TimelineGame } from '../types/timeline'
 import Panel from '../components/ui/Panel'
 
 function StatTile({ label, value }: { label: string; value: number }) {
@@ -16,13 +21,27 @@ function StatTile({ label, value }: { label: string; value: number }) {
 
 export default function Stats() {
   const [games, setGames] = useState<Game[]>([])
+  // Read straight from storage regardless of the feature flags, same as backup export —
+  // turning a game type off shouldn't make its history vanish from the stats.
+  const [popularityGames, setPopularityGames] = useState<PopularityGame[]>([])
+  const [timelineGames, setTimelineGames] = useState<TimelineGame[]>([])
 
   useEffect(() => {
     setGames(listGames())
+    setPopularityGames(listPopularityGames())
+    setTimelineGames(listTimelineGames())
   }, [])
 
   const completed = useMemo(() => games.filter((g) => g.progress?.completed), [games])
-  const standings = useMemo(() => computeStandings(games), [games])
+  const completedPopularity = useMemo(() => popularityGames.filter((g) => g.progress.completed), [popularityGames])
+  const completedTimeline = useMemo(() => timelineGames.filter((g) => g.progress.completed), [timelineGames])
+  const totalCompleted = completed.length + completedPopularity.length + completedTimeline.length
+  const standings = useMemo(
+    () => computeStandings([...games, ...popularityGames, ...timelineGames]),
+    [games, popularityGames, timelineGames],
+  )
+  const accuracy = useMemo(() => computeAccuracy(tallySources(popularityGames, timelineGames)), [popularityGames, timelineGames])
+  const longestStreak = useMemo(() => findLongestStreak(tallySources(popularityGames, timelineGames)), [popularityGames, timelineGames])
   const totalPossessions = useMemo(() => completed.reduce((sum, g) => sum + g.rounds.length, 0), [completed])
 
   const topTags = useMemo(() => {
@@ -57,23 +76,28 @@ export default function Stats() {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1 className="font-display text-3xl tracking-wide text-white">STATS</h1>
-            <p className="mt-1 text-sm text-slate-400">Aggregated across every completed game in this browser.</p>
+            <p className="mt-1 text-sm text-slate-400">Aggregated across every completed game — quiz rounds, Guess the Popularity and Guess the Timeline — in this browser.</p>
           </div>
           <Link to="/" className="shrink-0 text-sm text-slate-400 underline hover:text-hardwood-400">
             ← Home
           </Link>
         </div>
 
-        {completed.length === 0 ? (
+        {totalCompleted === 0 ? (
           <Panel>
             <p className="text-sm text-slate-400">No completed games yet — finish a game to start building stats.</p>
           </Panel>
         ) : (
           <div className="space-y-8">
             <div className="grid grid-cols-3 gap-3">
-              <StatTile label="Games played" value={completed.length} />
+              <StatTile label="Games played" value={totalCompleted} />
               <StatTile label="Possessions" value={totalPossessions} />
               <StatTile label="Teams tracked" value={standings.length} />
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <StatTile label="Quiz games" value={completed.length} />
+              <StatTile label="Popularity games" value={completedPopularity.length} />
+              <StatTile label="Timeline games" value={completedTimeline.length} />
             </div>
 
             <section>
@@ -95,7 +119,7 @@ export default function Stats() {
               </div>
             </section>
 
-            {(biggestScore || fastestBuzz) && (
+            {(biggestScore || fastestBuzz || longestStreak) && (
               <section>
                 <h2 className="mb-3 font-display text-xl tracking-wide text-slate-300">ALL-TIME BESTS</h2>
                 <div className="space-y-2">
@@ -115,6 +139,39 @@ export default function Stats() {
                       </span>
                     </Panel>
                   )}
+                  {longestStreak && (
+                    <Panel padding="sm" className="flex items-center justify-between gap-3">
+                      <span className="shrink-0 text-sm text-slate-400">🔥 Longest streak</span>
+                      <span className="truncate text-right text-sm text-slate-200">
+                        {longestStreak.count} in a row — {longestStreak.teamName} in {longestStreak.gameName}
+                      </span>
+                    </Panel>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {accuracy.length > 0 && (
+              <section>
+                <h2 className="mb-1 font-display text-xl tracking-wide text-slate-300">GUESSING ACCURACY</h2>
+                <p className="mb-3 text-xs text-slate-500">Right vs. wrong picks in Guess the Popularity and Guess the Timeline.</p>
+                <div className="space-y-2">
+                  {accuracy.map((a) => {
+                    const total = a.right + a.wrong
+                    return (
+                      <Panel key={a.name} padding="sm" className="flex items-center justify-between">
+                        <span className="font-medium" style={{ color: a.color }}>
+                          {a.name}
+                          <span className="ml-2 text-xs text-slate-500">
+                            {a.right} right · {a.wrong} wrong
+                          </span>
+                        </span>
+                        <span className="scoreboard-digit font-display text-lg text-slate-100">
+                          {total > 0 ? Math.round((a.right / total) * 100) : 0}%
+                        </span>
+                      </Panel>
+                    )
+                  })}
                 </div>
               </section>
             )}

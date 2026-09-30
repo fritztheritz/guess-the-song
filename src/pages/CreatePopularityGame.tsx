@@ -17,6 +17,8 @@ import TextInput from '../components/ui/TextInput'
 import Button from '../components/ui/Button'
 import Panel from '../components/ui/Panel'
 
+const TURN_TIMER_OPTIONS = [15, 30, 45, 60]
+
 function errorMessage(err: unknown): string {
   if (err instanceof SpotifyNotConnectedError) return 'Connect Spotify to search artists.'
   if (err instanceof SpotifyRateLimitError) return err.message
@@ -44,6 +46,7 @@ export default function CreatePopularityGame() {
 
   const [name, setName] = useState('')
   const [teams, setTeams] = useState<Team[]>([createTeam('Team 1', TEAM_COLORS[0]), createTeam('Team 2', TEAM_COLORS[1])])
+  const [turnTimer, setTurnTimer] = useState(0)
   const [saving, setSaving] = useState(false)
 
   async function runSearch(e: FormEvent) {
@@ -121,6 +124,7 @@ export default function CreatePopularityGame() {
       ranks,
       autocompletePool: pool,
       teams,
+      turnTimerSeconds: turnTimer > 0 ? turnTimer : undefined,
       createdAt: now,
       updatedAt: now,
       progress: createInitialProgress(),
@@ -230,6 +234,23 @@ export default function CreatePopularityGame() {
             <div>
               <label className="mb-1 block text-sm text-slate-400">Game name</label>
               <TextInput value={name} onChange={(e) => setName(e.target.value)} inputSize="lg" className="w-full" />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-sm text-slate-400">Turn timer</label>
+              <select
+                value={turnTimer}
+                onChange={(e) => setTurnTimer(Number(e.target.value))}
+                className="w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100"
+              >
+                <option value={0}>Off — take as long as you like</option>
+                {TURN_TIMER_OPTIONS.map((sec) => (
+                  <option key={sec} value={sec}>
+                    {sec} seconds per turn
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">Out of time passes the turn to the next team.</p>
             </div>
 
             <div>

@@ -1,9 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getPopularityGame, savePopularityGame } from '../lib/storage/popularity-repository'
 import type { PopularityGame, PopularityTrack } from '../types/popularity'
-import { playCorrect, playFanfare, playWrong, isSoundMuted, setSoundMuted } from '../lib/sound-effects'
+import { playBuzzIn, playCorrect, playFanfare, playStreak, playWrong, isSoundMuted, setSoundMuted } from '../lib/sound-effects'
+import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
+import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
+import type { BuzzerPlayer } from '../lib/buzzer/protocol'
+import { betterStreak, bumpTally, streakBonus } from '../lib/streaks'
+import { useTurnTimer } from '../lib/use-turn-timer'
 import { useConfirm } from '../state/ConfirmContext'
+import { useFeatureFlag } from '../state/FeatureFlagsContext'
+import BuzzerPanel from '../components/BuzzerPanel'
 import Scoreboard from '../components/Scoreboard'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
@@ -23,18 +30,73 @@ export default function PopularityPresent() {
   const { gameId } = useParams()
   const confirm = useConfirm()
   const [game, setGame] = useState<PopularityGame | null | undefined>(undefined)
+  // Always the latest saved game, updated synchronously alongside setGame — the socket
+  // handler and timer callbacks below outlive the render they were created in, and two
+  // phone guesses landing back to back would otherwise both act on the same stale game.
+  const gameRef = useRef<PopularityGame | null | undefined>(undefined)
   const [guessInput, setGuessInput] = useState('')
   const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
-  const [lastResult, setLastResult] = useState<{ correct: boolean; title: string; teamName: string } | null>(null)
+  const [lastResult, setLastResult] = useState<{
+    correct: boolean
+    title: string
+    teamName: string
+    bonus?: number
+    timedOut?: boolean
+  } | null>(null)
   const [celebrating, setCelebrating] = useState(false)
+
+  const buzzerEnabled = useFeatureFlag('phone-buzzer') && isBuzzerConfigured()
+  const buzzerSocketRef = useRef<BuzzerSocket | null>(null)
+  const buzzRosterRef = useRef<BuzzerPlayer[]>([])
+  const phoneGuessRef = useRef<(connId: string, trackId: string) => void>(() => {})
+  const [buzzRoster, setBuzzRoster] = useState<BuzzerPlayer[]>([])
+  const [buzzerConnected, setBuzzerConnected] = useState(false)
+  const [buzzerPanelOpen, setBuzzerPanelOpen] = useState(false)
+
+  function commitGame(next: PopularityGame | null | undefined) {
+    gameRef.current = next
+    setGame(next)
+  }
 
   useEffect(() => {
     if (!gameId) return
-    setGame(getPopularityGame(gameId) ?? null)
+    commitGame(getPopularityGame(gameId) ?? null)
   }, [gameId])
+
+  // Phone Buzz-In: the host page owns the room (same shape as HostController's) — phones
+  // join by code, get the current turn + guess pool pushed to them, and send a pick back as
+  // a `guess` naming a track id. Only accepted from the team whose turn it is.
+  useEffect(() => {
+    if (!buzzerEnabled || !gameRef.current) return
+    let current = gameRef.current
+    if (!current.buzzerRoomCode) {
+      current = savePopularityGame({ ...current, buzzerRoomCode: generateRoomCode() })
+      commitGame(current)
+    }
+    const socket = new BuzzerSocket(current.buzzerRoomCode!, 'host')
+    buzzerSocketRef.current = socket
+    const unsubscribe = socket.onMessage((msg) => {
+      if (msg.type === 'roster') {
+        buzzRosterRef.current = msg.players
+        setBuzzRoster(msg.players)
+      } else if (msg.type === 'guess') {
+        phoneGuessRef.current(msg.connId, msg.text)
+      }
+    })
+    socket.connect()
+    setBuzzerConnected(true)
+    return () => {
+      unsubscribe()
+      socket.close()
+      buzzerSocketRef.current = null
+      setBuzzerConnected(false)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buzzerEnabled, game?.id])
 
   const progress = game?.progress
   const totalRanks = game?.ranks.length ?? 0
+  const inPlay = !!game && !!progress && !progress.completed
   const currentRankEntry = game && progress && !progress.completed ? game.ranks[progress.currentRank - 1] : undefined
   const currentTeam = game && progress ? game.teams[progress.turnTeamIndex % game.teams.length] : undefined
 
@@ -64,72 +126,186 @@ export default function PopularityPresent() {
     setSoundMutedState(next)
   }
 
-  function submitGuess(track: PopularityTrack) {
-    if (!game || !progress || !currentRankEntry || !currentTeam) return
-    const isCorrect = track.spotifyTrackId === currentRankEntry.track.spotifyTrackId
-    const nextTurnIndex = (progress.turnTeamIndex + 1) % game.teams.length
+  function celebrate() {
+    setCelebrating(true)
+    setTimeout(() => setCelebrating(false), 4000)
+  }
 
-    setLastResult({ correct: isCorrect, title: track.title, teamName: currentTeam.name })
+  // Reads gameRef rather than the render's `game`, since phone guesses and the turn timer
+  // both call this from callbacks that outlive the render they were created in. `fromPhone`
+  // just staggers the result sound behind the buzz-in blip so the two don't smear together.
+  function submitGuess(track: PopularityTrack, fromPhone = false) {
+    const g = gameRef.current
+    if (!g || g.progress.completed) return
+    const prog = g.progress
+    const rankEntry = g.ranks[prog.currentRank - 1]
+    const team = g.teams[prog.turnTeamIndex % g.teams.length]
+    if (!rankEntry || !team) return
+
+    const isCorrect = track.spotifyTrackId === rankEntry.track.spotifyTrackId
+    const nextTurnIndex = (prog.turnTeamIndex + 1) % g.teams.length
+    const soundDelay = fromPhone ? 220 : 0
+    const playResult = (fn: () => void) => (soundDelay ? setTimeout(fn, soundDelay) : fn())
+    if (fromPhone) playBuzzIn()
     setGuessInput('')
 
     if (isCorrect) {
-      playCorrect()
-      const nextRank = progress.currentRank + 1
-      const completed = nextRank > totalRanks
+      const count = prog.streak?.teamId === team.id ? prog.streak.count + 1 : 1
+      const bonus = streakBonus(count)
+      const nextRank = prog.currentRank + 1
+      const completed = nextRank > g.ranks.length
+      setLastResult({ correct: true, title: track.title, teamName: team.name, bonus })
       const saved = savePopularityGame({
-        ...game,
-        teams: game.teams.map((t) => (t.id === currentTeam.id ? { ...t, score: t.score + POPULARITY_POINTS } : t)),
+        ...g,
+        teams: g.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + POPULARITY_POINTS + bonus } : t)),
         progress: {
-          ...progress,
-          solved: { ...progress.solved, [progress.currentRank]: { track: currentRankEntry.track, teamId: currentTeam.id } },
+          ...prog,
+          solved: { ...prog.solved, [prog.currentRank]: { track: rankEntry.track, teamId: team.id } },
           attempts: [],
           currentRank: nextRank,
           turnTeamIndex: nextTurnIndex,
           completed,
+          streak: { teamId: team.id, count },
+          bestStreak: betterStreak(prog.bestStreak, team.id, count),
+          tally: bumpTally(prog.tally, team.id, 'right'),
         },
       })
-      setGame(saved)
+      commitGame(saved)
       if (completed) {
-        playFanfare()
-        setCelebrating(true)
-        setTimeout(() => setCelebrating(false), 4000)
+        playResult(playFanfare)
+        celebrate()
+      } else if (bonus > 0) {
+        playResult(playStreak)
+        celebrate()
+      } else {
+        playResult(playCorrect)
       }
     } else {
-      playWrong()
+      setLastResult({ correct: false, title: track.title, teamName: team.name })
+      playResult(playWrong)
       const saved = savePopularityGame({
-        ...game,
+        ...g,
         progress: {
-          ...progress,
-          attempts: [...progress.attempts, { teamId: currentTeam.id, title: track.title }],
+          ...prog,
+          attempts: [...prog.attempts, { teamId: team.id, title: track.title }],
           turnTeamIndex: nextTurnIndex,
+          tally: bumpTally(prog.tally, team.id, 'wrong'),
         },
       })
-      setGame(saved)
+      commitGame(saved)
     }
   }
 
   async function revealAndSkip() {
     if (!game || !progress || !currentRankEntry) return
     if (!(await confirm(`Reveal #${progress.currentRank} without anyone scoring, and move on?`, { confirmLabel: 'Reveal & skip' }))) return
-    const nextRank = progress.currentRank + 1
-    const completed = nextRank > totalRanks
+    // Re-read after the dialog — the turn timer or a phone guess may have moved things on.
+    const g = gameRef.current
+    if (!g || g.progress.completed) return
+    const prog = g.progress
+    const rankEntry = g.ranks[prog.currentRank - 1]
+    const nextRank = prog.currentRank + 1
+    const completed = nextRank > g.ranks.length
     const saved = savePopularityGame({
-      ...game,
+      ...g,
       progress: {
-        ...progress,
-        solved: { ...progress.solved, [progress.currentRank]: { track: currentRankEntry.track, teamId: '' } },
+        ...prog,
+        solved: { ...prog.solved, [prog.currentRank]: { track: rankEntry.track, teamId: '' } },
         attempts: [],
         currentRank: nextRank,
         completed,
+        streak: undefined,
       },
     })
-    setGame(saved)
+    commitGame(saved)
     if (completed) {
       playFanfare()
-      setCelebrating(true)
-      setTimeout(() => setCelebrating(false), 4000)
+      celebrate()
     }
   }
+
+  // Out of time isn't a wrong guess (nothing was picked, so nothing joins the "already
+  // tried" list or the team's tally) — the turn just moves on to the next team.
+  function passTurn() {
+    const g = gameRef.current
+    if (!g || g.progress.completed) return
+    const team = g.teams[g.progress.turnTeamIndex % g.teams.length]
+    setLastResult({ correct: false, title: '', teamName: team.name, timedOut: true })
+    playWrong()
+    commitGame(savePopularityGame({ ...g, progress: { ...g.progress, turnTeamIndex: (g.progress.turnTeamIndex + 1) % g.teams.length } }))
+  }
+
+  const turnKey = progress ? `${progress.currentRank}:${progress.turnTeamIndex}:${progress.attempts.length}` : ''
+  const { secondsLeft, remainingNow } = useTurnTimer(game?.turnTimerSeconds, turnKey, inPlay, passTurn)
+
+  useEffect(() => {
+    phoneGuessRef.current = (connId, trackId) => {
+      const g = gameRef.current
+      if (!g || g.progress.completed) return
+      const player = buzzRosterRef.current.find((p) => p.connId === connId)
+      const team = g.teams[g.progress.turnTeamIndex % g.teams.length]
+      if (!player || !team || player.teamId !== team.id) return
+      const solved = new Set(Object.values(g.progress.solved).map((x) => x.track.spotifyTrackId))
+      const tried = new Set(g.progress.attempts.map((a) => a.title.trim().toLowerCase()))
+      const track = g.autocompletePool.find((t) => t.spotifyTrackId === trackId)
+      if (!track || solved.has(track.spotifyTrackId) || tried.has(track.title.trim().toLowerCase())) return
+      submitGuess(track, true)
+    }
+  })
+
+  // Team roster for the join page — keyed on a flattened string, not the teams array, since
+  // that array gets a new reference on every score change.
+  const teamsKey = game?.teams.map((t) => `${t.id}:${t.name}:${t.color}:${t.avatar ?? ''}`).join('|') ?? ''
+  useEffect(() => {
+    const g = gameRef.current
+    if (!buzzerSocketRef.current || !g) return
+    buzzerSocketRef.current.sendAndRemember({
+      type: 'sync-teams',
+      teams: g.teams.map((t) => ({ id: t.id, name: t.name, color: t.color, avatar: t.avatar })),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamsKey, buzzerConnected])
+
+  // Unlike the other modes there's no clue window — anyone on the turn's team can submit
+  // for as long as the board's in play, so the channel is simply open until the game ends.
+  useEffect(() => {
+    if (!buzzerSocketRef.current) return
+    buzzerSocketRef.current.sendAndRemember(inPlay ? { type: 'open' } : { type: 'close' })
+  }, [inPlay, buzzerConnected])
+
+  useEffect(() => {
+    if (!buzzerSocketRef.current || !game) return
+    const prog = game.progress
+    const solvedIds = new Set(Object.values(prog.solved).map((x) => x.track.spotifyTrackId))
+    const triedTitles = new Set(prog.attempts.map((a) => a.title.trim().toLowerCase()))
+    const pool = prog.completed
+      ? []
+      : game.autocompletePool.filter((t) => !solvedIds.has(t.spotifyTrackId)).map((t) => ({ id: t.spotifyTrackId, title: t.title }))
+    const turnTeam = game.teams[prog.turnTeamIndex % game.teams.length]
+    buzzerSocketRef.current.sendAndRemember({
+      type: 'sync-round',
+      state: {
+        gameName: game.name,
+        possessionIndex: Math.max(0, prog.currentRank - 1),
+        totalPossessions: game.ranks.length,
+        phase: prog.completed ? 'final' : 'clue',
+        mode: 'popularity',
+        clueText: null,
+        revealed: null,
+        teams: game.teams.map((t) => ({ id: t.id, name: t.name, color: t.color, score: t.score, avatar: t.avatar })),
+        popularity: {
+          rank: prog.currentRank,
+          totalRanks: game.ranks.length,
+          turnTeamId: turnTeam?.id ?? '',
+          pool,
+          tried: pool.filter((t) => triedTitles.has(t.title.trim().toLowerCase())).map((t) => t.id),
+          lastResult,
+          turnSecondsLeft: remainingNow(),
+        },
+      },
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game, lastResult, buzzerConnected])
 
   if (game === undefined) {
     return (
@@ -168,6 +344,16 @@ export default function PopularityPresent() {
             <div className="text-xs text-slate-500">{game.artistName}'s top {totalRanks}</div>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          {buzzerEnabled && game.buzzerRoomCode && (
+            <button
+              onClick={() => setBuzzerPanelOpen(true)}
+              className="flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60"
+            >
+              <span className={`h-2 w-2 rounded-full ${buzzerConnected ? 'bg-scoreboard-green' : 'bg-slate-600'}`} />
+              🔔 {game.buzzerRoomCode} ({buzzRoster.length})
+            </button>
+          )}
         <button
           onClick={toggleSound}
           className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-sm text-slate-300 hover:bg-black/60"
@@ -175,6 +361,7 @@ export default function PopularityPresent() {
         >
           {soundMuted ? '🔇' : '🔊'}
         </button>
+        </div>
       </div>
 
       <div className="px-6 pb-4">
@@ -255,11 +442,27 @@ export default function PopularityPresent() {
                   {currentTeam.avatar ? `${currentTeam.avatar} ` : ''}
                   {currentTeam.name}'s turn
                 </div>
+                {secondsLeft !== null && (
+                  <div className={`scoreboard-digit font-display text-3xl ${secondsLeft <= 5 ? 'animate-pulse text-scoreboard-500' : 'text-slate-300'}`}>
+                    {secondsLeft}s
+                  </div>
+                )}
+                {progress!.streak && progress!.streak.count >= 2 && (
+                  <div className="text-xs font-semibold text-scoreboard-amber">
+                    🔥 {game.teams.find((t) => t.id === progress!.streak!.teamId)?.name} is on a {progress!.streak.count}-rank streak
+                  </div>
+                )}
               </div>
 
               {lastResult && (
                 <div className={`rounded-lg px-3 py-2 text-sm font-semibold ${lastResult.correct ? 'bg-scoreboard-green/15 text-scoreboard-green' : 'bg-scoreboard-500/15 text-scoreboard-500'}`}>
-                  {lastResult.teamName}: "{lastResult.title}" — {lastResult.correct ? `✓ Correct! (+${POPULARITY_POINTS})` : '✗ Wrong'}
+                  {lastResult.timedOut
+                    ? `${lastResult.teamName}: ⏱ out of time`
+                    : `${lastResult.teamName}: "${lastResult.title}" — ${
+                        lastResult.correct
+                          ? `✓ Correct! (+${POPULARITY_POINTS + (lastResult.bonus ?? 0)}${lastResult.bonus ? ` incl. 🔥 +${lastResult.bonus} streak` : ''})`
+                          : '✗ Wrong'
+                      }`}
                 </div>
               )}
 
@@ -323,6 +526,10 @@ export default function PopularityPresent() {
             </div>
           )}
         </div>
+      )}
+
+      {buzzerPanelOpen && game.buzzerRoomCode && (
+        <BuzzerPanel code={game.buzzerRoomCode} teams={game.teams} roster={buzzRoster} iced={[]} onClose={() => setBuzzerPanelOpen(false)} />
       )}
     </div>
   )

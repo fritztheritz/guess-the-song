@@ -1,5 +1,6 @@
 import type { Team } from './index'
 import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
+import type { BestStreak, TeamTally } from '../lib/streaks'
 
 // Guess the Popularity is its own top-level entity, same call as tier lists/drafts — it's
 // not a round-based possession game (there's exactly one artist, one board, played end to
@@ -41,6 +42,13 @@ export interface PopularityProgress {
   attempts: PopularityAttempt[]
   solved: Record<number, PopularitySolved>
   completed: boolean
+  /** Consecutive ranks solved by the same team — a rank someone else solves, or one that's
+   *  revealed-and-skipped, resets it. Absent on games saved before streak bonuses existed. */
+  streak?: BestStreak
+  /** Longest streak reached this game, for the Stats page. */
+  bestStreak?: BestStreak
+  /** Right/wrong guesses per team id, for the Stats page. */
+  tally?: TeamTally
 }
 
 export interface PopularityGame {
@@ -56,6 +64,11 @@ export interface PopularityGame {
    *  didn't happen to surface all of them itself. */
   autocompletePool: PopularityTrack[]
   teams: Team[]
+  /** Seconds each team gets per turn before it's passed on; absent/0 = untimed. */
+  turnTimerSeconds?: number
+  /** Phone Buzz-In room, same idea as Game.buzzerRoomCode — persisted so reloading the
+   *  host page doesn't hand out a new code players would have to rejoin with. */
+  buzzerRoomCode?: string
   createdAt: string
   updatedAt: string
   progress: PopularityProgress

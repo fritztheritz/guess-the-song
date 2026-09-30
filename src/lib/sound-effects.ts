@@ -168,3 +168,54 @@ export function playWrong() {
     // Best-effort, same as playBuzzer().
   }
 }
+
+/** One short, quiet click — the per-second countdown cue for a turn timer's last few seconds. */
+export function playTick() {
+  if (muted) return
+  try {
+    const ctx = getContext()
+    const now = ctx.currentTime
+
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06)
+    gain.connect(ctx.destination)
+
+    const osc = ctx.createOscillator()
+    osc.type = 'square'
+    osc.frequency.setValueAtTime(880, now)
+    osc.connect(gain)
+    osc.start(now)
+    osc.stop(now + 0.06)
+  } catch {
+    // Best-effort, same as playBuzzer().
+  }
+}
+
+/** A quick three-note run-up for a streak bonus — a notch above playCorrect()'s two notes. */
+export function playStreak() {
+  if (muted) return
+  try {
+    const ctx = getContext()
+    const now = ctx.currentTime
+
+    ;[523.25, 659.25, 880].forEach((freq, i) => {
+      const start = now + i * 0.07
+      const gain = ctx.createGain()
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(0.3, start + 0.015)
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3)
+      gain.connect(ctx.destination)
+
+      const osc = ctx.createOscillator()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(freq, start)
+      osc.connect(gain)
+      osc.start(start)
+      osc.stop(start + 0.3)
+    })
+  } catch {
+    // Best-effort, same as playBuzzer().
+  }
+}

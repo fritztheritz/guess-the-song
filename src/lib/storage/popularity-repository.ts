@@ -38,3 +38,17 @@ export function deletePopularityGame(id: string) {
   delete all[id]
   writeAll(all)
 }
+
+export function exportAllPopularityGames(): PopularityGame[] {
+  return listPopularityGames()
+}
+
+/** Restores games from a backup, keyed by id — same overwrite-by-id semantics as importTierLists. */
+export function importPopularityGames(games: PopularityGame[]): number {
+  const existing = readAll()
+  for (const game of games) {
+    existing[game.id] = game
+  }
+  writeAll(existing)
+  return games.length
+}

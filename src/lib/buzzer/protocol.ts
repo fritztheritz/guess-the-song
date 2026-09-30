@@ -27,7 +27,7 @@ export interface BuzzerWinner {
 }
 
 export type PhonePhase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime'
-export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year'
+export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year' | 'popularity'
 
 // A deliberately reduced view of the game, computed host-side and pushed down through the
 // same room every buzz already flows through — Phone Buzz-In's players are on their own
@@ -61,6 +61,24 @@ export interface PhoneRoundState {
   /** mode: "tierguess", guessStage: "guessPosition" only — how many songs share the
    *  now-revealed tier, so phones can offer 1..N as tap targets instead of free typing. */
   positionCount?: number
+  /** mode: "popularity" only — Guess the Popularity isn't round/possession based, so this
+   *  carries its own turn state (possessionIndex/totalPossessions are just rank-1/rank count
+   *  there). The pool is only the artist's songs not already placed on the board, with no
+   *  hint of which one belongs at the current rank — same "only what's already safe to
+   *  show" discipline as the rest of this file. A phone submits its pick as a `guess`
+   *  whose text is the track's `id`. */
+  popularity?: {
+    rank: number
+    totalRanks: number
+    turnTeamId: string
+    pool: Array<{ id: string; title: string }>
+    /** Ids already guessed wrong for the current rank. */
+    tried: string[]
+    lastResult: { correct: boolean; title: string; teamName: string; timedOut?: boolean } | null
+    /** Seconds left on this turn as of when this was sent (phones count down locally from
+     *  receipt); null when the game's untimed. */
+    turnSecondsLeft: number | null
+  }
 }
 
 export type HostOutMessage =

@@ -20,6 +20,8 @@ import DraftSessionRoom from './pages/DraftSessionRoom'
 import DraftPresentation from './pages/DraftPresentation'
 import CreatePopularityGame from './pages/CreatePopularityGame'
 import PopularityPresent from './pages/PopularityPresent'
+import CreateTimelineGame from './pages/CreateTimelineGame'
+import TimelinePresent from './pages/TimelinePresent'
 import RequireFlag from './components/RequireFlag'
 
 export default function App() {
@@ -121,6 +123,22 @@ export default function App() {
         element={
           <RequireFlag flag="popularity">
             <PopularityPresent />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/timeline/new"
+        element={
+          <RequireFlag flag="timeline">
+            <CreateTimelineGame />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/timeline/:gameId/present"
+        element={
+          <RequireFlag flag="timeline">
+            <TimelinePresent />
           </RequireFlag>
         }
       />

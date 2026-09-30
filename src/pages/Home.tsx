@@ -10,13 +10,25 @@ import {
   importTournaments,
 } from '../lib/storage/tournament-repository'
 import { listDraftBoards, deleteDraftBoard, exportAllDraftBoards, importDraftBoards } from '../lib/storage/draft-repository'
-import { listPopularityGames, deletePopularityGame } from '../lib/storage/popularity-repository'
-import { downloadBackupFile, parseBackupFile, BackupFileError } from '../lib/game-backup'
+import {
+  listPopularityGames,
+  deletePopularityGame,
+  exportAllPopularityGames,
+  importPopularityGames,
+} from '../lib/storage/popularity-repository'
+import {
+  listTimelineGames,
+  deleteTimelineGame,
+  exportAllTimelineGames,
+  importTimelineGames,
+} from '../lib/storage/timeline-repository'
+import { downloadBackupFile, parseBackupFile, BackupFileError, type BackupContents } from '../lib/game-backup'
 import { duplicateGame, isLyricMode, isTierGuessMode, type Game } from '../types'
 import { duplicateTierList, type TierList } from '../types/tierlist'
 import { duplicateTournament, type Tournament } from '../types/tournament'
 import type { DraftBoard } from '../types/draft'
 import type { PopularityGame } from '../types/popularity'
+import type { TimelineGame } from '../types/timeline'
 import { useFeatureFlag } from '../state/FeatureFlagsContext'
 import { useConfirm } from '../state/ConfirmContext'
 import { useToast } from '../state/ToastContext'
@@ -24,6 +36,19 @@ import SoundCloudAttribution from '../components/SoundCloudAttribution'
 import SoundCloudConnectPanel from '../components/SoundCloudConnectPanel'
 import SpotifyConnectPanel from '../components/SpotifyConnectPanel'
 import Panel from '../components/ui/Panel'
+
+function describeBackupContents(contents: BackupContents): string[] {
+  const label = (count: number, singular: string, plural = `${singular}s`) =>
+    count > 0 ? `${count} ${count === 1 ? singular : plural}` : null
+  return [
+    label(contents.games.length, 'game'),
+    label(contents.tierLists.length, 'tier list'),
+    label(contents.tournaments.length, 'tournament'),
+    label(contents.draftBoards.length, 'draft'),
+    label(contents.popularityGames.length, 'popularity game'),
+    label(contents.timelineGames.length, 'timeline game'),
+  ].filter((part): part is string => part !== null)
+}
 
 export default function Home() {
   const navigate = useNavigate()
@@ -34,11 +59,13 @@ export default function Home() {
   const tournamentsEnabled = useFeatureFlag('tournaments')
   const draftEnabled = useFeatureFlag('draft')
   const popularityEnabled = useFeatureFlag('popularity')
+  const timelineEnabled = useFeatureFlag('timeline')
   const [games, setGames] = useState<Game[]>([])
   const [tierLists, setTierLists] = useState<TierList[]>([])
   const [tournaments, setTournaments] = useState<Tournament[]>([])
   const [draftBoards, setDraftBoards] = useState<DraftBoard[]>([])
   const [popularityGames, setPopularityGames] = useState<PopularityGame[]>([])
+  const [timelineGames, setTimelineGames] = useState<TimelineGame[]>([])
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
   const [activeTags, setActiveTags] = useState<string[]>([])
   const importFileInput = useRef<HTMLInputElement | null>(null)
@@ -49,7 +76,8 @@ export default function Home() {
     if (tournamentsEnabled) setTournaments(listTournaments())
     if (draftEnabled) setDraftBoards(listDraftBoards())
     if (popularityEnabled) setPopularityGames(listPopularityGames())
-  }, [tierListsEnabled, tournamentsEnabled, draftEnabled, popularityEnabled])
+    if (timelineEnabled) setTimelineGames(listTimelineGames())
+  }, [tierListsEnabled, tournamentsEnabled, draftEnabled, popularityEnabled, timelineEnabled])
 
   async function handleDeleteTierList(id: string) {
     if (!(await confirm('Delete this tier list? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
@@ -98,6 +126,13 @@ export default function Home() {
     showToast('Game deleted')
   }
 
+  async function handleDeleteTimelineGame(id: string) {
+    if (!(await confirm('Delete this Guess the Timeline game? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
+    deleteTimelineGame(id)
+    setTimelineGames(listTimelineGames())
+    showToast('Game deleted')
+  }
+
   function handleDuplicate(game: Game) {
     const copy = saveGame(duplicateGame(game))
     navigate(`/games/${copy.id}/edit`)
@@ -138,17 +173,22 @@ export default function Home() {
     const allTierLists = exportAllTierLists()
     const allTournaments = exportAllTournaments()
     const allDraftBoards = exportAllDraftBoards()
-    if (allGames.length === 0 && allTierLists.length === 0 && allTournaments.length === 0 && allDraftBoards.length === 0) {
+    const allPopularityGames = exportAllPopularityGames()
+    const allTimelineGames = exportAllTimelineGames()
+    const contents = {
+      games: allGames,
+      tierLists: allTierLists,
+      tournaments: allTournaments,
+      draftBoards: allDraftBoards,
+      popularityGames: allPopularityGames,
+      timelineGames: allTimelineGames,
+    }
+    if (Object.values(contents).every((list) => list.length === 0)) {
       setBackupStatus('Nothing to back up yet.')
       return
     }
-    downloadBackupFile(allGames, allTierLists, allTournaments, allDraftBoards)
-    const parts = [
-      allGames.length > 0 ? `${allGames.length} game${allGames.length === 1 ? '' : 's'}` : null,
-      allTierLists.length > 0 ? `${allTierLists.length} tier list${allTierLists.length === 1 ? '' : 's'}` : null,
-      allTournaments.length > 0 ? `${allTournaments.length} tournament${allTournaments.length === 1 ? '' : 's'}` : null,
-      allDraftBoards.length > 0 ? `${allDraftBoards.length} draft${allDraftBoards.length === 1 ? '' : 's'}` : null,
-    ].filter(Boolean)
+    downloadBackupFile(contents)
+    const parts = describeBackupContents(contents)
     setBackupStatus(`Downloaded a backup of ${parts.join(', ')}.`)
   }
 
@@ -158,35 +198,29 @@ export default function Home() {
     if (!file) return
     try {
       const text = await file.text()
-      const {
-        games: importedGames,
-        tierLists: importedTierLists,
-        tournaments: importedTournaments,
-        draftBoards: importedDraftBoards,
-      } = parseBackupFile(text)
-      if (importedGames.length === 0 && importedTierLists.length === 0 && importedTournaments.length === 0 && importedDraftBoards.length === 0) {
+      const imported = parseBackupFile(text)
+      if (Object.values(imported).every((list) => list.length === 0)) {
         setBackupStatus('That backup file is empty.')
         return
       }
-      const parts = [
-        importedGames.length > 0 ? `${importedGames.length} game${importedGames.length === 1 ? '' : 's'}` : null,
-        importedTierLists.length > 0 ? `${importedTierLists.length} tier list${importedTierLists.length === 1 ? '' : 's'}` : null,
-        importedTournaments.length > 0 ? `${importedTournaments.length} tournament${importedTournaments.length === 1 ? '' : 's'}` : null,
-        importedDraftBoards.length > 0 ? `${importedDraftBoards.length} draft${importedDraftBoards.length === 1 ? '' : 's'}` : null,
-      ].filter(Boolean)
+      const parts = describeBackupContents(imported)
       const ok = await confirm(
         `Restore ${parts.join(', ')}? Anything already here with the same id will be overwritten by the backup.`,
         { confirmLabel: 'Restore' },
       )
       if (!ok) return
-      importGames(importedGames)
-      importTierLists(importedTierLists)
-      importTournaments(importedTournaments)
-      importDraftBoards(importedDraftBoards)
+      importGames(imported.games)
+      importTierLists(imported.tierLists)
+      importTournaments(imported.tournaments)
+      importDraftBoards(imported.draftBoards)
+      importPopularityGames(imported.popularityGames)
+      importTimelineGames(imported.timelineGames)
       setGames(listGames())
       if (tierListsEnabled) setTierLists(listTierLists())
       if (tournamentsEnabled) setTournaments(listTournaments())
       if (draftEnabled) setDraftBoards(listDraftBoards())
+      if (popularityEnabled) setPopularityGames(listPopularityGames())
+      if (timelineEnabled) setTimelineGames(listTimelineGames())
       setBackupStatus(`Restored ${parts.join(', ')} from backup.`)
     } catch (err) {
       setBackupStatus(err instanceof BackupFileError ? err.message : 'Could not read that file.')
@@ -238,6 +272,14 @@ export default function Home() {
                 className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
               >
                 + GUESS THE POPULARITY
+              </Link>
+            )}
+            {timelineEnabled && (
+              <Link
+                to="/timeline/new"
+                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
+              >
+                + GUESS THE TIMELINE
               </Link>
             )}
           </div>
@@ -542,6 +584,45 @@ export default function Home() {
                       </Link>
                       <button
                         onClick={() => handleDeletePopularityGame(game.id)}
+                        className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
+                        aria-label="Delete game"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </Panel>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {timelineEnabled && timelineGames.length > 0 && (
+          <div className="mt-16">
+            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TIMELINE GAMES</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {timelineGames.map((game) => {
+                const placedCount = game.progress.timeline.length - 1
+                return (
+                  <Panel key={game.id} className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs">🕰️</span>
+                        <div className="font-semibold text-slate-100">{game.name}</div>
+                      </div>
+                      <div className="text-sm text-slate-500">
+                        {game.songs.length} songs · {placedCount} placed
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Link
+                        to={`/timeline/${game.id}/present`}
+                        className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                      >
+                        {game.progress.completed ? 'View' : game.progress.deckIndex > 1 ? 'Continue' : 'Play'}
+                      </Link>
+                      <button
+                        onClick={() => handleDeleteTimelineGame(game.id)}
                         className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
                         aria-label="Delete game"
                       >
