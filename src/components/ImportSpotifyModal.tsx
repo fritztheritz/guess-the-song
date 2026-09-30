@@ -4,7 +4,7 @@ import Spinner from './Spinner'
 import { useSpotify } from '../state/SpotifyContext'
 import {
   searchSpotifyTracks,
-  getArtistTopTracks,
+  getArtistTopTracksBySearch,
   loadMoreSpotifyTracks,
   getMyPlaylists,
   getPlaylistTracksPage,
@@ -99,9 +99,11 @@ export default function ImportSpotifyModal({
     setLoading(true)
     setError(null)
     try {
-      const tracks = await getArtistTopTracks(artist.id)
+      // Not Get Artist's Top Tracks — Spotify restricts that endpoint for Development Mode
+      // apps (403s even for added testers), so rank by search popularity instead.
+      const { top: tracks } = await getArtistTopTracksBySearch(artist.name)
       setResults(tracks)
-      setTotal(tracks.length) // no pagination on this endpoint — this is the whole list
+      setTotal(tracks.length) // no pagination here — this is the whole list
       setViewingArtist(artist)
     } catch (err) {
       setError(errorMessage(err))

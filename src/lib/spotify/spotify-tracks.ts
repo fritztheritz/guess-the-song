@@ -1,5 +1,4 @@
 import { spotifyFetchJson, SpotifyApiError } from './spotify-api'
-import { getValidConnection } from './spotify-auth'
 
 // Raw shape is intentionally partial — only the fields this app reads.
 interface RawSpotifyTrack {
@@ -7,7 +6,7 @@ interface RawSpotifyTrack {
   uri: string
   name: string
   artists: Array<{ name: string }>
-  album?: { images?: Array<{ url: string; width: number; height: number }> }
+  album?: { images?: Array<{ url: string; width: number; height: number }>; release_date?: string }
   duration_ms: number
   external_urls?: { spotify?: string }
   /** 0-100, Spotify's own score — search results carry it same as any other track object.
@@ -45,6 +44,9 @@ export interface ImportableSpotifyTrack {
   /** 0-100 — see RawSpotifyTrack.popularity. Absent on tracks fetched from endpoints that
    *  don't return it (e.g. playlist tracks); only guaranteed present from search results. */
   popularity?: number
+  /** Four-digit year from the album's release_date (Spotify sends "YYYY", "YYYY-MM" or
+   *  "YYYY-MM-DD" depending on precision). Guess the Timeline's answer key. */
+  releaseYear?: number
 }
 
 export interface SpotifyArtistMatch {
@@ -66,6 +68,11 @@ export interface SpotifyPlaylistSummary {
   trackCount: number
 }
 
+function parseReleaseYear(releaseDate?: string): number | undefined {
+  const year = Number.parseInt(releaseDate?.slice(0, 4) ?? '', 10)
+  return Number.isFinite(year) ? year : undefined
+}
+
 function mapToImportableSpotifyTrack(raw: RawSpotifyTrack): ImportableSpotifyTrack {
   // Images are listed largest-first; a mid-size one is plenty for a card/artwork thumbnail
   // and lighter to load than the largest (usually 640x640).
@@ -81,6 +88,7 @@ function mapToImportableSpotifyTrack(raw: RawSpotifyTrack): ImportableSpotifyTra
     artworkUrl,
     duration: Math.round(raw.duration_ms / 1000),
     popularity: raw.popularity,
+    releaseYear: parseReleaseYear(raw.album?.release_date),
   }
 }
 
@@ -188,14 +196,6 @@ export async function loadMoreSpotifyTracks(query: string, offset: number): Prom
     items.push(...pageItems)
   }
   return items.map(mapToImportableSpotifyTrack)
-}
-
-/** Fetches an artist's top tracks — used once the host picks the artist chip above search results. */
-export async function getArtistTopTracks(artistId: string): Promise<ImportableSpotifyTrack[]> {
-  const connection = await getValidConnection()
-  const market = connection.country || 'US'
-  const data = await spotifyFetchJson<{ tracks: RawSpotifyTrack[] }>(`/artists/${artistId}/top-tracks?market=${market}`)
-  return (data.tracks ?? []).map(mapToImportableSpotifyTrack)
 }
 
 /** Artist-only search (no tracks) — Guess the Popularity's "pick an artist" step wants a
