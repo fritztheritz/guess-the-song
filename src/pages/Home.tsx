@@ -9,16 +9,18 @@ import {
   exportAllTournaments,
   importTournaments,
 } from '../lib/storage/tournament-repository'
-import { listDraftBoards, deleteDraftBoard, exportAllDraftBoards, importDraftBoards } from '../lib/storage/draft-repository'
+import { listDraftBoards, deleteDraftBoard, saveDraftBoard, exportAllDraftBoards, importDraftBoards } from '../lib/storage/draft-repository'
 import {
   listPopularityGames,
   deletePopularityGame,
+  savePopularityGame,
   exportAllPopularityGames,
   importPopularityGames,
 } from '../lib/storage/popularity-repository'
 import {
   listTimelineGames,
   deleteTimelineGame,
+  saveTimelineGame,
   exportAllTimelineGames,
   importTimelineGames,
 } from '../lib/storage/timeline-repository'
@@ -79,11 +81,27 @@ export default function Home() {
     if (timelineEnabled) setTimelineGames(listTimelineGames())
   }, [tierListsEnabled, tournamentsEnabled, draftEnabled, popularityEnabled, timelineEnabled])
 
-  async function handleDeleteTierList(id: string) {
-    if (!(await confirm('Delete this tier list? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
+  // Delete-then-offer-Undo instead of a confirm dialog, for every "remove one whole item
+  // from a library section" action on this page — these are simple, self-contained
+  // deletes (the item is either gone or it isn't, nothing else references it by the time
+  // it's back), which is exactly what makes a compensating "just re-save it" Undo safe:
+  // no confirm dialog interrupts the click, and if it was a mistake there's a few seconds
+  // to fix it without one. Restoring bumps `updatedAt` (a normal side effect of any save),
+  // so an undone item resurfaces at the top of its list rather than its old position.
+  function handleDeleteTierList(id: string) {
+    const list = tierLists.find((l) => l.id === id)
+    if (!list) return
     deleteTierList(id)
-    setTierLists(listTierLists())
-    showToast('Tier list deleted')
+    setTierLists((prev) => prev.filter((l) => l.id !== id))
+    showToast(`"${list.name}" deleted`, {
+      action: {
+        label: 'Undo',
+        onAction: () => {
+          saveTierList(list)
+          setTierLists(listTierLists())
+        },
+      },
+    })
   }
 
   function handleDuplicateTierList(list: TierList) {
@@ -91,12 +109,20 @@ export default function Home() {
     navigate(`/tierlists/${copy.id}/edit`)
   }
 
-  async function handleDeleteTournament(id: string) {
-    if (!(await confirm('Delete this tournament? This cannot be undone (the games it references are not deleted).', { danger: true, confirmLabel: 'Delete' })))
-      return
+  function handleDeleteTournament(id: string) {
+    const tournament = tournaments.find((t) => t.id === id)
+    if (!tournament) return
     deleteTournament(id)
-    setTournaments(listTournaments())
-    showToast('Tournament deleted')
+    setTournaments((prev) => prev.filter((t) => t.id !== id))
+    showToast(`"${tournament.name}" deleted`, {
+      action: {
+        label: 'Undo',
+        onAction: () => {
+          saveTournament(tournament)
+          setTournaments(listTournaments())
+        },
+      },
+    })
   }
 
   function handleDuplicateTournament(tournament: Tournament) {
@@ -104,33 +130,68 @@ export default function Home() {
     navigate(`/tournaments/${copy.id}`)
   }
 
-  async function handleDeleteDraftBoard(id: string) {
-    if (!(await confirm('Delete this draft? This cannot be undone — every session and pick on it goes with it.', { danger: true, confirmLabel: 'Delete' })))
-      return
+  function handleDeleteDraftBoard(id: string) {
+    const board = draftBoards.find((b) => b.id === id)
+    if (!board) return
     deleteDraftBoard(id)
-    setDraftBoards(listDraftBoards())
-    showToast('Draft deleted')
+    setDraftBoards((prev) => prev.filter((b) => b.id !== id))
+    showToast(`"${board.name}" deleted`, {
+      action: {
+        label: 'Undo',
+        onAction: () => {
+          saveDraftBoard(board)
+          setDraftBoards(listDraftBoards())
+        },
+      },
+    })
   }
 
-  async function handleDelete(id: string) {
-    if (!(await confirm('Delete this game? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
+  function handleDelete(id: string) {
+    const game = games.find((g) => g.id === id)
+    if (!game) return
     deleteGame(id)
-    setGames(listGames())
-    showToast('Game deleted')
+    setGames((prev) => prev.filter((g) => g.id !== id))
+    showToast(`"${game.name}" deleted`, {
+      action: {
+        label: 'Undo',
+        onAction: () => {
+          saveGame(game)
+          setGames(listGames())
+        },
+      },
+    })
   }
 
-  async function handleDeletePopularityGame(id: string) {
-    if (!(await confirm('Delete this Guess the Popularity game? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
+  function handleDeletePopularityGame(id: string) {
+    const game = popularityGames.find((g) => g.id === id)
+    if (!game) return
     deletePopularityGame(id)
-    setPopularityGames(listPopularityGames())
-    showToast('Game deleted')
+    setPopularityGames((prev) => prev.filter((g) => g.id !== id))
+    showToast(`"${game.name}" deleted`, {
+      action: {
+        label: 'Undo',
+        onAction: () => {
+          savePopularityGame(game)
+          setPopularityGames(listPopularityGames())
+        },
+      },
+    })
   }
 
-  async function handleDeleteTimelineGame(id: string) {
-    if (!(await confirm('Delete this Guess the Timeline game? This cannot be undone.', { danger: true, confirmLabel: 'Delete' }))) return
+  function handleDeleteTimelineGame(id: string) {
+    const game = timelineGames.find((g) => g.id === id)
+    if (!game) return
     deleteTimelineGame(id)
-    setTimelineGames(listTimelineGames())
-    showToast('Game deleted')
+    setTimelineGames((prev) => prev.filter((g) => g.id !== id))
+    showToast(`"${game.name}" deleted`, {
+      action: {
+        label: 'Undo',
+        onAction: () => {
+          saveTimelineGame(game)
+          setTimelineGames(listTimelineGames())
+        },
+      },
+    })
   }
 
   function handleDuplicate(game: Game) {

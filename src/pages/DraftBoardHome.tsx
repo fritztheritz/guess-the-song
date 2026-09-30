@@ -72,11 +72,29 @@ export default function DraftBoardHome() {
     showToast(`Added ${fresh.length} song${fresh.length === 1 ? '' : 's'}${dupes > 0 ? ` (${dupes} already in the pool)` : ''}`)
   }
 
-  async function removeSong(song: DraftPoolSong) {
+  // Delete-then-offer-Undo instead of a confirm dialog — only ever offered for an untaken
+  // pool song (see the render below), so there's nothing else referencing it that Undo
+  // could leave dangling. Same pattern as Home.tsx's library deletes and GameBuilder's
+  // round removal: Undo re-inserts at the original index and persists off the board as it
+  // looks *then*, not a stale closure of it.
+  function removeSong(song: DraftPoolSong) {
     if (!board) return
-    const ok = await confirm(`Remove "${song.title}" from the pool?`, { danger: true, confirmLabel: 'Remove' })
-    if (!ok) return
+    const index = board.songPool.findIndex((s) => s.id === song.id)
+    if (index === -1) return
     persist({ ...board, songPool: board.songPool.filter((s) => s.id !== song.id) })
+    showToast(`"${song.title}" removed`, {
+      action: {
+        label: 'Undo',
+        onAction: () => {
+          setBoard((prev) => {
+            if (!prev) return prev
+            const restored = [...prev.songPool]
+            restored.splice(Math.min(index, restored.length), 0, song)
+            return saveDraftBoard({ ...prev, songPool: restored })
+          })
+        },
+      },
+    })
   }
 
   function handleCreateSession({ name, drafters, picksPerDrafter }: { name: string; drafters: DraftSession['drafters']; picksPerDrafter: number }) {

@@ -1,12 +1,27 @@
 import { createContext, useContext } from 'react'
 
-export interface ToastItem {
-  id: string
-  message: string
-  tone: 'default' | 'danger'
+export interface ToastAction {
+  label: string
+  onAction: () => void
 }
 
-export type ToastFn = (message: string, tone?: ToastItem['tone']) => void
+export interface ToastOptions {
+  tone?: 'default' | 'danger'
+  /** How long the toast stays up, ms. Defaults to 2600, or ACTION_DURATION_MS (see
+   *  ToastContext.tsx) when an action button is present — long enough to actually read and
+   *  tap it. */
+  durationMs?: number
+  /** A single button rendered on the toast itself, e.g. "Undo" on a delete confirmation —
+   *  see useUndoableDelete for the delete-and-offer-to-restore pattern this exists for. */
+  action?: ToastAction
+}
+
+export interface ToastItem extends ToastOptions {
+  id: string
+  message: string
+}
+
+export type ToastFn = (message: string, options?: ToastOptions) => void
 
 export const ToastContext = createContext<ToastFn | null>(null)
 

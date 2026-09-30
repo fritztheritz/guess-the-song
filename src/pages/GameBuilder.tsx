@@ -30,7 +30,6 @@ import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
 import { isSpotifyConfigured } from '../lib/spotify/config'
 import { useFeatureFlag } from '../state/feature-flags-context'
-import { useConfirm } from '../state/confirm-context'
 import Panel from '../components/ui/Panel'
 import Button from '../components/ui/Button'
 import { useToast } from '../state/toast-context'
@@ -54,7 +53,6 @@ function parseTimeToSeconds(input: string): number {
 export default function GameBuilder() {
   const { gameId } = useParams()
   const navigate = useNavigate()
-  const confirm = useConfirm()
   const showToast = useToast()
   const [game, setGame] = useState<Game | null>(null)
   const [selectedRoundId, setSelectedRoundId] = useState<string | null>(null)
@@ -106,17 +104,33 @@ export default function GameBuilder() {
     persist({ ...game, rounds: game.rounds.map((r) => (r.id === updated.id ? updated : r)) })
   }
 
-  async function removeRound(id: string) {
+  // Delete-then-offer-Undo instead of a confirm dialog — see the same pattern (and the
+  // reasoning for it) in Home.tsx's library deletes. Undo re-inserts the captured round at
+  // its original index and persists off whatever the game looks like *then* (a functional
+  // update, not the `game` this closure captured at delete time), so it can't clobber any
+  // other edit made in between.
+  function removeRound(id: string) {
     if (!game) return
-    const round = game.rounds.find((r) => r.id === id)
-    if (!round) return
+    const index = game.rounds.findIndex((r) => r.id === id)
+    if (index === -1) return
+    const round = game.rounds[index]
     const label = round.title.trim() || (round.source === 'lyric' ? 'this lyric round' : 'this round')
-    const ok = await confirm(`Remove "${label}" from the game? This cannot be undone.`, { danger: true, confirmLabel: 'Remove' })
-    if (!ok) return
     const rounds = game.rounds.filter((r) => r.id !== id)
     persist({ ...game, rounds })
     if (selectedRoundId === id) setSelectedRoundId(rounds[0]?.id ?? null)
-    showToast('Round removed')
+    showToast(`"${label}" removed`, {
+      action: {
+        label: 'Undo',
+        onAction: () => {
+          setGame((prev) => {
+            if (!prev) return prev
+            const restored = [...prev.rounds]
+            restored.splice(Math.min(index, restored.length), 0, round)
+            return saveGame({ ...prev, rounds: restored })
+          })
+        },
+      },
+    })
   }
 
   function duplicateRound(round: SongRound) {
