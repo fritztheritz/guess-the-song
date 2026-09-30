@@ -105,6 +105,11 @@ export interface GameProgress {
 
 export type GameMode = 'song' | 'lyric' | 'tierguess' | 'year'
 
+// Song/Lyric modes only (the single-winner award() path) — Tier Guess/Year's multi-team
+// credit-toggle scoring is structurally different (several teams can get partial credit on
+// one clue) and isn't wired up for power-ups.
+export type PowerUpKind = 'double' | 'steal'
+
 export interface Game {
   id: string
   name: string
@@ -141,6 +146,15 @@ export interface Game {
    *  recent completed playthrough rather than a stale one. Absent until a game has actually
    *  been played through to the end at least once. */
   recap?: RecapCardStats
+  /** Song/Lyric modes only — a power-up the host has armed for a team's NEXT scoring
+   *  possession via HostController's award(). Applies (and clears) the moment that team is
+   *  actually awarded — not tied to a specific clue, so it carries forward if the armed team
+   *  doesn't score right away. Absent/null = nothing armed. */
+  armedPowerUp?: { teamId: string; kind: PowerUpKind } | null
+  /** Song/Lyric modes only — a team the host has frozen out of buzzing for the NEXT clue's
+   *  buzz-in window (phone path seeds BuzzerRoom's `iced` set, no-phone path seeds
+   *  keyboardIcedRef the same way). Consumed (cleared) the instant that window opens. */
+  frozenTeamId?: string | null
 }
 
 /** Every existing stored game predates `mode` — this is the one place that should ever default it. */

@@ -7,6 +7,7 @@ import {
   isYearMode,
   LYRIC_HINT_LABELS,
   type Game,
+  type PowerUpKind,
   type SongRound,
   type Team,
 } from '../types'
@@ -62,6 +63,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   const confirm = useConfirm()
   const tierListsEnabled = useFeatureFlag('tier-lists')
   const buzzerEnabled = useFeatureFlag('phone-buzzer') && isBuzzerConfigured()
+  const powerUpsEnabled = useFeatureFlag('power-ups')
   const [game, setGame] = useState<Game | null>(null)
   const [phase, setPhase] = useState<Phase>('intro')
   const [possessionIndex, setPossessionIndex] = useState(0)
@@ -228,9 +230,12 @@ export default function HostController({ gameId }: { gameId: string }) {
           // No buzzWinner exists for these modes' own guess — anyone connected can submit,
           // so every submission is collected (by connId, so a resubmit just overwrites) and
           // graded together the moment the guessing window closes. See autoScoreGuesses.
+          // A spectator (teamId: null) can still submit here — the phone-side guess form
+          // doesn't distinguish them — but there's no team to ever credit, so their guess
+          // isn't worth collecting at all; skip straight past it.
           const player = buzzRosterRef.current.find((p) => p.connId === msg.connId)
-          if (player) {
-            setModeGuesses((prev) => new Map(prev).set(msg.connId, { teamId: player.teamId, name: player.name, text: msg.text }))
+          if (player && player.teamId) {
+            setModeGuesses((prev) => new Map(prev).set(msg.connId, { teamId: player.teamId as string, name: player.name, text: msg.text }))
           }
         } else {
           setBuzzGuess({ connId: msg.connId, text: msg.text })
@@ -273,7 +278,14 @@ export default function HostController({ gameId }: { gameId: string }) {
     (isYear && phase === 'revealed' && yearGuessStage === 'guessMonth')
   useEffect(() => {
     if (!buzzerSocketRef.current) return
-    buzzerSocketRef.current.sendAndRemember(guessChannelOpen ? { type: 'open' } : { type: 'close' })
+    // Power-Ups' Freeze (Song/Lyric only): seed the room's ice with the frozen team the
+    // instant this clue's window actually opens, then clear it so it doesn't carry into the
+    // clue after — same one-shot consume as the keyboard path below.
+    const frozen = guessChannelOpen && !isTierGuess && !isYear ? (game?.frozenTeamId ?? null) : null
+    buzzerSocketRef.current.sendAndRemember(
+      guessChannelOpen ? { type: 'open', frozenTeamIds: frozen ? [frozen] : undefined } : { type: 'close' },
+    )
+    if (frozen && game) setGame(saveGame({ ...game, frozenTeamId: null }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guessChannelOpen, buzzerConnected])
 
@@ -283,9 +295,13 @@ export default function HostController({ gameId }: { gameId: string }) {
   // aside once a real phone connection is live so the two never fight over state.
   useEffect(() => {
     if (buzzerConnected || isTierGuess || isYear) return
-    keyboardIcedRef.current = new Set()
+    // Power-Ups' Freeze: same one-shot seed-then-clear as the phone path above.
+    const frozen = phase === 'clue' ? (game?.frozenTeamId ?? null) : null
+    keyboardIcedRef.current = frozen ? new Set([frozen]) : new Set()
     setBuzzWinner(null)
     setBuzzState(phase === 'clue' ? 'open' : 'closed')
+    if (frozen && game) setGame(saveGame({ ...game, frozenTeamId: null }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, buzzerConnected, isTierGuess, isYear])
 
   // Grades Guess the Year/Tier's no-buzz guesses the moment their guessing window closes —
@@ -517,16 +533,28 @@ export default function HostController({ gameId }: { gameId: string }) {
   // locked in), which replaces round.points[clueIndex] rather than adding to it.
   function award(team: Team | null, pointsOverride?: number) {
     if (!game || !round) return
-    const points = pointsOverride ?? round.points[clueIndex]
+    // Power-Ups: only fires when the ARMED team is the one actually scoring here — if a
+    // different team wins (or nobody does), the armed effect stays armed for whenever that
+    // team's turn actually comes, rather than fizzling on an unrelated possession.
+    const armedKind: PowerUpKind | null = team && game.armedPowerUp?.teamId === team.id ? game.armedPowerUp.kind : null
+    let points = pointsOverride ?? round.points[clueIndex]
+    if (armedKind === 'double') points *= 2
+    // Steal docks the same number of points from whoever's currently leading among the
+    // OTHER teams — "currently leading" is read before this possession's own score lands, so
+    // stealing from yourself (you're already the leader) is simply a no-op, not an error.
+    const stealTarget =
+      armedKind === 'steal' && team
+        ? [...game.teams].filter((t) => t.id !== team.id).sort((a, b) => b.score - a.score)[0]
+        : undefined
     let nextGame = game
     if (team) {
       nextGame = {
         ...game,
-        teams: game.teams.map((t) =>
-          t.id === team.id
-            ? { ...t, score: t.score + points, streak: points > 0 ? (t.streak ?? 0) + 1 : 0 }
-            : { ...t, streak: 0 },
-        ),
+        teams: game.teams.map((t) => {
+          if (t.id === team.id) return { ...t, score: t.score + points, streak: points > 0 ? (t.streak ?? 0) + 1 : 0 }
+          if (stealTarget && t.id === stealTarget.id) return { ...t, score: t.score - points, streak: 0 }
+          return { ...t, streak: 0 }
+        }),
       }
       setLastAward({ teamId: team.id, points })
       recordScoreEvent(points, team.name, round.title)
@@ -537,12 +565,27 @@ export default function HostController({ gameId }: { gameId: string }) {
       // nobody continued theirs either.
       nextGame = { ...game, teams: game.teams.map((t) => ({ ...t, streak: 0 })) }
     }
+    if (armedKind) nextGame = { ...nextGame, armedPowerUp: null }
     // Recorded as soon as any score changes, not just on possession advance — otherwise
     // leaving right after awarding (before clicking "next possession") would lose the
     // fact that this game is mid-play, and reopening would look "fresh" with stale points.
     nextGame = { ...nextGame, progress: { possessionIndex, completed: false } }
     const saved = saveGame(nextGame)
     setGame(saved)
+  }
+
+  // Arms/un-arms a power-up for a team's next award() (Double/Steal) or its next buzz-in
+  // window (Freeze) — only one of each can be armed at a time across the whole game, and
+  // tapping the same team+kind again un-arms it (a misclick fix, not a real toggle mechanic).
+  function toggleArmedPowerUp(team: Team, kind: PowerUpKind) {
+    if (!game) return
+    const isArmed = game.armedPowerUp?.teamId === team.id && game.armedPowerUp?.kind === kind
+    setGame(saveGame({ ...game, armedPowerUp: isArmed ? null : { teamId: team.id, kind } }))
+  }
+
+  function toggleFrozenTeam(team: Team) {
+    if (!game) return
+    setGame(saveGame({ ...game, frozenTeamId: game.frozenTeamId === team.id ? null : team.id }))
   }
 
   function lockInWager(team: Team, amount: number) {
@@ -1644,6 +1687,49 @@ export default function HostController({ gameId }: { gameId: string }) {
               <button onClick={() => award(null)} className="w-full rounded-xl border border-arena-700 py-2 text-sm text-slate-500 hover:text-slate-300">
                 NO SCORE
               </button>
+            </div>
+          )}
+
+          {powerUpsEnabled && !isTierGuess && !isYear && game.teams.length > 0 && (
+            <div className="relative z-10 flex flex-wrap justify-center gap-2 border-t border-arena-700 pt-3">
+              {game.teams.map((team) => {
+                const doubleArmed = game.armedPowerUp?.teamId === team.id && game.armedPowerUp.kind === 'double'
+                const stealArmed = game.armedPowerUp?.teamId === team.id && game.armedPowerUp.kind === 'steal'
+                const frozen = game.frozenTeamId === team.id
+                return (
+                  <div key={team.id} className="flex items-center gap-1 rounded-full bg-arena-800/80 py-1 pl-2 pr-1 text-xs">
+                    <span className="max-w-[6rem] truncate font-medium" style={{ color: team.color }}>
+                      {team.name}
+                    </span>
+                    <button
+                      onClick={() => toggleArmedPowerUp(team, 'double')}
+                      title="Double points on their next bucket"
+                      aria-pressed={doubleArmed}
+                      className={`rounded-full px-1.5 py-0.5 font-semibold ${
+                        doubleArmed ? 'bg-scoreboard-amber text-arena-950' : 'text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      2x
+                    </button>
+                    <button
+                      onClick={() => toggleArmedPowerUp(team, 'steal')}
+                      title="Steal points from the leader on their next bucket"
+                      aria-pressed={stealArmed}
+                      className={`rounded-full px-1.5 py-0.5 ${stealArmed ? 'bg-scoreboard-amber text-arena-950' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                      🥷
+                    </button>
+                    <button
+                      onClick={() => toggleFrozenTeam(team)}
+                      title="Freeze — can't buzz in on the next clue"
+                      aria-pressed={frozen}
+                      className={`rounded-full px-1.5 py-0.5 ${frozen ? 'bg-scoreboard-500 text-arena-950' : 'text-slate-400 hover:text-slate-200'}`}
+                    >
+                      🧊
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           )}
 
