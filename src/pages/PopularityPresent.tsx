@@ -15,12 +15,13 @@ import BuzzerPanel from '../components/BuzzerPanel'
 import Scoreboard from '../components/Scoreboard'
 import Confetti from '../components/Confetti'
 import Button from '../components/ui/Button'
+import { SCORING } from '../lib/scoring'
 import TextInput from '../components/ui/TextInput'
 import { useStoredEntity } from '../lib/use-stored-entity'
 
 // Fixed, not host-editable — same "fixed slots" convention as Tier Guess/Year's points
-// (TIER_GUESS_TIER_POINTS etc. in HostController.tsx).
-const POPULARITY_POINTS = 2
+// (see SCORING in lib/scoring.ts).
+const POPULARITY_POINTS = SCORING.popularity
 
 // How many filtered pool matches to show at once — a backstop against a big pool (up to
 // ~50 songs for a prolific artist) dumping the whole thing on screen at once, not a hard

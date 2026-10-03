@@ -1,9 +1,11 @@
+import { SCORING } from './scoring'
+
 // Shared by Guess the Popularity and Guess the Timeline — both reward a team that keeps
 // scoring, and both track the same per-team right/wrong tally for the Stats page.
 
 /** Extra points on top of a normal score once a team is on a streak: nothing for the first
  *  hit, +1 for the second in a row, +2 for the third, capped so a long run can't snowball. */
-export const MAX_STREAK_BONUS = 3
+export const MAX_STREAK_BONUS = SCORING.maxStreakBonus
 
 export function streakBonus(count: number): number {
   return Math.max(0, Math.min(count - 1, MAX_STREAK_BONUS))

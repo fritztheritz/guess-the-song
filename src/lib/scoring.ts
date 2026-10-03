@@ -26,7 +26,25 @@ export const SCORING = {
   earnedPowerUpEvery: 2,
   /** Sudden death: the deciding point. */
   suddenDeath: 1,
+  /** Guess the Popularity / Timeline: a correct placement (before streak bonus). */
+  popularity: 2,
+  timeline: 2,
+  /** Popularity/Timeline streak bonus cap (see lib/streaks.ts). */
+  maxStreakBonus: 3,
 } as const
+
+/** Host-screen timings that aren't game rules, kept next to the rules so they're easy to find. */
+export const TIMING = {
+  earnBannerMs: 3200,
+  ejectBannerMs: 2600,
+} as const
+
+/** A guess as a number, or null when it isn't one (tolerates a leading "#", as in "#3"). */
+export function parseGuessNumber(text: string): number | null {
+  const t = text.trim().replace(/^#/, '')
+  const n = Number(t)
+  return t !== '' && Number.isFinite(n) ? n : null
+}
 
 /** Adds `deltas` (teamId → points, negatives allowed) to the game's scores and folds the
  *  per-team tallies forward. The one place every non-Song/Lyric scoring path funnels through,

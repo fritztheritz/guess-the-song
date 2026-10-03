@@ -10,10 +10,11 @@ import { useConfirm } from '../state/confirm-context'
 import Scoreboard from '../components/Scoreboard'
 import Confetti from '../components/Confetti'
 import Button from '../components/ui/Button'
+import { SCORING } from '../lib/scoring'
 import { useStoredEntity } from '../lib/use-stored-entity'
 
 // Fixed, not host-editable — same "fixed slots" convention as Guess the Popularity.
-const TIMELINE_POINTS = 2
+const TIMELINE_POINTS = SCORING.timeline
 
 interface LastResult {
   correct: boolean
