@@ -604,6 +604,12 @@ export default function GameBuilder() {
               🏀 Halftime break
             </label>
             <p className="mt-1 text-xs text-slate-500">Pause for a score check partway through (needs at least 4 possessions).</p>
+            {(isTierGuess || isYear) && powerUpsEnabled && (
+              <p className="mt-3 text-xs text-slate-500">
+                Power-ups and underdog catch-up are only available in Song and Lyric games — here several teams can score the same
+                possession, so there's no single winner for them to apply to.
+              </p>
+            )}
             {!isTierGuess && !isYear && (
               <>
                 <label className="mt-3 flex items-center gap-2 text-sm text-slate-300">

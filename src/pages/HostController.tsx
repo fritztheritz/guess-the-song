@@ -20,6 +20,7 @@ import { createAudioSource, type AudioSource } from '../lib/audio'
 import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, playEject, playSoundboard, type SoundboardSound } from '../lib/sound-effects'
 import SoundControl from '../components/SoundControl'
 import { trackTeamStats } from '../lib/achievements'
+import { SCORING, applyScoreDeltas, settleStreaks } from '../lib/scoring'
 import { currentThemeVarsForGuests } from '../lib/themes'
 import { downloadRecapCard, type RecapCardStats } from '../lib/recap-card'
 import { useFeatureFlag } from '../state/feature-flags-context'
@@ -68,21 +69,8 @@ const EJECT_PHRASES = [
   'Two minutes in the penalty box? Nope — gone, {team}.',
 ]
 
-// Fixed, not host-editable — matches the spec this mode was built to (tier match always
-// worth 1, closest position always worth 2), same "fixed slots" philosophy as Guess the
-// Lyric's hint points.
-const TIER_GUESS_TIER_POINTS = 1
-const TIER_GUESS_POSITION_POINTS = 2
-// Extra on top of the closest-position credit for naming the exact spot.
-const TIER_GUESS_EXACT_BONUS = 3
-// Same shape, applied to the year/month guess instead of tier/position.
-const YEAR_GUESS_YEAR_POINTS = 1
-const YEAR_GUESS_MONTH_POINTS = 2
-const YEAR_GUESS_EXACT_BONUS = 3
 const POWER_UP_LABELS: Record<PowerUpKind, string> = { double: '2x Double', steal: '🥷 Steal', freeze: '🧊 Freeze' }
 
-const UNDERDOG_DEFICIT = 8
-const CATCH_UP_GIFT_DEFICIT = 12
 
 // Hotkey -> sound for the host soundboard (flag: soundboard). Letters, since digits are team buzz-ins.
 const SOUNDBOARD: Array<{ code: string; key: string; sound: SoundboardSound; icon: string; label: string }> = [
@@ -199,8 +187,10 @@ export default function HostController({ gameId }: { gameId: string }) {
   // exactly like an ejected team (same ice, same dropped guesses, same disabled credits).
   const sittingOutIds = game?.suddenDeath ? game.teams.filter((t) => !game.suddenDeath?.contenderIds.includes(t.id)).map((t) => t.id) : []
   const blockedIds = Array.from(new Set([...ejectedIds, ...sittingOutIds]))
-  const ejectedIdsRef = useRef<string[]>([])
-  ejectedIdsRef.current = blockedIds
+  // Red card for an ejection, no-entry sign for sitting out sudden death.
+  const blockedMark = (id: string) => (ejectedIds.includes(id) ? '🟥 ' : sittingOutIds.includes(id) ? '🚫 ' : '')
+  const blockedIdsRef = useRef<string[]>([])
+  blockedIdsRef.current = blockedIds
   const latestSnapshotRef = useRef<PresentationSnapshot | null>(null)
   const buzzerSocketRef = useRef<BuzzerSocket | null>(null)
   // Teams the keyboard buzz-in path has marked wrong for the current clue — a client-side
@@ -234,6 +224,27 @@ export default function HostController({ gameId }: { gameId: string }) {
     existing.teamId = teamId
     update(existing)
     recapRef.current.players.set(key, existing)
+  }
+
+  // Rebuilds the live recap/player tallies from the last checkpoint saved on the game (see
+  // checkpointStats), so closing the tab mid-game and resuming doesn't restart them from zero.
+  function hydrateRecap(g: Game | null | undefined) {
+    if (!g?.recap && !g?.playerStats) return
+    const idOf = (name: string) => g.teams.find((t) => t.name === name)?.id ?? ''
+    const r = recapRef.current
+    r.correctCount = g.recap?.correctCount ?? 0
+    r.noScoreCount = g.recap?.noScoreCount ?? 0
+    r.biggest = g.recap?.biggest ?? null
+    r.fastestBuzz = g.recap?.fastestBuzz ? { name: g.recap.fastestBuzz.name, teamId: idOf(g.recap.fastestBuzz.teamName), ms: g.recap.fastestBuzz.ms } : null
+    r.players = new Map(
+      (g.playerStats ?? []).map((p) => [p.name.trim().toLowerCase(), { name: p.name, teamId: idOf(p.teamName), buzzes: p.buzzes, correct: p.correct, wrong: p.wrong, points: p.points, fastestMs: p.fastestMs }]),
+    )
+  }
+
+  // Saved at each possession boundary alongside the scores, so a mid-game exit loses at most the
+  // possession in flight rather than the whole recap and player tally.
+  function checkpointStats(g: Game): Game {
+    return { ...g, recap: buildRecapStats(g.teams), playerStats: buildPlayerStats(g.teams) }
   }
 
   function buildPlayerStats(teams: Team[]): PlayerStat[] {
@@ -284,6 +295,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       return
     }
     setGame(loaded)
+    hydrateRecap(loaded)
     if (loaded?.progress) {
       setPossessionIndex(Math.min(loaded.progress.possessionIndex, Math.max(0, loaded.rounds.length - 1)))
       setPhase('resume')
@@ -330,7 +342,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           // doesn't distinguish them — but there's no team to ever credit, so their guess
           // isn't worth collecting at all; skip straight past it.
           const player = buzzRosterRef.current.find((p) => p.connId === msg.connId)
-          if (player && player.teamId && !ejectedIdsRef.current.includes(player.teamId)) {
+          if (player && player.teamId && !blockedIdsRef.current.includes(player.teamId)) {
             setModeGuesses((prev) => new Map(prev).set(msg.connId, { teamId: player.teamId as string, name: player.name, text: msg.text }))
           }
         } else {
@@ -379,7 +391,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     // clue after — same one-shot consume as the keyboard path below.
     const frozen = guessChannelOpen && !isTierGuess && !isYear ? frozenTargetIds(game) : []
     // Ejected teams are re-iced on every open for the rest of their possession (see `ejected`).
-    const seeded = guessChannelOpen ? Array.from(new Set([...frozen, ...ejectedIdsRef.current])) : []
+    const seeded = guessChannelOpen ? Array.from(new Set([...frozen, ...blockedIdsRef.current])) : []
     buzzerSocketRef.current.sendAndRemember(
       guessChannelOpen ? { type: 'open', frozenTeamIds: seeded.length > 0 ? seeded : undefined } : { type: 'close' },
     )
@@ -395,7 +407,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     if (buzzerConnected || isTierGuess || isYear) return
     // Power-Ups' Freeze: same one-shot seed-then-clear as the phone path above.
     const frozen = phase === 'clue' ? frozenTargetIds(game) : []
-    keyboardIcedRef.current = new Set([...frozen, ...sittingOutIds])
+    keyboardIcedRef.current = new Set([...frozen, ...blockedIds])
     setBuzzWinner(null)
     setBuzzState(phase === 'clue' ? 'open' : 'closed')
     if (frozen.length > 0 && game) setGame(saveGame({ ...game, freezes: [] }))
@@ -406,34 +418,61 @@ export default function HostController({ gameId }: { gameId: string }) {
   // the year/tier reveal (yearGuessStage/tierGuessStage first flips off 'year'/'tier' the
   // instant reveal() or *GuessAdvance() runs) rather than waiting for a host click, since
   // there's no single "submit" action to hang it off like Song/Lyric's markBuzzCorrect has.
-  // Only the primary guess (tier/year) is auto-scored; the closest-position/month follow-up
-  // stays host-judged, same as before, since it's an untimed "closest guess" call rather
-  // than a single unambiguous right answer.
+  // The follow-up (position/month) is auto-credited only for an EXACT hit (closest + exact
+  // bonus), which is unambiguous; "closest" for everyone else stays a host call.
   useEffect(() => {
     if (!game || !round || phase !== 'revealed') return
-    if (isYear && yearGuessStage !== 'year') {
-      const key = `${round.id}:year`
-      if (scoredStageRef.current !== key) {
-        scoredStageRef.current = key
-        autoScoreGuesses(
-          round.releaseYear !== undefined,
-          (text) => Number(text.trim()) === round.releaseYear,
-          yearCredits,
-          setYearCredits,
-          YEAR_GUESS_YEAR_POINTS,
+    const once = (stage: string, run: () => void) => {
+      const key = `${round.id}:${stage}`
+      if (scoredStageRef.current === key) return
+      scoredStageRef.current = key
+      run()
+    }
+    if (isYear) {
+      if (yearGuessStage !== 'year') {
+        once('year', () =>
+          autoScoreGuesses(
+            round.releaseYear !== undefined,
+            (text) => Number(text.trim()) === round.releaseYear,
+            [{ credited: yearCredits, setCredited: setYearCredits, points: SCORING.year }],
+          ),
         )
       }
-    } else if (isTierGuess && tierGuessStage !== 'tier') {
-      const key = `${round.id}:tier`
-      if (scoredStageRef.current !== key) {
-        scoredStageRef.current = key
-        const correctTier = game.tierListTiers?.find((t) => t.id === round.tierId)
-        autoScoreGuesses(
-          !!correctTier,
-          (text) => !!correctTier && text.trim().toLowerCase() === correctTier.name.trim().toLowerCase(),
-          tierCredits,
-          setTierCredits,
-          TIER_GUESS_TIER_POINTS,
+      if (yearGuessStage === 'month') {
+        once('month', () =>
+          autoScoreGuesses(
+            !!round.releaseMonth,
+            isExactMonth,
+            [
+              { credited: monthCredits, setCredited: setMonthCredits, points: SCORING.month },
+              { credited: exactMonthCredits, setCredited: setExactMonthCredits, points: SCORING.monthExact },
+            ],
+            { countMisses: false, clear: false },
+          ),
+        )
+      }
+    } else if (isTierGuess) {
+      if (tierGuessStage !== 'tier') {
+        once('tier', () => {
+          const correctTier = game.tierListTiers?.find((t) => t.id === round.tierId)
+          autoScoreGuesses(
+            !!correctTier,
+            (text) => !!correctTier && text.trim().toLowerCase() === correctTier.name.trim().toLowerCase(),
+            [{ credited: tierCredits, setCredited: setTierCredits, points: SCORING.tier }],
+          )
+        })
+      }
+      if (tierGuessStage === 'position') {
+        once('position', () =>
+          autoScoreGuesses(
+            round.tierPosition !== undefined,
+            isExactPosition,
+            [
+              { credited: positionCredits, setCredited: setPositionCredits, points: SCORING.position },
+              { credited: exactCredits, setCredited: setExactCredits, points: SCORING.positionExact },
+            ],
+            { countMisses: false, clear: false },
+          ),
         )
       }
     }
@@ -649,9 +688,9 @@ export default function HostController({ gameId }: { gameId: string }) {
     // ordinary correct answer — not on wager resolutions, which are already high-stakes swings.
     if (game.catchUp && team && points > 0 && pointsOverride === undefined) {
       const leader = Math.max(...game.teams.map((t) => t.score))
-      if (leader - team.score >= UNDERDOG_DEFICIT) {
-        points += 1
-        banners.push(`🐕 Underdog bonus +1 for ${team.name}`)
+      if (leader - team.score >= SCORING.underdogDeficit) {
+        points += SCORING.underdogBonus
+        banners.push(`🐕 Underdog bonus +${SCORING.underdogBonus} for ${team.name}`)
       }
     }
     // Steal docks the same number of points from whoever's currently leading among the
@@ -683,7 +722,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     if (armedKind && team) nextGame = { ...nextGame, armedPowerUps: (game.armedPowerUps ?? []).filter((a) => a.teamId !== team.id) }
     // Earned-power-ups games: every second scored possession in a row earns the team a random
     // power-up (streak 2, 4, 6…), shown as a banner so the room sees it happen.
-    if (team && game.earnedPowerUps && points > 0 && ((team.streak ?? 0) + 1) % 2 === 0) {
+    if (team && game.earnedPowerUps && points > 0 && ((team.streak ?? 0) + 1) % SCORING.earnedPowerUpEvery === 0) {
       const kind = POWER_UP_KINDS[Math.floor(Math.random() * POWER_UP_KINDS.length)]
       nextGame = {
         ...nextGame,
@@ -697,7 +736,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     // with (only meaningful where power-ups are in play).
     if (game.catchUp && powerUpsEnabled && team) {
       const leaderNow = Math.max(...nextGame.teams.map((t) => t.score))
-      const giftees = nextGame.teams.filter((t) => !t.catchUpGifted && leaderNow - t.score >= CATCH_UP_GIFT_DEFICIT)
+      const giftees = nextGame.teams.filter((t) => !t.catchUpGifted && leaderNow - t.score >= SCORING.catchUpGiftDeficit)
       if (giftees.length > 0) {
         nextGame = {
           ...nextGame,
@@ -945,20 +984,15 @@ export default function HostController({ gameId }: { gameId: string }) {
     else next.add(team.id)
     setSet(next)
     if (!isOn) recordScoreEvent(points, team.name, round.title)
-    const saved = saveGame({
-      ...game,
-      teams: trackTeamStats(game.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + delta } : t))),
-      progress: { possessionIndex, completed: false },
-    })
-    setGame(saved)
+    setGame(saveGame(applyScoreDeltas(game, { [team.id]: delta }, possessionIndex)))
   }
 
-  const toggleTierCredit = (team: Team) => toggleCredit(tierCredits, setTierCredits, team, TIER_GUESS_TIER_POINTS)
-  const togglePositionCredit = (team: Team) => toggleCredit(positionCredits, setPositionCredits, team, TIER_GUESS_POSITION_POINTS)
-  const toggleExactCredit = (team: Team) => toggleCredit(exactCredits, setExactCredits, team, TIER_GUESS_EXACT_BONUS)
-  const toggleYearCredit = (team: Team) => toggleCredit(yearCredits, setYearCredits, team, YEAR_GUESS_YEAR_POINTS)
-  const toggleExactMonthCredit = (team: Team) => toggleCredit(exactMonthCredits, setExactMonthCredits, team, YEAR_GUESS_EXACT_BONUS)
-  const toggleMonthCredit = (team: Team) => toggleCredit(monthCredits, setMonthCredits, team, YEAR_GUESS_MONTH_POINTS)
+  const toggleTierCredit = (team: Team) => toggleCredit(tierCredits, setTierCredits, team, SCORING.tier)
+  const togglePositionCredit = (team: Team) => toggleCredit(positionCredits, setPositionCredits, team, SCORING.position)
+  const toggleExactCredit = (team: Team) => toggleCredit(exactCredits, setExactCredits, team, SCORING.positionExact)
+  const toggleYearCredit = (team: Team) => toggleCredit(yearCredits, setYearCredits, team, SCORING.year)
+  const toggleExactMonthCredit = (team: Team) => toggleCredit(exactMonthCredits, setExactMonthCredits, team, SCORING.monthExact)
+  const toggleMonthCredit = (team: Team) => toggleCredit(monthCredits, setMonthCredits, team, SCORING.month)
 
   // Live view of whatever's in modeGuesses right now — reused for both the primary (auto-
   // scored) tier/year guess window and the closest-position/month follow-up, where it's
@@ -977,7 +1011,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 className="rounded-full px-2.5 py-1 text-xs font-semibold"
                 style={{ background: `${team?.color ?? '#888'}22`, color: team?.color }}
               >
-                {isTierGuess && tierGuessStage === 'position' && round?.tierPosition !== undefined && g.text.trim().replace(/^#/, '') === String(round.tierPosition + 1) ? '🎯 ' : ''}{g.name}: {g.text}
+                {(isTierGuess && tierGuessStage === 'position' && isExactPosition(g.text)) || (isYear && yearGuessStage === 'month' && isExactMonth(g.text)) ? '🎯 ' : ''}{g.name}: {g.text}
               </span>
             )
           })}
@@ -993,35 +1027,54 @@ export default function HostController({ gameId }: { gameId: string }) {
   // calls saveGame immediately, so calling it more than once per tick would have each call
   // overwrite the previous one's score change instead of stacking. This does one combined
   // saveGame covering every newly-credited team instead.
-  function autoScoreGuesses(valid: boolean, match: (text: string) => boolean, credited: Set<string>, setCredited: (next: Set<string>) => void, points: number) {
+  // `grades` lets one matching guess earn several credits at once (e.g. an exact position is
+  // also the closest position); `countMisses` is off for the closest-position/month follow-up,
+  // where a non-exact guess isn't "wrong", and `clear` is off there so the host can still see
+  // what came in while judging who was closest.
+  function autoScoreGuesses(
+    valid: boolean,
+    match: (text: string) => boolean,
+    grades: Array<{ credited: Set<string>; setCredited: (next: Set<string>) => void; points: number }>,
+    opts: { countMisses?: boolean; clear?: boolean } = {},
+  ) {
+    const { countMisses = true, clear = true } = opts
     if (!game || !round || !valid) {
-      setModeGuesses(new Map())
+      if (clear) setModeGuesses(new Map())
       return
     }
-    const nextCredited = new Set(credited)
-    const newlyCreditedTeamIds: string[] = []
+    const nextSets = grades.map((g) => new Set(g.credited))
+    const deltas: Record<string, number> = {}
     for (const guess of modeGuesses.values()) {
       const isMatch = match(guess.text)
       bumpPlayer(guess.name, guess.teamId, (p) => {
         if (isMatch) p.correct += 1
-        else p.wrong += 1
+        else if (countMisses) p.wrong += 1
       })
-      if (nextCredited.has(guess.teamId) || !isMatch) continue
-      bumpPlayer(guess.name, guess.teamId, (p) => void (p.points += points))
-      nextCredited.add(guess.teamId)
-      newlyCreditedTeamIds.push(guess.teamId)
-      recordScoreEvent(points, guess.name, round.title)
-    }
-    if (newlyCreditedTeamIds.length > 0) {
-      setCredited(nextCredited)
-      const saved = saveGame({
-        ...game,
-        teams: trackTeamStats(game.teams.map((t) => (newlyCreditedTeamIds.includes(t.id) ? { ...t, score: t.score + points } : t))),
-        progress: { possessionIndex, completed: false },
+      if (!isMatch) continue
+      grades.forEach((g, i) => {
+        if (nextSets[i].has(guess.teamId)) return
+        nextSets[i].add(guess.teamId)
+        deltas[guess.teamId] = (deltas[guess.teamId] ?? 0) + g.points
+        bumpPlayer(guess.name, guess.teamId, (p) => void (p.points += g.points))
+        recordScoreEvent(g.points, guess.name, round.title)
       })
-      setGame(saved)
     }
-    setModeGuesses(new Map())
+    if (Object.keys(deltas).length > 0) {
+      grades.forEach((g, i) => g.setCredited(nextSets[i]))
+      setGame(saveGame(applyScoreDeltas(game, deltas, possessionIndex)))
+    }
+    if (clear) setModeGuesses(new Map())
+  }
+
+  // Whether a typed/tapped guess names exactly the revealed position or month (phones send a
+  // position number, and month tap-grid short names like "Mar"; typed full names also match).
+  function isExactPosition(text: string) {
+    return round?.tierPosition !== undefined && text.trim().replace(/^#/, '') === String(round.tierPosition + 1)
+  }
+  function isExactMonth(text: string) {
+    if (!round?.releaseMonth) return false
+    const t = text.trim().toLowerCase()
+    return t === String(round.releaseMonth) || (t.length >= 3 && MONTH_NAMES[round.releaseMonth - 1].toLowerCase().startsWith(t.slice(0, 3)))
   }
 
   // tierguess only: the "next" action on the reveal screen steps tier -> guessPosition ->
@@ -1075,8 +1128,8 @@ export default function HostController({ gameId }: { gameId: string }) {
   // Called when the last possession ends. If the lead is tied (and Sudden Death is on), plays a
   // reserve tiebreaker round among just the tied teams — or, with no reserve left, hands the
   // call to the host. Returns whether it took over (so the game isn't ended yet).
-  function startSuddenDeath(): boolean {
-    if (!game || !suddenDeathEnabled || game.teams.length < 2) return false
+  function startSuddenDeath(game: Game): boolean {
+    if (!suddenDeathEnabled || game.teams.length < 2) return false
     const top = Math.max(...game.teams.map((t) => t.score))
     const tied = game.teams.filter((t) => t.score === top)
     if (tied.length < 2) return false
@@ -1100,19 +1153,27 @@ export default function HostController({ gameId }: { gameId: string }) {
   // Host-judged sudden death (no reserve round left): the winner gets the deciding point.
   function awardSuddenDeath(team: Team | null) {
     if (!game) return
-    const teams = team ? trackTeamStats(game.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + 1 } : t))) : game.teams
-    completeGame({ ...game, teams })
+    completeGame(team ? applyScoreDeltas(game, { [team.id]: SCORING.suddenDeath }) : game)
   }
 
   function nextPossession() {
     if (!game) return
+    // Song/Lyric streaks are kept by award(); Tier/Year can credit several teams per possession,
+    // so their streaks (and the Hot Streak award they feed) settle here, as the possession ends.
+    const credited = isTierGuess
+      ? new Set([...tierCredits, ...positionCredits, ...exactCredits])
+      : isYear
+        ? new Set([...yearCredits, ...monthCredits, ...exactMonthCredits])
+        : null
+    const current = credited ? { ...game, teams: settleStreaks(game.teams, credited) } : game
     if (possessionIndex >= game.rounds.length - 1) {
-      if (startSuddenDeath()) return
-      completeGame(game)
+      if (credited) setGame(saveGame(current))
+      if (startSuddenDeath(current)) return
+      completeGame(current)
       return
     }
     const next = possessionIndex + 1
-    setGame(saveGame({ ...game, progress: { possessionIndex: next, completed: false } }))
+    setGame(saveGame(checkpointStats({ ...current, progress: { possessionIndex: next, completed: false } })))
     setPossessionIndex(next)
     setLastAward(null)
     const halftimeIndex = Math.floor(game.rounds.length / 2)
@@ -1167,7 +1228,9 @@ export default function HostController({ gameId }: { gameId: string }) {
     copy.teams = copy.teams.map((t, i) => ({
       ...t,
       id: game.teams[i].id,
-      score: rematchHandicap > 0 && game.teams[i].score < top ? rematchHandicap : 0,
+      // Up to the chosen head start, but never more than the team actually lost by — a close
+      // loss earns a small boost, a blowout the full amount, and teams tied for the lead none.
+      score: Math.min(rematchHandicap, top - game.teams[i].score),
     }))
     copy.buzzerRoomCode = game.buzzerRoomCode
     if (rematchShuffle) {
@@ -1986,7 +2049,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 {tierGuessStage === 'tier' ? (
                   <div>
                     <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
-                      Got the tier right? (+{TIER_GUESS_TIER_POINTS})
+                      Got the tier right? (+{SCORING.tier})
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {game.teams.map((team) => (
@@ -1999,7 +2062,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                           }`}
                           style={{ color: team.color }}
                         >
-                          {tierCredits.has(team.id) ? '✓ ' : ''}{blockedIds.includes(team.id) ? '🟥 ' : ''}
+                          {tierCredits.has(team.id) ? '✓ ' : ''}{blockedMark(team.id)}
                           {team.name}
                         </button>
                       ))}
@@ -2009,7 +2072,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                   <div className="space-y-3">
                     {submittedSoFarPanel()}
                     <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
-                      Closest to position? (+{TIER_GUESS_POSITION_POINTS})
+                      Closest to position? (+{SCORING.position})
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {game.teams.map((team) => (
@@ -2022,13 +2085,13 @@ export default function HostController({ gameId }: { gameId: string }) {
                           }`}
                           style={{ color: team.color }}
                         >
-                          {positionCredits.has(team.id) ? '✓ ' : ''}{blockedIds.includes(team.id) ? '🟥 ' : ''}
+                          {positionCredits.has(team.id) ? '✓ ' : ''}{blockedMark(team.id)}
                           {team.name}
                         </button>
                       ))}
                     </div>
                     <div className="mb-1.5 mt-3 text-sm uppercase tracking-widest text-slate-400">
-                      🎯 Exact position? (+{TIER_GUESS_EXACT_BONUS} bonus)
+                      🎯 Exact position? (+{SCORING.positionExact} bonus)
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {game.teams.map((team) => (
@@ -2058,7 +2121,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 {yearGuessStage === 'year' ? (
                   <div>
                     <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
-                      Got the year right? (+{YEAR_GUESS_YEAR_POINTS})
+                      Got the year right? (+{SCORING.year})
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {game.teams.map((team) => (
@@ -2071,7 +2134,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                           }`}
                           style={{ color: team.color }}
                         >
-                          {yearCredits.has(team.id) ? '✓ ' : ''}{blockedIds.includes(team.id) ? '🟥 ' : ''}
+                          {yearCredits.has(team.id) ? '✓ ' : ''}{blockedMark(team.id)}
                           {team.name}
                         </button>
                       ))}
@@ -2081,7 +2144,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                   <div className="space-y-3">
                     {submittedSoFarPanel()}
                     <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
-                      Closest to month? (+{YEAR_GUESS_MONTH_POINTS})
+                      Closest to month? (+{SCORING.month})
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {game.teams.map((team) => (
@@ -2094,13 +2157,13 @@ export default function HostController({ gameId }: { gameId: string }) {
                           }`}
                           style={{ color: team.color }}
                         >
-                          {monthCredits.has(team.id) ? '✓ ' : ''}{blockedIds.includes(team.id) ? '🟥 ' : ''}
+                          {monthCredits.has(team.id) ? '✓ ' : ''}{blockedMark(team.id)}
                           {team.name}
                         </button>
                       ))}
                     </div>
                     <div className="mb-1.5 mt-3 text-sm uppercase tracking-widest text-slate-400">
-                      🎯 Exact month? (+{YEAR_GUESS_EXACT_BONUS} bonus)
+                      🎯 Exact month? (+{SCORING.monthExact} bonus)
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {game.teams.map((team) => (
@@ -2345,7 +2408,10 @@ export default function HostController({ gameId }: { gameId: string }) {
               Shuffle the round order
             </label>
             <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
-              Head start for teams that didn't win
+              <span>
+                Head start for trailing teams
+                <span className="block text-xs text-slate-500">Up to this many points, never more than they lost by.</span>
+              </span>
               <input
                 type="number"
                 min={0}

@@ -238,6 +238,12 @@ export default function CreateGame() {
             </span>
           </label>
         )}
+        {mode !== 'song' && mode !== 'lyric' && (
+          <p className="text-xs text-slate-500">
+            Power-ups and underdog catch-up are only available in Song and Lyric games — other modes can credit several teams per
+            possession, so there's no single winner for them to apply to.
+          </p>
+        )}
 
         <Button type="submit" fullWidth size="lg">
           {mode === 'lyric' ? 'ADD LYRIC ROUNDS →' : mode === 'tierguess' ? 'PICK YOUR TIER LIST →' : 'ADD TRACKS →'}
