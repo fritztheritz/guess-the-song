@@ -73,9 +73,12 @@ const EJECT_PHRASES = [
 // Lyric's hint points.
 const TIER_GUESS_TIER_POINTS = 1
 const TIER_GUESS_POSITION_POINTS = 2
+// Extra on top of the closest-position credit for naming the exact spot.
+const TIER_GUESS_EXACT_BONUS = 3
 // Same shape, applied to the year/month guess instead of tier/position.
 const YEAR_GUESS_YEAR_POINTS = 1
 const YEAR_GUESS_MONTH_POINTS = 2
+const YEAR_GUESS_EXACT_BONUS = 3
 const POWER_UP_LABELS: Record<PowerUpKind, string> = { double: '2x Double', steal: '🥷 Steal', freeze: '🧊 Freeze' }
 
 const UNDERDOG_DEFICIT = 8
@@ -118,6 +121,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   const [lastAward, setLastAward] = useState<{ teamId: string; points: number } | null>(null)
   const [tierCredits, setTierCredits] = useState<Set<string>>(new Set())
   const [positionCredits, setPositionCredits] = useState<Set<string>>(new Set())
+  const [exactCredits, setExactCredits] = useState<Set<string>>(new Set())
   // tierguess only: splits the reveal into three slides instead of dumping both answers on
   // screen at once — tier revealed+scored, then a "guessPosition" beat (tier is now known,
   // so players get a moment to actually guess where within it before that's revealed too),
@@ -126,6 +130,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   // year mode's equivalent of tierCredits/positionCredits/tierGuessStage above.
   const [yearCredits, setYearCredits] = useState<Set<string>>(new Set())
   const [monthCredits, setMonthCredits] = useState<Set<string>>(new Set())
+  const [exactMonthCredits, setExactMonthCredits] = useState<Set<string>>(new Set())
   const [yearGuessStage, setYearGuessStage] = useState<YearGuessStage>('year')
   // Typed guesses from connected phones, keyed by connId — Guess the Year/Tier aren't a
   // race, so this collects every submission during the current guessing window instead of
@@ -493,9 +498,11 @@ export default function HostController({ gameId }: { gameId: string }) {
     setPlaybackError(null)
     setTierCredits(new Set())
     setPositionCredits(new Set())
+    setExactCredits(new Set())
     setTierGuessStage('tier')
     setYearCredits(new Set())
     setMonthCredits(new Set())
+    setExactMonthCredits(new Set())
     setYearGuessStage('year')
     setModeGuesses(new Map())
     setWagerTeamId(null)
@@ -948,7 +955,9 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   const toggleTierCredit = (team: Team) => toggleCredit(tierCredits, setTierCredits, team, TIER_GUESS_TIER_POINTS)
   const togglePositionCredit = (team: Team) => toggleCredit(positionCredits, setPositionCredits, team, TIER_GUESS_POSITION_POINTS)
+  const toggleExactCredit = (team: Team) => toggleCredit(exactCredits, setExactCredits, team, TIER_GUESS_EXACT_BONUS)
   const toggleYearCredit = (team: Team) => toggleCredit(yearCredits, setYearCredits, team, YEAR_GUESS_YEAR_POINTS)
+  const toggleExactMonthCredit = (team: Team) => toggleCredit(exactMonthCredits, setExactMonthCredits, team, YEAR_GUESS_EXACT_BONUS)
   const toggleMonthCredit = (team: Team) => toggleCredit(monthCredits, setMonthCredits, team, YEAR_GUESS_MONTH_POINTS)
 
   // Live view of whatever's in modeGuesses right now — reused for both the primary (auto-
@@ -968,7 +977,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 className="rounded-full px-2.5 py-1 text-xs font-semibold"
                 style={{ background: `${team?.color ?? '#888'}22`, color: team?.color }}
               >
-                {g.name}: {g.text}
+                {isTierGuess && tierGuessStage === 'position' && round?.tierPosition !== undefined && g.text.trim().replace(/^#/, '') === String(round.tierPosition + 1) ? '🎯 ' : ''}{g.name}: {g.text}
               </span>
             )
           })}
@@ -2018,6 +2027,25 @@ export default function HostController({ gameId }: { gameId: string }) {
                         </button>
                       ))}
                     </div>
+                    <div className="mb-1.5 mt-3 text-sm uppercase tracking-widest text-slate-400">
+                      🎯 Exact position? (+{TIER_GUESS_EXACT_BONUS} bonus)
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {game.teams.map((team) => (
+                        <button
+                          key={team.id}
+                          onClick={() => toggleExactCredit(team)}
+                          disabled={blockedIds.includes(team.id) && !exactCredits.has(team.id)}
+                          className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
+                            exactCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
+                          }`}
+                          style={{ color: team.color }}
+                        >
+                          {exactCredits.has(team.id) ? '✓ ' : ''}
+                          {team.name}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -2053,7 +2081,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                   <div className="space-y-3">
                     {submittedSoFarPanel()}
                     <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">
-                      Got the month right? (+{YEAR_GUESS_MONTH_POINTS})
+                      Closest to month? (+{YEAR_GUESS_MONTH_POINTS})
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {game.teams.map((team) => (
@@ -2067,6 +2095,25 @@ export default function HostController({ gameId }: { gameId: string }) {
                           style={{ color: team.color }}
                         >
                           {monthCredits.has(team.id) ? '✓ ' : ''}{blockedIds.includes(team.id) ? '🟥 ' : ''}
+                          {team.name}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="mb-1.5 mt-3 text-sm uppercase tracking-widest text-slate-400">
+                      🎯 Exact month? (+{YEAR_GUESS_EXACT_BONUS} bonus)
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {game.teams.map((team) => (
+                        <button
+                          key={team.id}
+                          onClick={() => toggleExactMonthCredit(team)}
+                          disabled={blockedIds.includes(team.id) && !exactMonthCredits.has(team.id)}
+                          className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
+                            exactMonthCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
+                          }`}
+                          style={{ color: team.color }}
+                        >
+                          {exactMonthCredits.has(team.id) ? '✓ ' : ''}
                           {team.name}
                         </button>
                       ))}
