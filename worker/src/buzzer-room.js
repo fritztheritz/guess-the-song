@@ -194,6 +194,9 @@ export class BuzzerRoom {
       if (!player) return
       const allowed = this.buzzState === 'open' || (this.buzzState === 'locked' && this.winner?.connId === player.connId)
       if (!allowed) return
+      // An iced team (wrong answer, Freeze, or the host's Eject) is out of this clue — that has to
+      // cover Year/Tier Guess's free-for-all guesses too, or ejecting a team would do nothing there.
+      if (this.buzzState === 'open' && player.teamId && this.iced.has(player.teamId)) return
       this.broadcastToHost({ type: 'guess', connId: player.connId, text: msg.text.slice(0, 200) })
     }
   }

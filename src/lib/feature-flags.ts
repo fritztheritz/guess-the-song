@@ -87,7 +87,7 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     key: 'eject',
     label: 'Eject a Team',
     description:
-      "Host can \"eject\" a team from the current possession with a referee-whistle, slam-in EJECTED banner — they can't buzz in for the rest of that possession. Purely for laughs; Song/Lyric rounds only.",
+      "Host can \"eject\" a team from the current possession with a referee-whistle, slam-in EJECTED banner — they can't buzz in (Song/Lyric) or have their phone guesses count or be credited (Guess the Ranking/Year) for the rest of that possession. Purely for laughs.",
     default: false,
   },
   {

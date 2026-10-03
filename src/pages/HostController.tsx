@@ -156,6 +156,14 @@ export default function HostController({ gameId }: { gameId: string }) {
   // Transient "EJECTED" banner (key bumps so back-to-back ejections restart the animation).
   const [ejectBanner, setEjectBanner] = useState<{ key: number; team: Team; phrase: string } | null>(null)
   const ejectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Teams ejected from a specific possession — tagged with that possession's index so it
+  // lapses on its own when play moves on (no reset needed). Unlike Song/Lyric's single buzz
+  // window, Tier Guess/Year open a second guess window mid-possession (position/month), so the
+  // ejection has to be remembered host-side and re-seeded into the room each time it opens.
+  const [ejected, setEjected] = useState<{ possession: number; ids: string[] }>({ possession: -1, ids: [] })
+  const ejectedIds = ejected.possession === possessionIndex ? ejected.ids : []
+  const ejectedIdsRef = useRef<string[]>([])
+  ejectedIdsRef.current = ejectedIds
   const latestSnapshotRef = useRef<PresentationSnapshot | null>(null)
   const buzzerSocketRef = useRef<BuzzerSocket | null>(null)
   // Teams the keyboard buzz-in path has marked wrong for the current clue — a client-side
@@ -256,7 +264,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           // doesn't distinguish them — but there's no team to ever credit, so their guess
           // isn't worth collecting at all; skip straight past it.
           const player = buzzRosterRef.current.find((p) => p.connId === msg.connId)
-          if (player && player.teamId) {
+          if (player && player.teamId && !ejectedIdsRef.current.includes(player.teamId)) {
             setModeGuesses((prev) => new Map(prev).set(msg.connId, { teamId: player.teamId as string, name: player.name, text: msg.text }))
           }
         } else {
@@ -304,8 +312,10 @@ export default function HostController({ gameId }: { gameId: string }) {
     // instant this clue's window actually opens, then clear it so it doesn't carry into the
     // clue after — same one-shot consume as the keyboard path below.
     const frozen = guessChannelOpen && !isTierGuess && !isYear ? frozenTargetIds(game) : []
+    // Ejected teams are re-iced on every open for the rest of their possession (see `ejected`).
+    const seeded = guessChannelOpen ? Array.from(new Set([...frozen, ...ejectedIdsRef.current])) : []
     buzzerSocketRef.current.sendAndRemember(
-      guessChannelOpen ? { type: 'open', frozenTeamIds: frozen.length > 0 ? frozen : undefined } : { type: 'close' },
+      guessChannelOpen ? { type: 'open', frozenTeamIds: seeded.length > 0 ? seeded : undefined } : { type: 'close' },
     )
     if (frozen.length > 0 && game) setGame(saveGame({ ...game, freezes: [] }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -596,12 +606,14 @@ export default function HostController({ gameId }: { gameId: string }) {
     setGame(saved)
   }
 
-  // Host gag: throws a team out of the current possession — they can't buzz for the rest of
-  // it (same ice as a wrong answer; both paths reset it when the next clue's window opens).
-  // Only the buzz-race modes have anything to be ejected from.
+  // Host gag: throws a team out of the current possession. Song/Lyric: they can't buzz for the
+  // rest of it (same ice as a wrong answer). Tier Guess/Year: their phone guesses are dropped
+  // and the host can't credit them for the rest of the possession.
   function ejectTeam(team: Team) {
-    if (!game) return
+    if (!game || ejectedIds.includes(team.id)) return
     playEject()
+    setEjected({ possession: possessionIndex, ids: [...ejectedIds, team.id] })
+    setModeGuesses((prev) => new Map(Array.from(prev).filter(([, g]) => g.teamId !== team.id)))
     if (buzzerSocketRef.current) {
       buzzerSocketRef.current.send({ type: 'eject', teamId: team.id })
     } else {
@@ -664,6 +676,28 @@ export default function HostController({ gameId }: { gameId: string }) {
     let next: Game = { ...game, freezes: (game.freezes ?? []).filter((f) => f.byTeamId !== byTeamId) }
     for (let i = 0; i < mine.length; i++) next = adjustPowerUpsUsed(next, byTeamId, 'freeze', -1)
     setGame(saveGame(next))
+  }
+
+  // The "Ref's call" row. Offered wherever a guess/buzz window is live: the clue itself, plus
+  // Tier Guess/Year's second (position/month) guessing beat.
+  function ejectRow() {
+    if (!game || !ejectEnabled || game.teams.length < 2) return null
+    return (
+      <div className="relative z-10 flex flex-wrap items-center justify-center gap-2">
+        <span className="text-[11px] uppercase tracking-widest text-slate-500">Ref's call</span>
+        {game.teams.map((team) => (
+          <button
+            key={team.id}
+            onClick={() => ejectTeam(team)}
+            disabled={ejectedIds.includes(team.id)}
+            title={`Eject ${team.name} from this possession (just for laughs)`}
+            className="flex items-center gap-1 rounded-full border border-scoreboard-500/40 bg-scoreboard-500/10 px-2.5 py-1 text-xs text-slate-300 enabled:hover:border-scoreboard-500 enabled:hover:text-white disabled:opacity-40"
+          >
+            🟥 <span style={{ color: team.color }}>{team.name}</span>
+          </button>
+        ))}
+      </div>
+    )
   }
 
   // Each team's remaining power-ups as tap-to-arm buttons (count shown; armed = highlighted;
@@ -1502,21 +1536,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
           {powerUpBar()}
 
-          {ejectEnabled && !isTierGuess && !isYear && game.teams.length > 1 && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <span className="text-[11px] uppercase tracking-widest text-slate-500">Ref's call</span>
-              {game.teams.map((team) => (
-                <button
-                  key={team.id}
-                  onClick={() => ejectTeam(team)}
-                  title={`Eject ${team.name} from this possession (just for laughs)`}
-                  className="flex items-center gap-1 rounded-full border border-scoreboard-500/40 bg-scoreboard-500/10 px-2.5 py-1 text-xs text-slate-300 hover:border-scoreboard-500 hover:text-white"
-                >
-                  🟥 <span style={{ color: team.color }}>{team.name}</span>
-                </button>
-              ))}
-            </div>
-          )}
+          {ejectRow()}
 
           <Scoreboard teams={game.teams} compact />
         </div>
@@ -1721,12 +1741,13 @@ export default function HostController({ gameId }: { gameId: string }) {
                         <button
                           key={team.id}
                           onClick={() => toggleTierCredit(team)}
+                          disabled={ejectedIds.includes(team.id) && !tierCredits.has(team.id)}
                           className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
                             tierCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
                           }`}
                           style={{ color: team.color }}
                         >
-                          {tierCredits.has(team.id) ? '✓ ' : ''}
+                          {tierCredits.has(team.id) ? '✓ ' : ''}{ejectedIds.includes(team.id) ? '🟥 ' : ''}
                           {team.name}
                         </button>
                       ))}
@@ -1743,12 +1764,13 @@ export default function HostController({ gameId }: { gameId: string }) {
                         <button
                           key={team.id}
                           onClick={() => togglePositionCredit(team)}
+                          disabled={ejectedIds.includes(team.id) && !positionCredits.has(team.id)}
                           className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
                             positionCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
                           }`}
                           style={{ color: team.color }}
                         >
-                          {positionCredits.has(team.id) ? '✓ ' : ''}
+                          {positionCredits.has(team.id) ? '✓ ' : ''}{ejectedIds.includes(team.id) ? '🟥 ' : ''}
                           {team.name}
                         </button>
                       ))}
@@ -1772,12 +1794,13 @@ export default function HostController({ gameId }: { gameId: string }) {
                         <button
                           key={team.id}
                           onClick={() => toggleYearCredit(team)}
+                          disabled={ejectedIds.includes(team.id) && !yearCredits.has(team.id)}
                           className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
                             yearCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
                           }`}
                           style={{ color: team.color }}
                         >
-                          {yearCredits.has(team.id) ? '✓ ' : ''}
+                          {yearCredits.has(team.id) ? '✓ ' : ''}{ejectedIds.includes(team.id) ? '🟥 ' : ''}
                           {team.name}
                         </button>
                       ))}
@@ -1794,12 +1817,13 @@ export default function HostController({ gameId }: { gameId: string }) {
                         <button
                           key={team.id}
                           onClick={() => toggleMonthCredit(team)}
+                          disabled={ejectedIds.includes(team.id) && !monthCredits.has(team.id)}
                           className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
                             monthCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
                           }`}
                           style={{ color: team.color }}
                         >
-                          {monthCredits.has(team.id) ? '✓ ' : ''}
+                          {monthCredits.has(team.id) ? '✓ ' : ''}{ejectedIds.includes(team.id) ? '🟥 ' : ''}
                           {team.name}
                         </button>
                       ))}
@@ -1868,6 +1892,8 @@ export default function HostController({ gameId }: { gameId: string }) {
           )}
 
           {powerUpBar()}
+
+          {((isTierGuess && tierGuessStage === 'guessPosition') || (isYear && yearGuessStage === 'guessMonth')) && ejectRow()}
 
           <Scoreboard teams={game.teams} compact />
 

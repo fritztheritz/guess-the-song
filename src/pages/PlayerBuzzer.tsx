@@ -341,7 +341,13 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             )
           ) : roundState?.mode === 'year' || roundState?.mode === 'tierguess' ? (
             <div className="w-full max-w-xs space-y-3">
-              {roundState.phase === 'clue' ? (
+              {identity?.teamId && iced.includes(identity.teamId) && (roundState.phase === 'clue' || roundState.guessStage) ? (
+                <div className="flex flex-col items-center gap-2 rounded-2xl border-4 border-scoreboard-500/60 bg-arena-800 px-6 py-8 text-slate-300">
+                  <div className="text-5xl">🟥</div>
+                  <div className="font-display text-2xl tracking-wide text-scoreboard-500">EJECTED</div>
+                  <div className="text-sm">The ref has seen enough — sit this one out.</div>
+                </div>
+              ) : roundState.phase === 'clue' ? (
                 <>
                   {/* Tap-to-guess: the tier list's own tier names (not which song is in
                       which one — that's still the actual guess) are safe to hand over as
