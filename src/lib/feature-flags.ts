@@ -84,6 +84,13 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     default: false,
   },
   {
+    key: 'eject',
+    label: 'Eject a Team',
+    description:
+      "Host can \"eject\" a team from the current possession with a referee-whistle, slam-in EJECTED banner — they can't buzz in for the rest of that possession. Purely for laughs; Song/Lyric rounds only.",
+    default: false,
+  },
+  {
     key: 'spectator-mode',
     label: 'Spectator Mode',
     description:

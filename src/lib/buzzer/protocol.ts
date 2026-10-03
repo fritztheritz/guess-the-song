@@ -94,6 +94,10 @@ export type HostOutMessage =
   | { type: 'close' }
   /** The team that just buzzed got it wrong — ice them out and reopen for everyone else. */
   | { type: 'wrong'; teamId: string }
+  /** Host ejected a team for the rest of this possession (a gag). Unlike 'wrong', this only
+   *  touches the buzz lock if that team happens to hold it — ejecting a bystander mustn't
+   *  knock a different team's legitimate buzz-in off the board. */
+  | { type: 'eject'; teamId: string }
 
 export type PlayerOutMessage =
   /** teamId: null joins as a spectator — see BuzzerPlayer. */

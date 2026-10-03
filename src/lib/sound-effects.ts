@@ -214,6 +214,55 @@ export function playWrong() {
   }
 }
 
+/** A referee whistle followed by a sad descending "wah-wah" — the host ejecting a team for a laugh. */
+export function playEject() {
+  if (silent()) return
+  try {
+    const ctx = getContext()
+    const now = ctx.currentTime
+
+    const whistleGain = ctx.createGain()
+    whistleGain.gain.setValueAtTime(0.0001, now)
+    whistleGain.gain.exponentialRampToValueAtTime(scaled(0.18), now + 0.02)
+    whistleGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45)
+    whistleGain.connect(ctx.destination)
+
+    const whistle = ctx.createOscillator()
+    whistle.type = 'sine'
+    whistle.frequency.setValueAtTime(2600, now)
+    const vibrato = ctx.createOscillator()
+    const vibratoDepth = ctx.createGain()
+    vibrato.frequency.value = 28
+    vibratoDepth.gain.value = 140
+    vibrato.connect(vibratoDepth)
+    vibratoDepth.connect(whistle.frequency)
+    whistle.connect(whistleGain)
+    whistle.start(now)
+    vibrato.start(now)
+    whistle.stop(now + 0.45)
+    vibrato.stop(now + 0.45)
+
+    const notes = [330, 311, 294, 262]
+    notes.forEach((freq, i) => {
+      const start = now + 0.5 + i * 0.22
+      const gain = ctx.createGain()
+      gain.gain.setValueAtTime(0.0001, start)
+      gain.gain.exponentialRampToValueAtTime(scaled(0.2), start + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + (i === notes.length - 1 ? 0.7 : 0.2))
+      gain.connect(ctx.destination)
+      const osc = ctx.createOscillator()
+      osc.type = 'sawtooth'
+      osc.frequency.setValueAtTime(freq, start)
+      if (i === notes.length - 1) osc.frequency.linearRampToValueAtTime(freq * 0.8, start + 0.7)
+      osc.connect(gain)
+      osc.start(start)
+      osc.stop(start + (i === notes.length - 1 ? 0.7 : 0.2))
+    })
+  } catch {
+    // Best-effort, same as playBuzzer().
+  }
+}
+
 /** One short, quiet click — the per-second countdown cue for a turn timer's last few seconds. */
 export function playTick() {
   if (silent()) return

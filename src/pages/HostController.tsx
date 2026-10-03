@@ -13,7 +13,7 @@ import {
 } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
-import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare } from '../lib/sound-effects'
+import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, playEject } from '../lib/sound-effects'
 import SoundControl from '../components/SoundControl'
 import { downloadRecapCard, type RecapCardStats } from '../lib/recap-card'
 import { useFeatureFlag } from '../state/feature-flags-context'
@@ -50,6 +50,18 @@ const HALFTIME_PROMPTS = [
   "Somebody's about to make a comeback. Might not be you.",
 ]
 
+// Flavor text for the Eject gag, same "fixed set, pick one at random" philosophy as
+// HALFTIME_PROMPTS. {team} is swapped for the ejected team's name at display time.
+const EJECT_PHRASES = [
+  '{team} has been shown the door!',
+  'Technical foul — and {team} is OUT!',
+  'Security, please escort {team} out.',
+  '{team} got the hook!',
+  'The ref has seen enough of {team}.',
+  '{team}, hit the locker room!',
+  'Two minutes in the penalty box? Nope — gone, {team}.',
+]
+
 // Fixed, not host-editable — matches the spec this mode was built to (tier match always
 // worth 1, closest position always worth 2), same "fixed slots" philosophy as Guess the
 // Lyric's hint points.
@@ -64,6 +76,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   const tierListsEnabled = useFeatureFlag('tier-lists')
   const buzzerEnabled = useFeatureFlag('phone-buzzer') && isBuzzerConfigured()
   const powerUpsEnabled = useFeatureFlag('power-ups')
+  const ejectEnabled = useFeatureFlag('eject')
   const [game, setGame] = useState<Game | null>(null)
   const [phase, setPhase] = useState<Phase>('intro')
   const [possessionIndex, setPossessionIndex] = useState(0)
@@ -134,6 +147,9 @@ export default function HostController({ gameId }: { gameId: string }) {
   // lands exactly back on the halfway possession.
   const halftimeShownRef = useRef(false)
   const [halftimePrompt, setHalftimePrompt] = useState('')
+  // Transient "EJECTED" banner (key bumps so back-to-back ejections restart the animation).
+  const [ejectBanner, setEjectBanner] = useState<{ key: number; team: Team; phrase: string } | null>(null)
+  const ejectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const latestSnapshotRef = useRef<PresentationSnapshot | null>(null)
   const buzzerSocketRef = useRef<BuzzerSocket | null>(null)
   // Teams the keyboard buzz-in path has marked wrong for the current clue — a client-side
@@ -574,6 +590,28 @@ export default function HostController({ gameId }: { gameId: string }) {
     setGame(saved)
   }
 
+  // Host gag: throws a team out of the current possession — they can't buzz for the rest of
+  // it (same ice as a wrong answer; both paths reset it when the next clue's window opens).
+  // Only the buzz-race modes have anything to be ejected from.
+  function ejectTeam(team: Team) {
+    if (!game) return
+    playEject()
+    if (buzzerSocketRef.current) {
+      buzzerSocketRef.current.send({ type: 'eject', teamId: team.id })
+    } else {
+      keyboardIcedRef.current.add(team.id)
+      if (keyboardIcedRef.current.size >= game.teams.length) keyboardIcedRef.current = new Set()
+      if (buzzWinner?.teamId === team.id) {
+        setBuzzWinner(null)
+        setBuzzState('open')
+      }
+    }
+    const phrase = EJECT_PHRASES[Math.floor(Math.random() * EJECT_PHRASES.length)].replace('{team}', team.name)
+    setEjectBanner({ key: Date.now(), team, phrase })
+    if (ejectTimerRef.current) clearTimeout(ejectTimerRef.current)
+    ejectTimerRef.current = setTimeout(() => setEjectBanner(null), 2600)
+  }
+
   // Arms/un-arms a power-up for a team's next award() (Double/Steal) or its next buzz-in
   // window (Freeze) — only one of each can be armed at a time across the whole game, and
   // tapping the same team+kind again un-arms it (a misclick fix, not a real toggle mechanic).
@@ -983,6 +1021,17 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-arena-950 court-lines text-white">
+      {ejectBanner && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center overflow-hidden bg-scoreboard-500/10">
+          <div key={ejectBanner.key} className="animate-eject-stamp max-w-xl rounded-2xl border-4 border-scoreboard-500 bg-arena-950/90 px-10 py-6 text-center shadow-2xl shadow-scoreboard-500/40">
+            <div className="text-6xl">🟥🧑‍⚖️</div>
+            <div className="font-display text-7xl tracking-widest text-scoreboard-500">EJECTED!</div>
+            <div className="mt-2 text-xl font-semibold" style={{ color: ejectBanner.team.color }}>
+              {ejectBanner.phrase}
+            </div>
+          </div>
+        </div>
+      )}
       <div className="absolute right-4 top-4 z-20 flex flex-wrap justify-end gap-2">
         {buzzerEnabled && game.buzzerRoomCode && (
           <button
@@ -1340,6 +1389,22 @@ export default function HostController({ gameId }: { gameId: string }) {
               </div>
             )}
           </div>
+
+          {ejectEnabled && !isTierGuess && !isYear && game.teams.length > 1 && (
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <span className="text-[11px] uppercase tracking-widest text-slate-500">Ref's call</span>
+              {game.teams.map((team) => (
+                <button
+                  key={team.id}
+                  onClick={() => ejectTeam(team)}
+                  title={`Eject ${team.name} from this possession (just for laughs)`}
+                  className="flex items-center gap-1 rounded-full border border-scoreboard-500/40 bg-scoreboard-500/10 px-2.5 py-1 text-xs text-slate-300 hover:border-scoreboard-500 hover:text-white"
+                >
+                  🟥 <span style={{ color: team.color }}>{team.name}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           <Scoreboard teams={game.teams} compact />
         </div>

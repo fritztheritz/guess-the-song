@@ -131,6 +131,19 @@ export class BuzzerRoom {
       this.winner = null
       this.buzzState = 'open'
       this.broadcastAll(this.stateMessage())
+    } else if (msg.type === 'eject' && typeof msg.teamId === 'string') {
+      // Host gag: ice the team for the rest of this possession (the next 'open' clears it).
+      // Only reopens the race if the ejected team was the one holding the lock — otherwise a
+      // bystander's ejection would wipe out some other team's legitimate buzz-in.
+      this.iced.add(msg.teamId)
+      if (this.teams.length > 0 && this.iced.size >= this.teams.length) {
+        this.iced = new Set()
+      }
+      if (this.winner?.teamId === msg.teamId) {
+        this.winner = null
+        this.buzzState = 'open'
+      }
+      this.broadcastAll(this.stateMessage())
     }
   }
 
