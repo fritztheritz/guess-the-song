@@ -96,6 +96,9 @@ export interface Team {
    *  a clean concept when several teams can score the same possession). Reset to 0 on any
    *  no-score or another team's score. Absent/0 on every team predating this. */
   streak?: number
+  /** How many of each power-up this team has spent so far this playthrough (remaining =
+   *  Game.powerUpAllowance − this). Absent on every team predating power-ups; reset on restart. */
+  powerUpsUsed?: Partial<Record<PowerUpKind, number>>
 }
 
 export interface GameProgress {
@@ -107,8 +110,11 @@ export type GameMode = 'song' | 'lyric' | 'tierguess' | 'year'
 
 // Song/Lyric modes only (the single-winner award() path) — Tier Guess/Year's multi-team
 // credit-toggle scoring is structurally different (several teams can get partial credit on
-// one clue) and isn't wired up for power-ups.
-export type PowerUpKind = 'double' | 'steal'
+// one clue) and isn't wired up for power-ups. Each team gets a limited number of each kind
+// per game (Game.powerUpAllowance), spent when armed and refunded if un-armed.
+export type PowerUpKind = 'double' | 'steal' | 'freeze'
+export const POWER_UP_KINDS: PowerUpKind[] = ['double', 'steal', 'freeze']
+export const DEFAULT_POWER_UPS_PER_TEAM = 1
 
 export interface Game {
   id: string
@@ -146,15 +152,17 @@ export interface Game {
    *  recent completed playthrough rather than a stale one. Absent until a game has actually
    *  been played through to the end at least once. */
   recap?: RecapCardStats
-  /** Song/Lyric modes only — a power-up the host has armed for a team's NEXT scoring
-   *  possession via HostController's award(). Applies (and clears) the moment that team is
-   *  actually awarded — not tied to a specific clue, so it carries forward if the armed team
-   *  doesn't score right away. Absent/null = nothing armed. */
-  armedPowerUp?: { teamId: string; kind: PowerUpKind } | null
-  /** Song/Lyric modes only — a team the host has frozen out of buzzing for the NEXT clue's
-   *  buzz-in window (phone path seeds BuzzerRoom's `iced` set, no-phone path seeds
-   *  keyboardIcedRef the same way). Consumed (cleared) the instant that window opens. */
-  frozenTeamId?: string | null
+  /** Starting power-ups per team, per kind — absent kinds default to DEFAULT_POWER_UPS_PER_TEAM. */
+  powerUpAllowance?: Partial<Record<PowerUpKind, number>>
+  /** Song/Lyric modes only — Double/Steal armed by a team for its NEXT scoring possession via
+   *  HostController's award(). Applies (and clears) the moment that team is actually awarded —
+   *  not tied to a specific clue, so it carries forward if the armed team doesn't score right
+   *  away. At most one entry per team. */
+  armedPowerUps?: { teamId: string; kind: 'double' | 'steal' }[]
+  /** Song/Lyric modes only — Freezes a team (byTeamId) has used on a rival (targetTeamId): the
+   *  target is blocked from buzzing on the NEXT clue's window (phone path seeds BuzzerRoom's
+   *  `iced` set, no-phone path seeds keyboardIcedRef). Consumed the instant that window opens. */
+  freezes?: { byTeamId: string; targetTeamId: string }[]
 }
 
 /** Every existing stored game predates `mode` — this is the one place that should ever default it. */
@@ -229,6 +237,12 @@ export function createTierGuessRound(song: TierListSong, tierSize: number): Song
   })
 }
 
+/** Power-ups a team still has of one kind, given the game's per-team allowance. */
+export function powerUpsRemaining(game: Pick<Game, 'powerUpAllowance'>, team: Team, kind: PowerUpKind): number {
+  const allowance = game.powerUpAllowance?.[kind] ?? DEFAULT_POWER_UPS_PER_TEAM
+  return Math.max(0, allowance - (team.powerUpsUsed?.[kind] ?? 0))
+}
+
 export function createTeam(name: string, color: string, avatar?: string): Team {
   return { id: crypto.randomUUID(), name, color, score: 0, avatar }
 }
@@ -253,7 +267,8 @@ export function duplicateGame(game: Game): Game {
     id: crypto.randomUUID(),
     name: `${game.name} (Copy)`,
     rounds: game.rounds.map((r) => ({ ...r, id: crypto.randomUUID() })),
-    teams: game.teams.map((t) => ({ ...t, id: crypto.randomUUID(), score: 0 })),
+    teams: game.teams.map((t) => ({ ...t, id: crypto.randomUUID(), score: 0, streak: 0, powerUpsUsed: undefined })),
+    powerUpAllowance: game.powerUpAllowance,
     createdAt: now,
     updatedAt: now,
     mode: game.mode,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import type { Game, SongRound } from '../types'
+import { DEFAULT_POWER_UPS_PER_TEAM, POWER_UP_KINDS, type Game, type PowerUpKind, type SongRound } from '../types'
 import {
   createEmptyLyricRound,
   createEmptyRound,
@@ -75,6 +75,7 @@ export default function GameBuilder() {
   const tagSuggestions = useMemo(() => Array.from(new Set(listGames().flatMap((g) => g.tags ?? []))).sort(), [])
   const localFileInput = useRef<HTMLInputElement | null>(null)
   const tierListsEnabled = useFeatureFlag('tier-lists')
+  const powerUpsEnabled = useFeatureFlag('power-ups')
 
   useEffect(() => {
     if (!gameId) return
@@ -567,6 +568,31 @@ export default function GameBuilder() {
             </label>
             <p className="mt-1 text-xs text-slate-500">Pause for a score check partway through (needs at least 4 possessions).</p>
           </div>
+
+          {powerUpsEnabled && !isTierGuess && !isYear && (
+            <div className="mt-6 border-t border-arena-700 pt-3">
+              <div className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">Power-ups per team</div>
+              <div className="flex flex-wrap gap-3">
+                {POWER_UP_KINDS.map((kind: PowerUpKind) => (
+                  <label key={kind} className="flex items-center gap-1.5 text-sm text-slate-300">
+                    {kind === 'double' ? '2x Double' : kind === 'steal' ? '🥷 Steal' : '🧊 Freeze'}
+                    <input
+                      type="number"
+                      min={0}
+                      max={9}
+                      value={game.powerUpAllowance?.[kind] ?? DEFAULT_POWER_UPS_PER_TEAM}
+                      onChange={(e) => {
+                        const n = Math.min(9, Math.max(0, Math.floor(Number(e.target.value) || 0)))
+                        persist({ ...game, powerUpAllowance: { ...game.powerUpAllowance, [kind]: n } })
+                      }}
+                      className="w-14 rounded-lg border border-arena-600 bg-arena-800 px-2 py-1 text-center text-slate-100 outline-none focus:border-hardwood-500"
+                    />
+                  </label>
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-slate-500">How many of each a team can use this game (0 turns one off).</p>
+            </div>
+          )}
 
           <div className="mt-6 border-t border-arena-700 pt-3">
             <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Teams</div>

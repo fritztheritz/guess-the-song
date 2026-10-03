@@ -80,7 +80,7 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     key: 'power-ups',
     label: 'Power-Ups',
     description:
-      "Host can grant a team Double Points, Steal, or Freeze during Song/Lyric rounds — Double doubles their next correct answer, Steal also docks the current leader, Freeze blocks a team from buzzing on the next clue. Needs the host to grant them from the presentation screen.",
+      "Each team gets a limited number of Double Points, Steal, and Freeze (default 1 of each, adjustable per game in the builder) to spend during Song/Lyric rounds — Double doubles their next correct answer, Steal also docks the current leader, Freeze blocks a rival from buzzing on the next clue. The host taps them on a team's behalf from the presentation screen.",
     default: false,
   },
   {

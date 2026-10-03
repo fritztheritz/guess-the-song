@@ -7,6 +7,7 @@ import {
   isYearMode,
   LYRIC_HINT_LABELS,
   type Game,
+  powerUpsRemaining,
   type PowerUpKind,
   type SongRound,
   type Team,
@@ -70,6 +71,10 @@ const TIER_GUESS_POSITION_POINTS = 2
 // Same shape, applied to the year/month guess instead of tier/position.
 const YEAR_GUESS_YEAR_POINTS = 1
 const YEAR_GUESS_MONTH_POINTS = 2
+function frozenTargetIds(game: Game | null): string[] {
+  return Array.from(new Set((game?.freezes ?? []).map((f) => f.targetTeamId)))
+}
+
 export default function HostController({ gameId }: { gameId: string }) {
   const navigate = useNavigate()
   const confirm = useConfirm()
@@ -147,6 +152,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   // lands exactly back on the halfway possession.
   const halftimeShownRef = useRef(false)
   const [halftimePrompt, setHalftimePrompt] = useState('')
+  const [freezePickerFor, setFreezePickerFor] = useState<string | null>(null)
   // Transient "EJECTED" banner (key bumps so back-to-back ejections restart the animation).
   const [ejectBanner, setEjectBanner] = useState<{ key: number; team: Team; phrase: string } | null>(null)
   const ejectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -297,11 +303,11 @@ export default function HostController({ gameId }: { gameId: string }) {
     // Power-Ups' Freeze (Song/Lyric only): seed the room's ice with the frozen team the
     // instant this clue's window actually opens, then clear it so it doesn't carry into the
     // clue after — same one-shot consume as the keyboard path below.
-    const frozen = guessChannelOpen && !isTierGuess && !isYear ? (game?.frozenTeamId ?? null) : null
+    const frozen = guessChannelOpen && !isTierGuess && !isYear ? frozenTargetIds(game) : []
     buzzerSocketRef.current.sendAndRemember(
-      guessChannelOpen ? { type: 'open', frozenTeamIds: frozen ? [frozen] : undefined } : { type: 'close' },
+      guessChannelOpen ? { type: 'open', frozenTeamIds: frozen.length > 0 ? frozen : undefined } : { type: 'close' },
     )
-    if (frozen && game) setGame(saveGame({ ...game, frozenTeamId: null }))
+    if (frozen.length > 0 && game) setGame(saveGame({ ...game, freezes: [] }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guessChannelOpen, buzzerConnected])
 
@@ -312,11 +318,11 @@ export default function HostController({ gameId }: { gameId: string }) {
   useEffect(() => {
     if (buzzerConnected || isTierGuess || isYear) return
     // Power-Ups' Freeze: same one-shot seed-then-clear as the phone path above.
-    const frozen = phase === 'clue' ? (game?.frozenTeamId ?? null) : null
-    keyboardIcedRef.current = frozen ? new Set([frozen]) : new Set()
+    const frozen = phase === 'clue' ? frozenTargetIds(game) : []
+    keyboardIcedRef.current = new Set(frozen)
     setBuzzWinner(null)
     setBuzzState(phase === 'clue' ? 'open' : 'closed')
-    if (frozen && game) setGame(saveGame({ ...game, frozenTeamId: null }))
+    if (frozen.length > 0 && game) setGame(saveGame({ ...game, freezes: [] }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, buzzerConnected, isTierGuess, isYear])
 
@@ -552,7 +558,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     // Power-Ups: only fires when the ARMED team is the one actually scoring here — if a
     // different team wins (or nobody does), the armed effect stays armed for whenever that
     // team's turn actually comes, rather than fizzling on an unrelated possession.
-    const armedKind: PowerUpKind | null = team && game.armedPowerUp?.teamId === team.id ? game.armedPowerUp.kind : null
+    const armedKind = team ? (game.armedPowerUps?.find((a) => a.teamId === team.id)?.kind ?? null) : null
     let points = pointsOverride ?? round.points[clueIndex]
     if (armedKind === 'double') points *= 2
     // Steal docks the same number of points from whoever's currently leading among the
@@ -581,7 +587,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       // nobody continued theirs either.
       nextGame = { ...game, teams: game.teams.map((t) => ({ ...t, streak: 0 })) }
     }
-    if (armedKind) nextGame = { ...nextGame, armedPowerUp: null }
+    if (armedKind && team) nextGame = { ...nextGame, armedPowerUps: (game.armedPowerUps ?? []).filter((a) => a.teamId !== team.id) }
     // Recorded as soon as any score changes, not just on possession advance — otherwise
     // leaving right after awarding (before clicking "next possession") would lose the
     // fact that this game is mid-play, and reopening would look "fresh" with stale points.
@@ -612,18 +618,122 @@ export default function HostController({ gameId }: { gameId: string }) {
     ejectTimerRef.current = setTimeout(() => setEjectBanner(null), 2600)
   }
 
-  // Arms/un-arms a power-up for a team's next award() (Double/Steal) or its next buzz-in
-  // window (Freeze) — only one of each can be armed at a time across the whole game, and
-  // tapping the same team+kind again un-arms it (a misclick fix, not a real toggle mechanic).
-  function toggleArmedPowerUp(team: Team, kind: PowerUpKind) {
-    if (!game) return
-    const isArmed = game.armedPowerUp?.teamId === team.id && game.armedPowerUp?.kind === kind
-    setGame(saveGame({ ...game, armedPowerUp: isArmed ? null : { teamId: team.id, kind } }))
+  // Spends one of `team`'s power-ups of `kind` (or refunds it). Callers check there's one left.
+  function adjustPowerUpsUsed(g: Game, teamId: string, kind: PowerUpKind, delta: 1 | -1): Game {
+    return {
+      ...g,
+      teams: g.teams.map((t) =>
+        t.id === teamId ? { ...t, powerUpsUsed: { ...t.powerUpsUsed, [kind]: Math.max(0, (t.powerUpsUsed?.[kind] ?? 0) + delta) } } : t,
+      ),
+    }
   }
 
-  function toggleFrozenTeam(team: Team) {
+  // Arms Double/Steal for a team's next award() — spends one from their allowance. Tapping the
+  // armed kind again un-arms it and refunds it (a misclick fix); arming the other kind swaps
+  // (refunding the first), so a team only ever has one armed at a time.
+  function toggleArmedPowerUp(team: Team, kind: 'double' | 'steal') {
     if (!game) return
-    setGame(saveGame({ ...game, frozenTeamId: game.frozenTeamId === team.id ? null : team.id }))
+    const current = game.armedPowerUps?.find((a) => a.teamId === team.id)
+    let next = game
+    if (current) {
+      next = adjustPowerUpsUsed(next, team.id, current.kind, -1)
+      next = { ...next, armedPowerUps: (next.armedPowerUps ?? []).filter((a) => a.teamId !== team.id) }
+      if (current.kind === kind) return void setGame(saveGame(next))
+    }
+    const fresh = next.teams.find((t) => t.id === team.id)
+    if (!fresh || powerUpsRemaining(next, fresh, kind) < 1) return
+    next = adjustPowerUpsUsed(next, team.id, kind, 1)
+    next = { ...next, armedPowerUps: [...(next.armedPowerUps ?? []), { teamId: team.id, kind }] }
+    setGame(saveGame(next))
+  }
+
+  // Freeze: `by` spends one to block `target` from buzzing on the next clue. Tapping again
+  // (via the same pair) isn't offered — the picker's "Cancel freeze" refunds instead.
+  function spendFreeze(by: Team, target: Team) {
+    if (!game || powerUpsRemaining(game, by, 'freeze') < 1) return
+    let next = adjustPowerUpsUsed(game, by.id, 'freeze', 1)
+    next = { ...next, freezes: [...(next.freezes ?? []), { byTeamId: by.id, targetTeamId: target.id }] }
+    setGame(saveGame(next))
+    setFreezePickerFor(null)
+  }
+
+  function cancelFreeze(byTeamId: string) {
+    if (!game) return
+    const mine = (game.freezes ?? []).filter((f) => f.byTeamId === byTeamId)
+    if (mine.length === 0) return
+    let next: Game = { ...game, freezes: (game.freezes ?? []).filter((f) => f.byTeamId !== byTeamId) }
+    for (let i = 0; i < mine.length; i++) next = adjustPowerUpsUsed(next, byTeamId, 'freeze', -1)
+    setGame(saveGame(next))
+  }
+
+  // Each team's remaining power-ups as tap-to-arm buttons (count shown; armed = highlighted;
+  // tap an armed one again to refund it). Freeze opens a small picker for which rival to block.
+  function powerUpBar() {
+    if (!game || !powerUpsEnabled || isTierGuess || isYear || game.teams.length === 0) return null
+    return (
+      <div className="relative z-10 flex flex-wrap justify-center gap-2 border-t border-arena-700 pt-3">
+        {game.teams.map((team) => {
+          const armed = game.armedPowerUps?.find((a) => a.teamId === team.id)?.kind
+          const freezeActive = (game.freezes ?? []).some((f) => f.byTeamId === team.id)
+          const left = (kind: PowerUpKind) => powerUpsRemaining(game, team, kind)
+          const btn = (active: boolean) =>
+            `rounded-full px-1.5 py-0.5 disabled:opacity-30 ${
+              active ? 'bg-scoreboard-amber font-semibold text-arena-950' : 'text-slate-400 enabled:hover:text-slate-200'
+            }`
+          return (
+            <div key={team.id} className="relative flex items-center gap-1 rounded-full bg-arena-800/80 py-1 pl-2 pr-1 text-xs">
+              <span className="max-w-[6rem] truncate font-medium" style={{ color: team.color }}>
+                {team.name}
+              </span>
+              <button
+                onClick={() => toggleArmedPowerUp(team, 'double')}
+                disabled={armed !== 'double' && left('double') < 1}
+                title={`Double points on ${team.name}'s next bucket`}
+                aria-pressed={armed === 'double'}
+                className={btn(armed === 'double')}
+              >
+                2x ×{left('double')}
+              </button>
+              <button
+                onClick={() => toggleArmedPowerUp(team, 'steal')}
+                disabled={armed !== 'steal' && left('steal') < 1}
+                title={`${team.name}'s next bucket also docks the leader`}
+                aria-pressed={armed === 'steal'}
+                className={btn(armed === 'steal')}
+              >
+                🥷 ×{left('steal')}
+              </button>
+              <button
+                onClick={() => (freezeActive ? cancelFreeze(team.id) : setFreezePickerFor(freezePickerFor === team.id ? null : team.id))}
+                disabled={!freezeActive && left('freeze') < 1}
+                title={freezeActive ? 'Cancel this freeze' : `${team.name} freezes a rival out of the next clue`}
+                aria-pressed={freezeActive}
+                className={btn(freezeActive)}
+              >
+                🧊 ×{left('freeze')}
+              </button>
+              {freezePickerFor === team.id && !freezeActive && (
+                <div className="absolute bottom-full left-0 z-30 mb-1 w-40 space-y-1 rounded-lg border border-arena-600 bg-arena-900 p-2 text-left shadow-2xl">
+                  <div className="text-[10px] uppercase tracking-widest text-slate-500">Freeze who?</div>
+                  {game.teams
+                    .filter((t) => t.id !== team.id)
+                    .map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => spendFreeze(team, t)}
+                        className="block w-full truncate rounded px-2 py-1 text-left text-xs hover:bg-arena-700"
+                        style={{ color: t.color }}
+                      >
+                        🧊 {t.name}
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
   }
 
   function lockInWager(team: Team, amount: number) {
@@ -820,7 +930,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   function restartGame() {
     if (!game) return
-    const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0, streak: 0 })), progress: undefined, recap: undefined })
+    const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0, streak: 0, powerUpsUsed: undefined })), progress: undefined, recap: undefined, armedPowerUps: [], freezes: [] })
     setGame(reset)
     setPossessionIndex(0)
     setLastAward(null)
@@ -1390,6 +1500,8 @@ export default function HostController({ gameId }: { gameId: string }) {
             )}
           </div>
 
+          {powerUpBar()}
+
           {ejectEnabled && !isTierGuess && !isYear && game.teams.length > 1 && (
             <div className="flex flex-wrap items-center justify-center gap-2">
               <span className="text-[11px] uppercase tracking-widest text-slate-500">Ref's call</span>
@@ -1755,48 +1867,7 @@ export default function HostController({ gameId }: { gameId: string }) {
             </div>
           )}
 
-          {powerUpsEnabled && !isTierGuess && !isYear && game.teams.length > 0 && (
-            <div className="relative z-10 flex flex-wrap justify-center gap-2 border-t border-arena-700 pt-3">
-              {game.teams.map((team) => {
-                const doubleArmed = game.armedPowerUp?.teamId === team.id && game.armedPowerUp.kind === 'double'
-                const stealArmed = game.armedPowerUp?.teamId === team.id && game.armedPowerUp.kind === 'steal'
-                const frozen = game.frozenTeamId === team.id
-                return (
-                  <div key={team.id} className="flex items-center gap-1 rounded-full bg-arena-800/80 py-1 pl-2 pr-1 text-xs">
-                    <span className="max-w-[6rem] truncate font-medium" style={{ color: team.color }}>
-                      {team.name}
-                    </span>
-                    <button
-                      onClick={() => toggleArmedPowerUp(team, 'double')}
-                      title="Double points on their next bucket"
-                      aria-pressed={doubleArmed}
-                      className={`rounded-full px-1.5 py-0.5 font-semibold ${
-                        doubleArmed ? 'bg-scoreboard-amber text-arena-950' : 'text-slate-400 hover:text-slate-200'
-                      }`}
-                    >
-                      2x
-                    </button>
-                    <button
-                      onClick={() => toggleArmedPowerUp(team, 'steal')}
-                      title="Steal points from the leader on their next bucket"
-                      aria-pressed={stealArmed}
-                      className={`rounded-full px-1.5 py-0.5 ${stealArmed ? 'bg-scoreboard-amber text-arena-950' : 'text-slate-400 hover:text-slate-200'}`}
-                    >
-                      🥷
-                    </button>
-                    <button
-                      onClick={() => toggleFrozenTeam(team)}
-                      title="Freeze — can't buzz in on the next clue"
-                      aria-pressed={frozen}
-                      className={`rounded-full px-1.5 py-0.5 ${frozen ? 'bg-scoreboard-500 text-arena-950' : 'text-slate-400 hover:text-slate-200'}`}
-                    >
-                      🧊
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+          {powerUpBar()}
 
           <Scoreboard teams={game.teams} compact />
 
