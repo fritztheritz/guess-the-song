@@ -14,5 +14,5 @@ export default function Presentation() {
     return <div className="flex min-h-svh items-center justify-center bg-arena-950 text-slate-400">Game not found.</div>
   }
 
-  return searchParams.get('display') === 'public' ? <PublicDisplay gameId={gameId} /> : <HostController gameId={gameId} />
+  return searchParams.get('display') === 'public' ? <PublicDisplay gameId={gameId} /> : <HostController key={gameId} gameId={gameId} />
 }

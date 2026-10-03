@@ -81,6 +81,10 @@ export interface SongRound {
   /** How many songs were in that tier at import time, for a "#N of M" display. */
   tierSize?: number
 
+  /** Set only on the copy of a reserve round that sudden death appends to Game.rounds — marks it
+   *  so a restart/rematch can strip it back out. Never set on a round in the normal list. */
+  tiebreaker?: boolean
+
   createdAt: string
 }
 
@@ -111,6 +115,25 @@ export interface Team {
   maxDeficit?: number
   /** Times the host ejected this team (Eject gag). */
   ejections?: number
+  /** Power-ups handed to this team outright by the underdog catch-up (Game.catchUp), on top of
+   *  its allowance/earned stock. */
+  powerUpsGifted?: Partial<Record<PowerUpKind, number>>
+  /** Whether this team has already received its one-time catch-up gift this playthrough. */
+  catchUpGifted?: boolean
+}
+
+/** One phone player's tallies for a single game (only recorded for Phone Buzz-In players —
+ *  a no-phone local buzz has no individual to attribute to). Keyed by name across games. */
+export interface PlayerStat {
+  name: string
+  /** The team they were last on in this game. */
+  teamName: string
+  buzzes: number
+  correct: number
+  wrong: number
+  points: number
+  /** Fastest buzz reaction in ms, if any were timed. */
+  fastestMs?: number
 }
 
 export interface GameProgress {
@@ -170,6 +193,17 @@ export interface Game {
    *  instead of spending a fixed allowance (see HostController's award()). Absent/false = the
    *  fixed-allowance behavior every game had before this existed. */
   earnedPowerUps?: boolean
+  /** Opt-in underdog help (Song/Lyric): a team trailing by a lot scores a bonus point, and the
+   *  first time it falls far behind it's gifted a Steal. Absent/false = off. */
+  catchUp?: boolean
+  /** Rounds held back for sudden death — only played if the game ends tied (flag: sudden-death).
+   *  One is appended to `rounds` (as a copy flagged `tiebreaker`) per tie-break attempt. */
+  tiebreakerRounds?: SongRound[]
+  /** Set while sudden death is in progress: the teams still tied for the lead (everyone else
+   *  sits it out). Cleared on restart. */
+  suddenDeath?: { contenderIds: string[] } | null
+  /** Per-player tallies for the phone players this playthrough, snapshotted at game end. */
+  playerStats?: PlayerStat[]
   /** Song/Lyric modes only — Double/Steal armed by a team for its NEXT scoring possession via
    *  HostController's award(). Applies (and clears) the moment that team is actually awarded —
    *  not tied to a specific clue, so it carries forward if the armed team doesn't score right
@@ -256,9 +290,10 @@ export function createTierGuessRound(song: TierListSong, tierSize: number): Song
 /** Power-ups a team still has of one kind — a fixed per-game allowance by default, or (in an
  *  earned-power-ups game) whatever it's earned from streaks so far, minus what it's spent. */
 export function powerUpsRemaining(game: Pick<Game, 'powerUpAllowance' | 'earnedPowerUps'>, team: Team, kind: PowerUpKind): number {
-  const total = game.earnedPowerUps
+  const base = game.earnedPowerUps
     ? (team.powerUpsEarned?.[kind] ?? 0)
     : (game.powerUpAllowance?.[kind] ?? DEFAULT_POWER_UPS_PER_TEAM)
+  const total = base + (team.powerUpsGifted?.[kind] ?? 0)
   return Math.max(0, total - (team.powerUpsUsed?.[kind] ?? 0))
 }
 
@@ -285,8 +320,10 @@ export function duplicateGame(game: Game): Game {
   return {
     id: crypto.randomUUID(),
     name: `${game.name} (Copy)`,
-    rounds: game.rounds.map((r) => ({ ...r, id: crypto.randomUUID() })),
-    teams: game.teams.map((t) => ({ ...t, id: crypto.randomUUID(), score: 0, streak: 0, powerUpsUsed: undefined, powerUpsEarned: undefined, bestStreak: undefined, maxDeficit: undefined, ejections: undefined })),
+    rounds: game.rounds.filter((r) => !r.tiebreaker).map((r) => ({ ...r, id: crypto.randomUUID() })),
+    tiebreakerRounds: game.tiebreakerRounds?.map((r) => ({ ...r, id: crypto.randomUUID() })),
+    catchUp: game.catchUp,
+    teams: game.teams.map((t) => ({ ...t, id: crypto.randomUUID(), score: 0, streak: 0, powerUpsUsed: undefined, powerUpsEarned: undefined, powerUpsGifted: undefined, catchUpGifted: undefined, bestStreak: undefined, maxDeficit: undefined, ejections: undefined })),
     powerUpAllowance: game.powerUpAllowance,
     earnedPowerUps: game.earnedPowerUps,
     createdAt: now,

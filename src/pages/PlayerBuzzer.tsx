@@ -248,6 +248,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             <div className="text-sm text-slate-400">Get ready…</div>
           )}
           {roundState.phase === 'halftime' && <div className="text-sm text-slate-300">🏀 Halftime — back soon</div>}
+          {roundState.phase === 'suddendeath' && <div className="text-sm text-scoreboard-500">💀 Sudden death — look at the screen</div>}
           {roundState.phase === 'final' && (
             <div className="text-sm text-slate-300">
               🏆 {[...roundState.teams].sort((a, b) => b.score - a.score)[0]?.name ?? '—'} wins!
@@ -351,9 +352,11 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             <div className="w-full max-w-xs space-y-3">
               {identity?.teamId && iced.includes(identity.teamId) && (roundState.phase === 'clue' || roundState.guessStage) ? (
                 <div className="flex flex-col items-center gap-2 rounded-2xl border-4 border-scoreboard-500/60 bg-arena-800 px-6 py-8 text-slate-300">
-                  <div className="text-5xl">🟥</div>
-                  <div className="font-display text-2xl tracking-wide text-scoreboard-500">EJECTED</div>
-                  <div className="text-sm">The ref has seen enough — sit this one out.</div>
+                  <div className="text-5xl">{roundState.suddenDeath ? '💀' : '🟥'}</div>
+                  <div className="font-display text-2xl tracking-wide text-scoreboard-500">{roundState.suddenDeath ? 'SUDDEN DEATH' : 'EJECTED'}</div>
+                  <div className="text-sm">
+                    {roundState.suddenDeath ? "You're not in the tiebreaker — cheer on the finalists." : 'The ref has seen enough — sit this one out.'}
+                  </div>
                 </div>
               ) : roundState.phase === 'clue' ? (
                 <>

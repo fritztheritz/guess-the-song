@@ -29,6 +29,8 @@ export default function CreateGame() {
   const [mode, setMode] = useState<GameMode>('song')
   // Opt-in, never on by default — see Game.earnedPowerUps.
   const [earnedPowerUps, setEarnedPowerUps] = useState(false)
+  // Also opt-in — see Game.catchUp.
+  const [catchUp, setCatchUp] = useState(false)
   const [teams, setTeams] = useState<DraftTeam[]>([draftTeam(0), draftTeam(1)])
   const [presetPickerIndex, setPresetPickerIndex] = useState<number | null>(null)
   const presets = useMemo(() => listTeamPresets(), [])
@@ -61,6 +63,7 @@ export default function CreateGame() {
     const finalTeams = teams.map((t, i) => createTeam(t.name.trim() || `Team ${i + 1}`, t.color, t.avatar))
     const game = createGame(name.trim() || 'Untitled Game', finalTeams, mode)
     if (earnedPowerUps && showEarnedOption) game.earnedPowerUps = true
+    if (catchUp && (mode === 'song' || mode === 'lyric')) game.catchUp = true
     saveGame(game)
     navigate(`/games/${game.id}/edit`)
   }
@@ -213,6 +216,24 @@ export default function CreateGame() {
               <span className="block text-xs text-slate-500">
                 Teams start with none and earn a random Double, Steal, or Freeze for every second scored possession in a row. Off =
                 everyone gets a fixed stock up front.
+              </span>
+            </span>
+          </label>
+        )}
+
+        {(mode === 'song' || mode === 'lyric') && (
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-arena-600 p-3">
+            <input
+              type="checkbox"
+              checked={catchUp}
+              onChange={(e) => setCatchUp(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-slate-200">🐕 Underdog catch-up</span>
+              <span className="block text-xs text-slate-500">
+                A team trailing by 8+ scores a bonus point on a correct answer, and the first time one falls 12+ behind it's gifted a
+                free Steal (when Power-Ups is on). Off by default.
               </span>
             </span>
           </label>

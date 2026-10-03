@@ -23,6 +23,8 @@ export interface PresentationSnapshot {
   /** phase: "halftime" only — the random flavor line the host's screen picked, so Public
    *  Display shows the same one instead of independently picking a mismatched one. */
   halftimePrompt: string | null
+  /** phase: "halftime" only, and only when this is really the host-judged sudden-death break. */
+  suddenDeath?: boolean
 }
 
 export type PresentationMessage = { type: 'request-sync' } | { type: 'state'; snapshot: PresentationSnapshot }

@@ -10,7 +10,8 @@ import type { PopularityGame } from '../types/popularity'
 import type { TimelineGame } from '../types/timeline'
 import Panel from '../components/ui/Panel'
 import AwardsPanel from '../components/AwardsPanel'
-import { computeAwards } from '../lib/achievements'
+import { aggregatePlayers, computeAwards } from '../lib/achievements'
+import PlayerLeaderboard from '../components/PlayerLeaderboard'
 import { useFeatureFlag } from '../state/feature-flags-context'
 
 function StatTile({ label, value }: { label: string; value: number }) {
@@ -43,6 +44,7 @@ export default function Stats() {
 
   const achievementsEnabled = useFeatureFlag('achievements')
   const awards = useMemo(() => computeAwards([...games, ...popularityGames, ...timelineGames]), [games, popularityGames, timelineGames])
+  const players = useMemo(() => aggregatePlayers(games), [games])
 
   const topTags = useMemo(() => {
     const counts = new Map<string, number>()
@@ -120,6 +122,7 @@ export default function Stats() {
             </section>
 
             {achievementsEnabled && <AwardsPanel awards={awards} title="ALL-TIME AWARDS" />}
+            {achievementsEnabled && <PlayerLeaderboard players={players} />}
 
             {(biggestScore || fastestBuzz || longestStreak) && (
               <section>

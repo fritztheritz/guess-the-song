@@ -1,4 +1,4 @@
-import type { Team } from '../types'
+import type { PlayerStat, Team } from '../types'
 import type { RecapCardStats } from './recap-card'
 
 // Team awards derived entirely from what completed games already record (see the per-team
@@ -23,6 +23,8 @@ export interface AwardSource {
   teams: AwardTeam[]
   progress?: { completed?: boolean; bestStreak?: { count: number; teamId: string } }
   recap?: RecapCardStats
+  /** Phone players' tallies for the game (Game only — see PlayerStat). */
+  playerStats?: PlayerStat[]
 }
 
 export interface Award {
@@ -43,6 +45,43 @@ function winnersOf(game: AwardSource): AwardTeam[] {
   const winners = game.teams.filter((t) => t.score === top)
   // A tie has no single winner — nobody gets credit for it in the win-based awards.
   return winners.length === 1 ? winners : []
+}
+
+export interface PlayerRow {
+  name: string
+  /** Team they most recently played for. */
+  teamName: string
+  color: string
+  games: number
+  points: number
+  correct: number
+  wrong: number
+  buzzes: number
+  fastestMs?: number
+}
+
+/** Folds every completed game's per-player tallies into one row per player (matched by name). */
+export function aggregatePlayers(sources: AwardSource[]): PlayerRow[] {
+  const rows = new Map<string, PlayerRow>()
+  for (const g of sources) {
+    if (!g.progress?.completed) continue
+    for (const p of g.playerStats ?? []) {
+      const key = p.name.trim().toLowerCase()
+      if (!key) continue
+      const color = g.teams.find((t) => t.name === p.teamName)?.color ?? '#e8871e'
+      const row = rows.get(key) ?? { name: p.name, teamName: p.teamName, color, games: 0, points: 0, correct: 0, wrong: 0, buzzes: 0 }
+      row.teamName = p.teamName
+      row.color = color
+      row.games += 1
+      row.points += p.points
+      row.correct += p.correct
+      row.wrong += p.wrong
+      row.buzzes += p.buzzes
+      if (p.fastestMs !== undefined && (row.fastestMs === undefined || p.fastestMs < row.fastestMs)) row.fastestMs = p.fastestMs
+      rows.set(key, row)
+    }
+  }
+  return Array.from(rows.values()).sort((a, b) => b.points - a.points || b.correct - a.correct)
 }
 
 export function computeAwards(sources: AwardSource[]): Award[] {
@@ -168,6 +207,30 @@ export function computeAwards(sources: AwardSource[]): Award[] {
       detail: `ejected ${worst[1]} time${worst[1] === 1 ? '' : 's'}`,
       shame: true,
     })
+  }
+
+  // Player awards — only where phone players were tracked.
+  const players = aggregatePlayers(games)
+  const mvp = players[0]
+  if (mvp && mvp.points > 0) {
+    awards.push({ id: 'mvp', icon: '⭐', title: 'MVP', teamName: mvp.name, color: mvp.color, detail: `${mvp.points} pts for ${mvp.teamName}` })
+  }
+  const sharp = players
+    .filter((p) => p.correct + p.wrong >= 4)
+    .sort((a, b) => b.correct / (b.correct + b.wrong) - a.correct / (a.correct + a.wrong))[0]
+  if (sharp) {
+    awards.push({
+      id: 'sharp',
+      icon: '🎯',
+      title: 'Sharpshooter',
+      teamName: sharp.name,
+      color: sharp.color,
+      detail: `${Math.round((sharp.correct / (sharp.correct + sharp.wrong)) * 100)}% right (${sharp.correct}/${sharp.correct + sharp.wrong})`,
+    })
+  }
+  const trigger = [...players].sort((a, b) => b.buzzes - a.buzzes)[0]
+  if (trigger && trigger.buzzes >= 3) {
+    awards.push({ id: 'trigger', icon: '🔔', title: 'Trigger Finger', teamName: trigger.name, color: trigger.color, detail: `${trigger.buzzes} buzzes` })
   }
 
   return awards

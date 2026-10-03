@@ -364,8 +364,8 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
 
         {phase === 'halftime' && (
           <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-pop-in">
-            <div className="text-6xl">🏀</div>
-            <div className="font-display text-5xl tracking-widest text-hardwood-400">HALFTIME</div>
+            <div className="text-6xl">{snapshot.suddenDeath ? '💀' : '🏀'}</div>
+            <div className="font-display text-5xl tracking-widest text-hardwood-400">{snapshot.suddenDeath ? 'SUDDEN DEATH' : 'HALFTIME'}</div>
             {snapshot.halftimePrompt && <p className="max-w-md text-slate-400">{snapshot.halftimePrompt}</p>}
             <Scoreboard teams={game.teams} />
           </div>

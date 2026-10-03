@@ -76,6 +76,7 @@ export default function GameBuilder() {
   const localFileInput = useRef<HTMLInputElement | null>(null)
   const tierListsEnabled = useFeatureFlag('tier-lists')
   const powerUpsEnabled = useFeatureFlag('power-ups')
+  const suddenDeathEnabled = useFeatureFlag('sudden-death')
 
   useEffect(() => {
     if (!gameId) return
@@ -132,6 +133,26 @@ export default function GameBuilder() {
         },
       },
     })
+  }
+
+  // Reserve rounds (flag: sudden-death) live outside `rounds` entirely, so they never show up in
+  // normal play — the presenter only pulls one in if the game ends tied.
+  function reserveRound(round: SongRound) {
+    if (!game) return
+    const rounds = game.rounds.filter((r) => r.id !== round.id)
+    persist({ ...game, rounds, tiebreakerRounds: [...(game.tiebreakerRounds ?? []), round] })
+    if (selectedRoundId === round.id) setSelectedRoundId(rounds[0]?.id ?? null)
+  }
+
+  function restoreReserve(round: SongRound) {
+    if (!game) return
+    persist({ ...game, rounds: [...game.rounds, round], tiebreakerRounds: (game.tiebreakerRounds ?? []).filter((r) => r.id !== round.id) })
+    setSelectedRoundId(round.id)
+  }
+
+  function deleteReserve(round: SongRound) {
+    if (!game) return
+    persist({ ...game, tiebreakerRounds: (game.tiebreakerRounds ?? []).filter((r) => r.id !== round.id) })
   }
 
   function duplicateRound(round: SongRound) {
@@ -463,11 +484,27 @@ export default function GameBuilder() {
                 </div>
                 <div className="flex gap-0.5">
                   <button onClick={(e) => { e.stopPropagation(); duplicateRound(round) }} className="text-xs text-slate-500 hover:text-slate-200" title="Duplicate">⧉</button>
+                  {suddenDeathEnabled && (
+                    <button onClick={(e) => { e.stopPropagation(); reserveRound(round) }} className="text-xs text-slate-500 hover:text-hardwood-400" title="Hold in reserve for a sudden-death tiebreaker" aria-label={`Hold "${round.title || 'this round'}" in reserve for a tiebreaker`}>🥇</button>
+                  )}
                   <button onClick={(e) => { e.stopPropagation(); removeRound(round.id) }} className="text-xs text-slate-500 hover:text-scoreboard-500" title="Delete">✕</button>
                 </div>
               </div>
             </div>
           ))}
+
+          {suddenDeathEnabled && (game.tiebreakerRounds?.length ?? 0) > 0 && (
+            <div className="mt-3 rounded-lg border border-arena-700 p-2">
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-slate-500">🥇 Tiebreaker reserve</div>
+              {(game.tiebreakerRounds ?? []).map((r) => (
+                <div key={r.id} className="flex items-center gap-2 py-0.5 text-xs text-slate-300">
+                  <span className="min-w-0 flex-1 truncate">{r.title || 'Untitled'}</span>
+                  <button onClick={() => restoreReserve(r)} className="text-slate-500 hover:text-slate-200" title="Put back in the game">↩</button>
+                  <button onClick={() => deleteReserve(r)} className="text-slate-500 hover:text-scoreboard-500" title="Delete">✕</button>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="mt-2 space-y-2">
             {isLyric ? (
@@ -567,6 +604,20 @@ export default function GameBuilder() {
               🏀 Halftime break
             </label>
             <p className="mt-1 text-xs text-slate-500">Pause for a score check partway through (needs at least 4 possessions).</p>
+            {!isTierGuess && !isYear && (
+              <>
+                <label className="mt-3 flex items-center gap-2 text-sm text-slate-300">
+                  <input
+                    type="checkbox"
+                    checked={game.catchUp ?? false}
+                    onChange={(e) => persist({ ...game, catchUp: e.target.checked })}
+                    className="h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
+                  />
+                  🐕 Underdog catch-up
+                </label>
+                <p className="mt-1 text-xs text-slate-500">Trailing by 8+ earns a bonus point on a correct answer; falling 12+ behind gifts a free Steal (needs Power-Ups).</p>
+              </>
+            )}
           </div>
 
           {powerUpsEnabled && !isTierGuess && !isYear && (

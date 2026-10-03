@@ -4,7 +4,8 @@ import { isLyricMode, isTierGuessMode } from '../types'
 import { getSeason, saveSeason } from '../lib/storage/season-repository'
 import { listGames } from '../lib/storage/game-repository'
 import { computeStandings } from '../lib/tournament-standings'
-import { computeAwards } from '../lib/achievements'
+import { aggregatePlayers, computeAwards } from '../lib/achievements'
+import PlayerLeaderboard from '../components/PlayerLeaderboard'
 import AwardsPanel from '../components/AwardsPanel'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import Spinner from '../components/Spinner'
@@ -28,6 +29,7 @@ export default function SeasonBoard() {
   const standings = useMemo(() => computeStandings(taggedGames), [taggedGames])
   const achievementsEnabled = useFeatureFlag('achievements')
   const awards = useMemo(() => computeAwards(taggedGames), [taggedGames])
+  const players = useMemo(() => aggregatePlayers(taggedGames), [taggedGames])
 
   function renameSeason(name: string) {
     if (!season) return
@@ -94,6 +96,7 @@ export default function SeasonBoard() {
         </Panel>
 
         {achievementsEnabled && <AwardsPanel awards={awards} title="SEASON AWARDS" />}
+        {achievementsEnabled && <PlayerLeaderboard players={players} />}
 
         <div>
           <div className="mb-3 font-display text-xl tracking-wide text-hardwood-400">GAMES IN THIS SEASON</div>

@@ -313,3 +313,79 @@ export function playStreak() {
     // Best-effort, same as playBuzzer().
   }
 }
+
+// --- Host soundboard: short, punchy, fully synthesized stings (same no-assets approach as the
+// rest of this file) for the host to fire on a hotkey. Each is best-effort like the others.
+
+function tone(ctx: AudioContext, type: OscillatorType, freq: number, start: number, dur: number, peak: number, endFreq?: number) {
+  const gain = ctx.createGain()
+  gain.gain.setValueAtTime(0.0001, start)
+  gain.gain.exponentialRampToValueAtTime(scaled(peak), start + 0.02)
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + dur)
+  gain.connect(ctx.destination)
+  const osc = ctx.createOscillator()
+  osc.type = type
+  osc.frequency.setValueAtTime(freq, start)
+  if (endFreq) osc.frequency.linearRampToValueAtTime(endFreq, start + dur)
+  osc.connect(gain)
+  osc.start(start)
+  osc.stop(start + dur + 0.02)
+}
+
+function noiseBurst(ctx: AudioContext, start: number, dur: number, peak: number, filterFreq: number) {
+  const length = Math.max(1, Math.floor(ctx.sampleRate * dur))
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate)
+  const data = buffer.getChannelData(0)
+  for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1
+  const src = ctx.createBufferSource()
+  src.buffer = buffer
+  const filter = ctx.createBiquadFilter()
+  filter.type = 'bandpass'
+  filter.frequency.value = filterFreq
+  const gain = ctx.createGain()
+  gain.gain.setValueAtTime(0.0001, start)
+  gain.gain.exponentialRampToValueAtTime(scaled(peak), start + 0.01)
+  gain.gain.exponentialRampToValueAtTime(0.0001, start + dur)
+  src.connect(filter)
+  filter.connect(gain)
+  gain.connect(ctx.destination)
+  src.start(start)
+}
+
+export type SoundboardSound = 'airhorn' | 'applause' | 'crickets' | 'trombone' | 'drumroll' | 'rimshot'
+
+export function playSoundboard(sound: SoundboardSound) {
+  if (silent()) return
+  try {
+    const ctx = getContext()
+    const now = ctx.currentTime
+    if (sound === 'airhorn') {
+      // Three stacked detuned saws held and pitch-dipped, repeated as the classic "da-da-DAAA".
+      ;[0, 0.22, 0.44].forEach((t, i) => {
+        const dur = i === 2 ? 0.9 : 0.18
+        ;[440, 554, 659].forEach((f) => tone(ctx, 'sawtooth', f * 1.005, now + t, dur, 0.1, f * 0.97))
+      })
+    } else if (sound === 'applause') {
+      for (let i = 0; i < 40; i++) noiseBurst(ctx, now + Math.random() * 1.8, 0.05 + Math.random() * 0.05, 0.12, 1800 + Math.random() * 2500)
+    } else if (sound === 'crickets') {
+      for (let i = 0; i < 6; i++) {
+        const t = now + i * 0.28
+        tone(ctx, 'sine', 4300, t, 0.05, 0.05)
+        tone(ctx, 'sine', 4300, t + 0.08, 0.05, 0.05)
+      }
+    } else if (sound === 'trombone') {
+      const notes = [311, 294, 277, 262]
+      notes.forEach((f, i) => tone(ctx, 'sawtooth', f, now + i * 0.3, i === 3 ? 0.9 : 0.28, 0.14, i === 3 ? f * 0.8 : undefined))
+    } else if (sound === 'drumroll') {
+      for (let i = 0; i < 28; i++) noiseBurst(ctx, now + i * 0.065, 0.06, 0.1 + i * 0.004, 200 + i * 8)
+      noiseBurst(ctx, now + 28 * 0.065, 0.25, 0.3, 140)
+    } else {
+      // Rimshot: snare-ish hit, a pause, then snare + cymbal splash.
+      noiseBurst(ctx, now, 0.1, 0.25, 400)
+      noiseBurst(ctx, now + 0.28, 0.1, 0.25, 400)
+      noiseBurst(ctx, now + 0.5, 0.45, 0.2, 7000)
+    }
+  } catch {
+    // Best-effort, same as playBuzzer().
+  }
+}

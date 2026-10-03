@@ -8,14 +8,16 @@ import {
   LYRIC_HINT_LABELS,
   type Game,
   POWER_UP_KINDS,
+  duplicateGame,
   powerUpsRemaining,
+  type PlayerStat,
   type PowerUpKind,
   type SongRound,
   type Team,
 } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
-import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, playEject } from '../lib/sound-effects'
+import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, playEject, playSoundboard, type SoundboardSound } from '../lib/sound-effects'
 import SoundControl from '../components/SoundControl'
 import { trackTeamStats } from '../lib/achievements'
 import { currentThemeVarsForGuests } from '../lib/themes'
@@ -37,7 +39,7 @@ import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
 import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
 import type { BuzzState, BuzzerPlayer, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
 
-type Phase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime'
+type Phase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime' | 'suddendeath'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -76,6 +78,19 @@ const YEAR_GUESS_YEAR_POINTS = 1
 const YEAR_GUESS_MONTH_POINTS = 2
 const POWER_UP_LABELS: Record<PowerUpKind, string> = { double: '2x Double', steal: '🥷 Steal', freeze: '🧊 Freeze' }
 
+const UNDERDOG_DEFICIT = 8
+const CATCH_UP_GIFT_DEFICIT = 12
+
+// Hotkey -> sound for the host soundboard (flag: soundboard). Letters, since digits are team buzz-ins.
+const SOUNDBOARD: Array<{ code: string; key: string; sound: SoundboardSound; icon: string; label: string }> = [
+  { code: 'KeyZ', key: 'Z', sound: 'airhorn', icon: '📯', label: 'Airhorn' },
+  { code: 'KeyX', key: 'X', sound: 'applause', icon: '👏', label: 'Applause' },
+  { code: 'KeyC', key: 'C', sound: 'crickets', icon: '🦗', label: 'Crickets' },
+  { code: 'KeyV', key: 'V', sound: 'trombone', icon: '🎺', label: 'Sad trombone' },
+  { code: 'KeyB', key: 'B', sound: 'drumroll', icon: '🥁', label: 'Drumroll' },
+  { code: 'KeyN', key: 'N', sound: 'rimshot', icon: '🎭', label: 'Rimshot' },
+]
+
 function frozenTargetIds(game: Game | null): string[] {
   return Array.from(new Set((game?.freezes ?? []).map((f) => f.targetTeamId)))
 }
@@ -87,6 +102,12 @@ export default function HostController({ gameId }: { gameId: string }) {
   const buzzerEnabled = useFeatureFlag('phone-buzzer') && isBuzzerConfigured()
   const powerUpsEnabled = useFeatureFlag('power-ups')
   const ejectEnabled = useFeatureFlag('eject')
+  const suddenDeathEnabled = useFeatureFlag('sudden-death')
+  const soundboardEnabled = useFeatureFlag('soundboard')
+  const [soundboardOpen, setSoundboardOpen] = useState(false)
+  const [rematchOpen, setRematchOpen] = useState(false)
+  const [rematchShuffle, setRematchShuffle] = useState(true)
+  const [rematchHandicap, setRematchHandicap] = useState(0)
   const [game, setGame] = useState<Game | null>(null)
   const [phase, setPhase] = useState<Phase>('intro')
   const [possessionIndex, setPossessionIndex] = useState(0)
@@ -169,8 +190,12 @@ export default function HostController({ gameId }: { gameId: string }) {
   // ejection has to be remembered host-side and re-seeded into the room each time it opens.
   const [ejected, setEjected] = useState<{ possession: number; ids: string[] }>({ possession: -1, ids: [] })
   const ejectedIds = ejected.possession === possessionIndex ? ejected.ids : []
+  // Sudden death: only the teams still tied for the lead may play — everyone else is blocked
+  // exactly like an ejected team (same ice, same dropped guesses, same disabled credits).
+  const sittingOutIds = game?.suddenDeath ? game.teams.filter((t) => !game.suddenDeath?.contenderIds.includes(t.id)).map((t) => t.id) : []
+  const blockedIds = Array.from(new Set([...ejectedIds, ...sittingOutIds]))
   const ejectedIdsRef = useRef<string[]>([])
-  ejectedIdsRef.current = ejectedIds
+  ejectedIdsRef.current = blockedIds
   const latestSnapshotRef = useRef<PresentationSnapshot | null>(null)
   const buzzerSocketRef = useRef<BuzzerSocket | null>(null)
   // Teams the keyboard buzz-in path has marked wrong for the current clue — a client-side
@@ -193,7 +218,30 @@ export default function HostController({ gameId }: { gameId: string }) {
     // (e.g. the host's socket reconnecting mid-lock replays the current state) — this
     // dedupes so a reconnect can't count one buzz as the fastest twice over.
     seenBuzzKeys: new Set<string>(),
+    // Phone players' tallies for this playthrough, keyed by lowercased name (see PlayerStat).
+    players: new Map<string, { name: string; teamId: string; buzzes: number; correct: number; wrong: number; points: number; fastestMs?: number }>(),
   })
+
+  function bumpPlayer(name: string, teamId: string, update: (p: { buzzes: number; correct: number; wrong: number; points: number; fastestMs?: number }) => void) {
+    const key = name.trim().toLowerCase()
+    if (!key) return
+    const existing = recapRef.current.players.get(key) ?? { name: name.trim(), teamId, buzzes: 0, correct: 0, wrong: 0, points: 0 }
+    existing.teamId = teamId
+    update(existing)
+    recapRef.current.players.set(key, existing)
+  }
+
+  function buildPlayerStats(teams: Team[]): PlayerStat[] {
+    return Array.from(recapRef.current.players.values()).map((p) => ({
+      name: p.name,
+      teamName: teams.find((t) => t.id === p.teamId)?.name ?? '—',
+      buzzes: p.buzzes,
+      correct: p.correct,
+      wrong: p.wrong,
+      points: p.points,
+      fastestMs: p.fastestMs,
+    }))
+  }
 
   function recordScoreEvent(points: number, teamName: string, roundTitle: string) {
     if (points > 0) {
@@ -211,6 +259,12 @@ export default function HostController({ gameId }: { gameId: string }) {
     const key = `${winner.connId}:${winner.at}`
     if (recapRef.current.seenBuzzKeys.has(key)) return false
     recapRef.current.seenBuzzKeys.add(key)
+    if (!winner.connId.startsWith('local:')) {
+      bumpPlayer(winner.name, winner.teamId, (p) => {
+        p.buzzes += 1
+        if (winner.reactionMs != null && (p.fastestMs === undefined || winner.reactionMs < p.fastestMs)) p.fastestMs = winner.reactionMs
+      })
+    }
     if (winner.reactionMs != null && (!recapRef.current.fastestBuzz || winner.reactionMs < recapRef.current.fastestBuzz.ms)) {
       recapRef.current.fastestBuzz = { name: winner.name, teamId: winner.teamId, ms: winner.reactionMs }
     }
@@ -336,7 +390,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     if (buzzerConnected || isTierGuess || isYear) return
     // Power-Ups' Freeze: same one-shot seed-then-clear as the phone path above.
     const frozen = phase === 'clue' ? frozenTargetIds(game) : []
-    keyboardIcedRef.current = new Set(frozen)
+    keyboardIcedRef.current = new Set([...frozen, ...sittingOutIds])
     setBuzzWinner(null)
     setBuzzState(phase === 'clue' ? 'open' : 'closed')
     if (frozen.length > 0 && game) setGame(saveGame({ ...game, freezes: [] }))
@@ -419,6 +473,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         guessStage,
         positionCount: guessStage === 'guessPosition' ? round?.tierSize : undefined,
         theme: currentThemeVarsForGuests(),
+        suddenDeath: game.suddenDeath ? true : undefined,
       },
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -461,14 +516,15 @@ export default function HostController({ gameId }: { gameId: string }) {
   const wagerTeam = wagerTeamId ? game?.teams.find((t) => t.id === wagerTeamId) : undefined
   latestSnapshotRef.current = round
     ? {
-        phase,
+        phase: phase === 'suddendeath' ? 'halftime' : phase,
         possessionIndex,
         clueIndex,
         tierGuessStage,
         yearGuessStage,
         playing: isPlaying && playStartedAtRef.current ? { duration: activeDurationRef.current, startedAt: playStartedAtRef.current } : null,
         wager: wagerTeam && wagerAmount !== null ? { teamName: wagerTeam.name, teamColor: wagerTeam.color, amount: wagerAmount } : null,
-        halftimePrompt: phase === 'halftime' ? halftimePrompt : null,
+        halftimePrompt: phase === 'halftime' ? halftimePrompt : phase === 'suddendeath' ? 'Tied at the top — the host is breaking the tie!' : null,
+        suddenDeath: phase === 'suddendeath' ? true : undefined,
       }
     : null
 
@@ -571,14 +627,26 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   // pointsOverride is set for a wager round's resolution (the win/loss amount the host
   // locked in), which replaces round.points[clueIndex] rather than adding to it.
-  function award(team: Team | null, pointsOverride?: number) {
+  function award(team: Team | null, pointsOverride?: number, byPlayer?: BuzzerWinner) {
     if (!game || !round) return
+    // Everything worth a banner this award (underdog bonus, earned/gifted power-ups) is gathered
+    // and shown as one line at the end rather than stacking several banners on top of each other.
+    const banners: string[] = []
     // Power-Ups: only fires when the ARMED team is the one actually scoring here — if a
     // different team wins (or nobody does), the armed effect stays armed for whenever that
     // team's turn actually comes, rather than fizzling on an unrelated possession.
     const armedKind = team ? (game.armedPowerUps?.find((a) => a.teamId === team.id)?.kind ?? null) : null
     let points = pointsOverride ?? round.points[clueIndex]
     if (armedKind === 'double') points *= 2
+    // Catch-up (opt-in per game): a team trailing the leader by a wide margin gets +1 on an
+    // ordinary correct answer — not on wager resolutions, which are already high-stakes swings.
+    if (game.catchUp && team && points > 0 && pointsOverride === undefined) {
+      const leader = Math.max(...game.teams.map((t) => t.score))
+      if (leader - team.score >= UNDERDOG_DEFICIT) {
+        points += 1
+        banners.push(`🐕 Underdog bonus +1 for ${team.name}`)
+      }
+    }
     // Steal docks the same number of points from whoever's currently leading among the
     // OTHER teams — "currently leading" is read before this possession's own score lands, so
     // stealing from yourself (you're already the leader) is simply a no-op, not an error.
@@ -616,8 +684,32 @@ export default function HostController({ gameId }: { gameId: string }) {
           t.id === team.id ? { ...t, powerUpsEarned: { ...t.powerUpsEarned, [kind]: (t.powerUpsEarned?.[kind] ?? 0) + 1 } } : t,
         ),
       }
-      showEarnBanner(`${team.name} earned ${POWER_UP_LABELS[kind]}!`)
+      banners.push(`${team.name} earned ${POWER_UP_LABELS[kind]}!`)
     }
+    // Catch-up gift: the first time a team falls far behind, it gets a free Steal to claw back
+    // with (only meaningful where power-ups are in play).
+    if (game.catchUp && powerUpsEnabled && team) {
+      const leaderNow = Math.max(...nextGame.teams.map((t) => t.score))
+      const giftees = nextGame.teams.filter((t) => !t.catchUpGifted && leaderNow - t.score >= CATCH_UP_GIFT_DEFICIT)
+      if (giftees.length > 0) {
+        nextGame = {
+          ...nextGame,
+          teams: nextGame.teams.map((t) =>
+            giftees.some((g) => g.id === t.id)
+              ? { ...t, catchUpGifted: true, powerUpsGifted: { ...t.powerUpsGifted, steal: (t.powerUpsGifted?.steal ?? 0) + 1 } }
+              : t,
+          ),
+        }
+        giftees.forEach((g) => banners.push(`🐕 ${g.name} gets a free 🥷 Steal`))
+      }
+    }
+    if (byPlayer && !byPlayer.connId.startsWith('local:')) {
+      bumpPlayer(byPlayer.name, byPlayer.teamId, (p) => {
+        p.correct += 1
+        p.points += points
+      })
+    }
+    if (banners.length > 0) showEarnBanner(banners.join('  ·  '))
     nextGame = { ...nextGame, teams: trackTeamStats(nextGame.teams) }
     // Recorded as soon as any score changes, not just on possession advance — otherwise
     // leaving right after awarding (before clicking "next possession") would lose the
@@ -813,13 +905,14 @@ export default function HostController({ gameId }: { gameId: string }) {
     const team = game?.teams.find((t) => t.id === buzzWinner?.teamId)
     if (!team) return
     playCorrect()
-    award(team, round.points[clueIndex])
+    award(team, undefined, buzzWinner ?? undefined)
     reveal()
   }
 
   function markBuzzWrong() {
     if (!buzzWinner) return
     playWrong()
+    if (!buzzWinner.connId.startsWith('local:')) bumpPlayer(buzzWinner.name, buzzWinner.teamId, (p) => void (p.wrong += 1))
     if (buzzerSocketRef.current) {
       // Team-scoped, not device-scoped — the server ices this team regardless of whether
       // the buzz that just got judged actually came from a phone or the local keyboard path.
@@ -899,7 +992,13 @@ export default function HostController({ gameId }: { gameId: string }) {
     const nextCredited = new Set(credited)
     const newlyCreditedTeamIds: string[] = []
     for (const guess of modeGuesses.values()) {
-      if (nextCredited.has(guess.teamId) || !match(guess.text)) continue
+      const isMatch = match(guess.text)
+      bumpPlayer(guess.name, guess.teamId, (p) => {
+        if (isMatch) p.correct += 1
+        else p.wrong += 1
+      })
+      if (nextCredited.has(guess.teamId) || !isMatch) continue
+      bumpPlayer(guess.name, guess.teamId, (p) => void (p.points += points))
       nextCredited.add(guess.teamId)
       newlyCreditedTeamIds.push(guess.teamId)
       recordScoreEvent(points, guess.name, round.title)
@@ -950,11 +1049,57 @@ export default function HostController({ gameId }: { gameId: string }) {
     nextPossession()
   }
 
+  // Snapshots the finished game (recap + player tallies) and shows the final screen.
+  function completeGame(g: Game) {
+    setGame(
+      saveGame({
+        ...g,
+        progress: { possessionIndex: g.rounds.length - 1, completed: true },
+        recap: buildRecapStats(g.teams),
+        playerStats: buildPlayerStats(g.teams),
+        suddenDeath: null,
+      }),
+    )
+    setPhase('final')
+  }
+
+  // Called when the last possession ends. If the lead is tied (and Sudden Death is on), plays a
+  // reserve tiebreaker round among just the tied teams — or, with no reserve left, hands the
+  // call to the host. Returns whether it took over (so the game isn't ended yet).
+  function startSuddenDeath(): boolean {
+    if (!game || !suddenDeathEnabled || game.teams.length < 2) return false
+    const top = Math.max(...game.teams.map((t) => t.score))
+    const tied = game.teams.filter((t) => t.score === top)
+    if (tied.length < 2) return false
+    const contenderIds = tied.map((t) => t.id)
+    const used = game.rounds.filter((r) => r.tiebreaker).length
+    const reserve = game.tiebreakerRounds?.[used]
+    if (reserve) {
+      const rounds = [...game.rounds, { ...reserve, id: crypto.randomUUID(), tiebreaker: true }]
+      const index = rounds.length - 1
+      setGame(saveGame({ ...game, rounds, suddenDeath: { contenderIds }, progress: { possessionIndex: index, completed: false } }))
+      setPossessionIndex(index)
+      setLastAward(null)
+      setPhase('clue')
+    } else {
+      setGame(saveGame({ ...game, suddenDeath: { contenderIds } }))
+      setPhase('suddendeath')
+    }
+    return true
+  }
+
+  // Host-judged sudden death (no reserve round left): the winner gets the deciding point.
+  function awardSuddenDeath(team: Team | null) {
+    if (!game) return
+    const teams = team ? trackTeamStats(game.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + 1 } : t))) : game.teams
+    completeGame({ ...game, teams })
+  }
+
   function nextPossession() {
     if (!game) return
     if (possessionIndex >= game.rounds.length - 1) {
-      setGame(saveGame({ ...game, progress: { possessionIndex, completed: true }, recap: buildRecapStats(game.teams) }))
-      setPhase('final')
+      if (startSuddenDeath()) return
+      completeGame(game)
       return
     }
     const next = possessionIndex + 1
@@ -992,13 +1137,38 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   function restartGame() {
     if (!game) return
-    const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0, streak: 0, powerUpsUsed: undefined, powerUpsEarned: undefined, bestStreak: undefined, maxDeficit: undefined, ejections: undefined })), progress: undefined, recap: undefined, armedPowerUps: [], freezes: [] })
+    const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0, streak: 0, powerUpsUsed: undefined, powerUpsEarned: undefined, powerUpsGifted: undefined, catchUpGifted: undefined, bestStreak: undefined, maxDeficit: undefined, ejections: undefined })), progress: undefined, recap: undefined, armedPowerUps: [], freezes: [], suddenDeath: null, playerStats: undefined, rounds: game.rounds.filter((r) => !r.tiebreaker) })
     setGame(reset)
     setPossessionIndex(0)
     setLastAward(null)
     setPhase('intro')
-    recapRef.current = { correctCount: 0, noScoreCount: 0, biggest: null, fastestBuzz: null, seenBuzzKeys: new Set() }
+    recapRef.current = { correctCount: 0, noScoreCount: 0, biggest: null, fastestBuzz: null, seenBuzzKeys: new Set(), players: new Map() }
     halftimeShownRef.current = false
+  }
+
+  // New game for a rematch: same teams (same ids and the same buzzer room, so phones stay joined),
+  // optionally shuffled rounds and a head start for everyone who didn't win. It's a separate game,
+  // not a reset, so the finished one stays in Stats and any Season it's tagged into.
+  function startRematch() {
+    if (!game) return
+    const top = Math.max(...game.teams.map((t) => t.score))
+    const copy = duplicateGame(game)
+    const match = /^(.*?) \(Rematch(?: (\d+))?\)$/.exec(game.name)
+    copy.name = match ? `${match[1]} (Rematch ${(Number(match[2]) || 1) + 1})` : `${game.name} (Rematch)`
+    copy.teams = copy.teams.map((t, i) => ({
+      ...t,
+      id: game.teams[i].id,
+      score: rematchHandicap > 0 && game.teams[i].score < top ? rematchHandicap : 0,
+    }))
+    copy.buzzerRoomCode = game.buzzerRoomCode
+    if (rematchShuffle) {
+      for (let i = copy.rounds.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[copy.rounds[i], copy.rounds[j]] = [copy.rounds[j], copy.rounds[i]]
+      }
+    }
+    const saved = saveGame(copy)
+    navigate(`/games/${saved.id}/present`)
   }
 
   function restartClue() {
@@ -1051,6 +1221,18 @@ export default function HostController({ gameId }: { gameId: string }) {
       }
       if (showHelp) {
         if (e.code === 'Escape') setShowHelp(false)
+        return
+      }
+      if (soundboardEnabled && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const hit = SOUNDBOARD.find((b) => b.code === e.code)
+        if (hit) {
+          e.preventDefault()
+          playSoundboard(hit.sound)
+          return
+        }
+      }
+      if (phase === 'suddendeath') {
+        if (e.code === 'Escape') exitPresentation()
         return
       }
       if (phase === 'resume') {
@@ -1126,7 +1308,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, clueIndex, isPlaying, possessionIndex, showHelp, isLyric, isTierGuess, isYear, tierGuessStage, yearGuessStage, round?.wager, wagerTeamId, buzzState, buzzWinner])
+  }, [phase, clueIndex, isPlaying, possessionIndex, showHelp, soundboardEnabled, isLyric, isTierGuess, isYear, tierGuessStage, yearGuessStage, round?.wager, wagerTeamId, buzzState, buzzWinner])
 
   const sortedFinal = useMemo(() => [...(game?.teams ?? [])].sort((a, b) => b.score - a.score), [game])
 
@@ -1200,6 +1382,21 @@ export default function HostController({ gameId }: { gameId: string }) {
           </div>
         </div>
       )}
+      {soundboardEnabled && soundboardOpen && (
+        <div className="absolute right-4 top-16 z-30 grid w-56 grid-cols-1 gap-1.5 rounded-xl border border-arena-600 bg-arena-900/95 p-3 shadow-2xl">
+          {SOUNDBOARD.map((b) => (
+            <button
+              key={b.sound}
+              onClick={() => playSoundboard(b.sound)}
+              className="flex items-center gap-2 rounded-lg border border-arena-600 bg-arena-800 px-2 py-2 text-left text-sm text-slate-200 hover:border-hardwood-500"
+            >
+              <span className="text-xl">{b.icon}</span>
+              <span className="min-w-0 flex-1 truncate">{b.label}</span>
+              <kbd className="rounded bg-arena-700 px-1.5 font-mono text-[11px] text-slate-300">{b.key}</kbd>
+            </button>
+          ))}
+        </div>
+      )}
       {ejectBanner && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center overflow-hidden bg-scoreboard-500/10">
           <div key={ejectBanner.key} className="animate-eject-stamp max-w-xl rounded-2xl border-4 border-scoreboard-500 bg-arena-950/90 px-10 py-6 text-center shadow-2xl shadow-scoreboard-500/40">
@@ -1234,6 +1431,16 @@ export default function HostController({ gameId }: { gameId: string }) {
         <button onClick={openPublicDisplay} className="rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
           🖥️ Public Display{publicConnected ? ' ✓' : ''}
         </button>
+        {soundboardEnabled && (
+          <button
+            onClick={() => setSoundboardOpen((v) => !v)}
+            className={`rounded-full px-3 py-1.5 text-sm ${soundboardOpen ? 'bg-hardwood-500 text-arena-950' : 'bg-black/40 text-slate-300 hover:bg-black/60'}`}
+            aria-label="Soundboard"
+            title="Soundboard (Z X C V B N)"
+          >
+            🎛️
+          </button>
+        )}
         <SoundControl />
         <button
           onClick={() => setShowHelp((v) => !v)}
@@ -1279,6 +1486,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                   ? ([[`1–${game.teams.length}`, 'Buzz in for that team (no phone needed)']] as const)
                   : []),
                 ['Esc', 'Exit presentation'],
+                ...(soundboardEnabled ? SOUNDBOARD.map((b) => [b.key, `Soundboard: ${b.label}`] as const) : []),
                 ['?', 'Toggle this help'],
               ].map(([key, desc]) => (
                 <div key={key} className="flex items-center justify-between gap-4">
@@ -1356,7 +1564,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         <div className="flex min-h-0 flex-1 flex-col items-center justify-between px-6 py-8">
           <div className="flex w-full items-center justify-between pr-36 font-display text-lg tracking-widest text-slate-400">
             <span>{game.name.toUpperCase()}</span>
-            <span>POSSESSION {possessionIndex + 1} OF {game.rounds.length}</span>
+            <span>{game.suddenDeath ? '💀 SUDDEN DEATH' : `POSSESSION ${possessionIndex + 1} OF ${game.rounds.length}`}</span>
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto text-center">
@@ -1776,13 +1984,13 @@ export default function HostController({ gameId }: { gameId: string }) {
                         <button
                           key={team.id}
                           onClick={() => toggleTierCredit(team)}
-                          disabled={ejectedIds.includes(team.id) && !tierCredits.has(team.id)}
+                          disabled={blockedIds.includes(team.id) && !tierCredits.has(team.id)}
                           className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
                             tierCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
                           }`}
                           style={{ color: team.color }}
                         >
-                          {tierCredits.has(team.id) ? '✓ ' : ''}{ejectedIds.includes(team.id) ? '🟥 ' : ''}
+                          {tierCredits.has(team.id) ? '✓ ' : ''}{blockedIds.includes(team.id) ? '🟥 ' : ''}
                           {team.name}
                         </button>
                       ))}
@@ -1799,13 +2007,13 @@ export default function HostController({ gameId }: { gameId: string }) {
                         <button
                           key={team.id}
                           onClick={() => togglePositionCredit(team)}
-                          disabled={ejectedIds.includes(team.id) && !positionCredits.has(team.id)}
+                          disabled={blockedIds.includes(team.id) && !positionCredits.has(team.id)}
                           className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
                             positionCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
                           }`}
                           style={{ color: team.color }}
                         >
-                          {positionCredits.has(team.id) ? '✓ ' : ''}{ejectedIds.includes(team.id) ? '🟥 ' : ''}
+                          {positionCredits.has(team.id) ? '✓ ' : ''}{blockedIds.includes(team.id) ? '🟥 ' : ''}
                           {team.name}
                         </button>
                       ))}
@@ -1829,13 +2037,13 @@ export default function HostController({ gameId }: { gameId: string }) {
                         <button
                           key={team.id}
                           onClick={() => toggleYearCredit(team)}
-                          disabled={ejectedIds.includes(team.id) && !yearCredits.has(team.id)}
+                          disabled={blockedIds.includes(team.id) && !yearCredits.has(team.id)}
                           className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
                             yearCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
                           }`}
                           style={{ color: team.color }}
                         >
-                          {yearCredits.has(team.id) ? '✓ ' : ''}{ejectedIds.includes(team.id) ? '🟥 ' : ''}
+                          {yearCredits.has(team.id) ? '✓ ' : ''}{blockedIds.includes(team.id) ? '🟥 ' : ''}
                           {team.name}
                         </button>
                       ))}
@@ -1852,13 +2060,13 @@ export default function HostController({ gameId }: { gameId: string }) {
                         <button
                           key={team.id}
                           onClick={() => toggleMonthCredit(team)}
-                          disabled={ejectedIds.includes(team.id) && !monthCredits.has(team.id)}
+                          disabled={blockedIds.includes(team.id) && !monthCredits.has(team.id)}
                           className={`truncate rounded-xl border px-2 py-2.5 font-semibold ${
                             monthCredits.has(team.id) ? 'border-scoreboard-green bg-scoreboard-green/15' : 'border-arena-600 bg-arena-800 hover:border-hardwood-500'
                           }`}
                           style={{ color: team.color }}
                         >
-                          {monthCredits.has(team.id) ? '✓ ' : ''}{ejectedIds.includes(team.id) ? '🟥 ' : ''}
+                          {monthCredits.has(team.id) ? '✓ ' : ''}{blockedIds.includes(team.id) ? '🟥 ' : ''}
                           {team.name}
                         </button>
                       ))}
@@ -1966,6 +2174,34 @@ export default function HostController({ gameId }: { gameId: string }) {
         </div>
       )}
 
+      {phase === 'suddendeath' && (
+        <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-pop-in">
+          <div className="text-6xl">💀</div>
+          <div className="font-display text-5xl tracking-widest text-scoreboard-500">SUDDEN DEATH</div>
+          <p className="max-w-md text-slate-400">
+            Tied at the top with no reserve round left. Ask your own tiebreaker question — whoever nails it first takes the win.
+          </p>
+          <div className="grid w-full max-w-lg grid-cols-2 gap-2 sm:grid-cols-3">
+            {game.teams
+              .filter((t) => game.suddenDeath?.contenderIds.includes(t.id))
+              .map((team) => (
+                <button
+                  key={team.id}
+                  onClick={() => awardSuddenDeath(team)}
+                  className="truncate rounded-xl border border-arena-600 bg-arena-800 px-2 py-3 font-semibold hover:border-hardwood-500"
+                  style={{ color: team.color }}
+                >
+                  {team.avatar ? `${team.avatar} ` : ''}{team.name} wins it
+                </button>
+              ))}
+          </div>
+          <Scoreboard teams={game.teams} compact />
+          <button onClick={() => awardSuddenDeath(null)} className="text-sm text-slate-500 underline hover:text-slate-300">
+            Call it a tie
+          </button>
+        </div>
+      )}
+
       {phase === 'final' && (
         <div className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
           <Confetti />
@@ -2009,6 +2245,17 @@ export default function HostController({ gameId }: { gameId: string }) {
                   </span>
                 </div>
               )}
+              {(() => {
+                const mvp = [...(game.playerStats ?? [])].sort((a, b) => b.points - a.points)[0]
+                return mvp && mvp.points > 0 ? (
+                  <div className="flex justify-between gap-3 text-slate-300">
+                    <span className="text-left">⭐ MVP</span>
+                    <span className="truncate text-right">
+                      {mvp.name} ({mvp.teamName}) — {mvp.points} pts
+                    </span>
+                  </div>
+                ) : null
+              })()}
               <div className="flex justify-between text-slate-300">
                 <span>🏀 Buckets</span>
                 <span>
@@ -2023,6 +2270,9 @@ export default function HostController({ gameId }: { gameId: string }) {
             <button onClick={restartGame} className="rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400">
               PLAY AGAIN
             </button>
+            <button onClick={() => setRematchOpen(true)} className="rounded-full border border-hardwood-500 px-6 py-2.5 font-semibold text-hardwood-400 hover:bg-hardwood-500/10">
+              🔁 REMATCH
+            </button>
             <button onClick={handleDownloadRecap} className="rounded-full border border-arena-500 px-6 py-2.5 text-slate-200 hover:border-hardwood-500">
               📤 SAVE RECAP CARD
             </button>
@@ -2032,6 +2282,40 @@ export default function HostController({ gameId }: { gameId: string }) {
             <button onClick={() => navigate('/')} className="rounded-full border border-arena-500 px-6 py-2.5 text-slate-200 hover:border-hardwood-500">
               BACK TO HOME
             </button>
+          </div>
+        </div>
+      )}
+
+      {rematchOpen && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => setRematchOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-sm space-y-4 rounded-2xl border border-arena-600 bg-arena-900 p-6 text-left shadow-2xl">
+            <div className="font-display text-2xl tracking-wide text-white">REMATCH</div>
+            <p className="text-xs text-slate-500">
+              Starts a fresh copy with the same teams (phones stay joined). This game's result is kept for Stats and Seasons.
+            </p>
+            <label className="flex items-center gap-2 text-sm text-slate-300">
+              <input type="checkbox" checked={rematchShuffle} onChange={(e) => setRematchShuffle(e.target.checked)} className="h-4 w-4 accent-hardwood-500" />
+              Shuffle the round order
+            </label>
+            <label className="flex items-center justify-between gap-3 text-sm text-slate-300">
+              Head start for teams that didn't win
+              <input
+                type="number"
+                min={0}
+                max={20}
+                value={rematchHandicap}
+                onChange={(e) => setRematchHandicap(Math.min(20, Math.max(0, Math.floor(Number(e.target.value) || 0))))}
+                className="w-16 rounded-lg border border-arena-600 bg-arena-800 px-2 py-1 text-center text-slate-100 outline-none focus:border-hardwood-500"
+              />
+            </label>
+            <div className="flex gap-2">
+              <button onClick={() => setRematchOpen(false)} className="flex-1 rounded-full border border-arena-500 py-2 text-sm text-slate-300 hover:border-hardwood-500">
+                Cancel
+              </button>
+              <button onClick={startRematch} className="flex-1 rounded-full bg-hardwood-500 py-2 text-sm font-semibold text-arena-950 hover:bg-hardwood-400">
+                START REMATCH
+              </button>
+            </div>
           </div>
         </div>
       )}

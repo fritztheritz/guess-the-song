@@ -29,7 +29,7 @@ export interface BuzzerWinner {
   reactionMs: number | null
 }
 
-export type PhonePhase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime'
+export type PhonePhase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime' | 'suddendeath'
 export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year' | 'popularity'
 
 // A deliberately reduced view of the game, computed host-side and pushed down through the
@@ -53,6 +53,8 @@ export interface PhoneRoundState {
   /** Venue theme (Themes flag): CSS-variable overrides the host's own skin resolves to, so
    *  guests' phones match the room. Absent = the default Arena skin. */
   theme?: Record<string, string>
+  /** Sudden death is in progress — teams not tied for the lead are sitting it out. */
+  suddenDeath?: boolean
   /** mode: "tierguess" only — the tier list's own defined tiers (e.g. S/A/B/C/D), so a
    *  phone can offer them as tap targets instead of free text. This is the tier *names*,
    *  never which song is in which one — same "only what's already safe to show" discipline

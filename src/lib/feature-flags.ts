@@ -98,6 +98,20 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     default: false,
   },
   {
+    key: 'sudden-death',
+    label: 'Sudden-Death Tiebreaker',
+    description:
+      "If a game ends tied for the lead, play a reserve tiebreaker round among just the tied teams (set reserve rounds aside in the builder with 🥇) — or, with none left, the host picks the winner. Everyone else sits it out.",
+    default: false,
+  },
+  {
+    key: 'soundboard',
+    label: 'Host Soundboard',
+    description:
+      "A 🎛️ panel on the presentation screen — airhorn, applause, crickets, sad trombone, drumroll, rimshot — also on hotkeys Z X C V B N, for the host to fire at the room.",
+    default: false,
+  },
+  {
     key: 'eject',
     label: 'Eject a Team',
     description:
