@@ -9,6 +9,7 @@ import PlayerLeaderboard from '../components/PlayerLeaderboard'
 import AwardsPanel from '../components/AwardsPanel'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import Spinner from '../components/Spinner'
+import EmptyState from '../components/ui/EmptyState'
 import Panel from '../components/ui/Panel'
 import { useStoredEntity } from '../lib/use-stored-entity'
 
@@ -73,10 +74,10 @@ export default function SeasonBoard() {
         <Panel padding="lg">
           <div className="mb-3 font-display text-xl tracking-wide text-hardwood-400">STANDINGS</div>
           {standings.length === 0 ? (
-            <p className="text-sm text-slate-500">
+            <EmptyState icon="📋">
               No completed games tagged "{season.tag}" yet — standings fill in as games finish. Tag a game with "{season.tag}" from its
               editor to add it to this season.
-            </p>
+            </EmptyState>
           ) : (
             <div className="space-y-1.5">
               {standings.map((s, i) => (
@@ -101,9 +102,7 @@ export default function SeasonBoard() {
         <div>
           <div className="mb-3 font-display text-xl tracking-wide text-hardwood-400">GAMES IN THIS SEASON</div>
           {taggedGames.length === 0 ? (
-            <p className="text-sm text-slate-500">
-              No games tagged "{season.tag}" yet. Open a game's editor and add the tag "{season.tag}" to it.
-            </p>
+            <EmptyState icon="🏷️">No games tagged "{season.tag}" yet. Open a game's editor and add the tag "{season.tag}" to it.</EmptyState>
           ) : (
             <div className="space-y-2">
               {taggedGames.map((game) => (

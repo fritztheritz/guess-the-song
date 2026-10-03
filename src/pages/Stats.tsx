@@ -8,6 +8,8 @@ import { computeStandings } from '../lib/tournament-standings'
 import type { Game } from '../types'
 import type { PopularityGame } from '../types/popularity'
 import type { TimelineGame } from '../types/timeline'
+import ButtonLink from '../components/ui/ButtonLink'
+import EmptyState from '../components/ui/EmptyState'
 import Panel from '../components/ui/Panel'
 import AwardsPanel from '../components/AwardsPanel'
 import { aggregatePlayers, computeAwards } from '../lib/achievements'
@@ -86,9 +88,9 @@ export default function Stats() {
         </div>
 
         {totalCompleted === 0 ? (
-          <Panel>
-            <p className="text-sm text-slate-400">No completed games yet — finish a game to start building stats.</p>
-          </Panel>
+          <EmptyState icon="📊" action={<ButtonLink to="/" variant="primary" size="sm">Back to games</ButtonLink>}>
+            No completed games yet — finish a game to start building stats.
+          </EmptyState>
         ) : (
           <div className="space-y-8">
             <div className="grid grid-cols-3 gap-3">

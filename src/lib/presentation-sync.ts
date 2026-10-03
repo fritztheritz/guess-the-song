@@ -25,6 +25,8 @@ export interface PresentationSnapshot {
   halftimePrompt: string | null
   /** phase: "halftime" only, and only when this is really the host-judged sudden-death break. */
   suddenDeath?: boolean
+  /** phase: "halftime" / "final" — places each team has climbed (+) or dropped (−) since the last checkpoint. */
+  rankMoves?: Record<string, number>
 }
 
 export type PresentationMessage = { type: 'request-sync' } | { type: 'state'; snapshot: PresentationSnapshot }

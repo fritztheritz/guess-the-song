@@ -19,10 +19,13 @@ import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
 import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, playEject, playSoundboard } from '../lib/sound-effects'
 import { EJECT_PHRASES, HALFTIME_PROMPTS, MONTH_NAMES, PENDING_GUESSES_KEY, POWER_UP_LABELS, SOUNDBOARD } from '../lib/host-content'
+import HostTools from '../components/HostTools'
+import StageStepper from '../components/StageStepper'
 import CreditGrid from '../components/CreditGrid'
 import SoundControl from '../components/SoundControl'
 import { trackTeamStats } from '../lib/achievements'
-import { SCORING, TIMING, applyScoreDeltas, parseGuessNumber, settleStreaks } from '../lib/scoring'
+import { SCORING, TIMING, applyScoreDeltas, parseGuessNumber, rankMoves, ranksOf, settleStreaks } from '../lib/scoring'
+import MoveTag from '../components/MoveTag'
 import { BLOCK_MARK, blockedTeams, type BlockReason } from '../lib/blocked'
 import { currentThemeVarsForGuests } from '../lib/themes'
 import { downloadRecapCard, type RecapCardStats } from '../lib/recap-card'
@@ -136,7 +139,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   const [halftimePrompt, setHalftimePrompt] = useState('')
   const [freezePickerFor, setFreezePickerFor] = useState<string | null>(null)
   // Transient "EJECTED" banner (key bumps so back-to-back ejections restart the animation).
-  const [earnBanner, setEarnBanner] = useState<{ key: number; text: string } | null>(null)
+  const [earnBanner, setEarnBanner] = useState<{ key: number; text: string; icon: string } | null>(null)
   const earnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [ejectBanner, setEjectBanner] = useState<{ key: number; team: Team; phrase: string } | null>(null)
   const ejectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -149,6 +152,9 @@ export default function HostController({ gameId }: { gameId: string }) {
   // Everyone who can't act this possession (ejected, or sitting out sudden death) — see lib/blocked.ts.
   const blocked = blockedTeams(game, ejectedIds)
   const blockedIds = Array.from(blocked.keys())
+  // Teams with a guess in right now (marks their credit buttons).
+  const submittedTeamIds = new Set([...modeGuesses.values()].map((g) => g.teamId))
+  const teamsInCount = submittedTeamIds.size
   const blockedMark = (id: string) => (blocked.has(id) ? BLOCK_MARK[blocked.get(id) as BlockReason] : '')
   const blockedIdsRef = useRef<string[]>([])
   blockedIdsRef.current = blockedIds
@@ -165,6 +171,9 @@ export default function HostController({ gameId }: { gameId: string }) {
   // Recap stats for the final screen — live counters, not persisted, so they only cover
   // scoring that happened in this browser tab's current playthrough (a "continue" after
   // closing the tab starts these back at zero, same tradeoff as tierCredits/lastAward etc.).
+  // Standings after the first possession and at halftime, so the halftime/final boards can show
+  // who climbed or dropped since.
+  const rankMarksRef = useRef<{ first?: Record<string, number>; half?: Record<string, number> }>({})
   const recapRef = useRef({
     correctCount: 0,
     noScoreCount: 0,
@@ -416,7 +425,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           autoScoreGuesses(
             round.releaseYear !== undefined,
             (text) => Number(text.trim()) === round.releaseYear,
-            [{ credited: yearCredits, setCredited: setYearCredits, points: SCORING.year }],
+            [{ credited: yearCredits, setCredited: setYearCredits, points: SCORING.year, label: 'year' }],
           ),
         )
       }
@@ -426,8 +435,8 @@ export default function HostController({ gameId }: { gameId: string }) {
             !!round.releaseMonth,
             isExactMonth,
             [
-              { credited: monthCredits, setCredited: setMonthCredits, points: SCORING.month, match: closestMatcher(round.releaseMonth ?? 0, monthNumber) },
-              { credited: exactMonthCredits, setCredited: setExactMonthCredits, points: SCORING.monthExact },
+              { credited: monthCredits, setCredited: setMonthCredits, points: SCORING.month, label: 'closest month', match: closestMatcher(round.releaseMonth ?? 0, monthNumber) },
+              { credited: exactMonthCredits, setCredited: setExactMonthCredits, points: SCORING.monthExact, label: '🎯 exact month' },
             ],
             { accuracy: false, clear: false },
           ),
@@ -440,7 +449,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           autoScoreGuesses(
             !!correctTier,
             (text) => !!correctTier && text.trim().toLowerCase() === correctTier.name.trim().toLowerCase(),
-            [{ credited: tierCredits, setCredited: setTierCredits, points: SCORING.tier }],
+            [{ credited: tierCredits, setCredited: setTierCredits, points: SCORING.tier, label: 'tier' }],
           )
         })
       }
@@ -450,8 +459,8 @@ export default function HostController({ gameId }: { gameId: string }) {
             round.tierPosition !== undefined,
             isExactPosition,
             [
-              { credited: positionCredits, setCredited: setPositionCredits, points: SCORING.position, match: closestMatcher((round.tierPosition ?? 0) + 1, parseGuessNumber) },
-              { credited: exactCredits, setCredited: setExactCredits, points: SCORING.positionExact },
+              { credited: positionCredits, setCredited: setPositionCredits, points: SCORING.position, label: 'closest position', match: closestMatcher((round.tierPosition ?? 0) + 1, parseGuessNumber) },
+              { credited: exactCredits, setCredited: setExactCredits, points: SCORING.positionExact, label: '🎯 exact position' },
             ],
             { accuracy: false, clear: false },
           ),
@@ -500,10 +509,11 @@ export default function HostController({ gameId }: { gameId: string }) {
         positionCount: guessStage === 'guessPosition' ? round?.tierSize : undefined,
         theme: currentThemeVarsForGuests(),
         suddenDeath: game.suddenDeath ? true : undefined,
+        guessProgress: (isTierGuess || isYear) && guessChannelOpen ? { teamsIn: teamsInCount, of: Math.max(0, game.teams.length - blockedIds.length) } : undefined,
       },
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, possessionIndex, round?.id, teamsWithScoreKey, buzzerConnected, isTierGuess, isYear, tierGuessStage, yearGuessStage])
+  }, [phase, possessionIndex, round?.id, teamsWithScoreKey, buzzerConnected, isTierGuess, isYear, tierGuessStage, yearGuessStage, teamsInCount])
 
   useEffect(() => {
     if (phase === 'final') playFanfare()
@@ -541,6 +551,12 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   // Keep the latest snapshot available synchronously for the message handler below (which
   // is wired up once and would otherwise close over stale phase/possessionIndex/etc).
+  const boardMoves =
+    game && phase === 'halftime'
+      ? rankMoves(rankMarksRef.current.first, game.teams)
+      : game && phase === 'final'
+        ? rankMoves(rankMarksRef.current.half ?? rankMarksRef.current.first, game.teams)
+        : undefined
   const wagerTeam = wagerTeamId ? game?.teams.find((t) => t.id === wagerTeamId) : undefined
   latestSnapshotRef.current = round
     ? {
@@ -553,6 +569,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         wager: wagerTeam && wagerAmount !== null ? { teamName: wagerTeam.name, teamColor: wagerTeam.color, amount: wagerAmount } : null,
         halftimePrompt: phase === 'halftime' ? halftimePrompt : phase === 'suddendeath' ? 'Tied at the top — the host is breaking the tie!' : null,
         suddenDeath: phase === 'suddendeath' ? true : undefined,
+        rankMoves: boardMoves,
       }
     : null
 
@@ -747,8 +764,8 @@ export default function HostController({ gameId }: { gameId: string }) {
     setGame(saved)
   }
 
-  function showEarnBanner(text: string) {
-    setEarnBanner({ key: Date.now(), text })
+  function showEarnBanner(text: string, icon = '🎁') {
+    setEarnBanner({ key: Date.now(), text, icon })
     if (earnTimerRef.current) clearTimeout(earnTimerRef.current)
     earnTimerRef.current = setTimeout(() => setEarnBanner(null), TIMING.earnBannerMs)
   }
@@ -918,6 +935,36 @@ export default function HostController({ gameId }: { gameId: string }) {
     )
   }
 
+  // Power-ups and the ref's call, tucked into one collapsible drawer. Nothing renders when
+  // neither applies (flags off, or no live window to eject from).
+  function hostTools(showEject: boolean) {
+    if (!game) return null
+    const bar = powerUpBar()
+    const row = showEject ? ejectRow() : null
+    if (!bar && !row) return null
+    const bits = [
+      (game.armedPowerUps?.length ?? 0) > 0 ? `${game.armedPowerUps?.length} armed` : '',
+      (game.freezes?.length ?? 0) > 0 ? `${game.freezes?.length} frozen` : '',
+      ejectedIds.length > 0 ? `${ejectedIds.length} ejected` : '',
+    ].filter(Boolean)
+    return (
+      <HostTools summary={bits.join(' · ')}>
+        {bar}
+        {row}
+      </HostTools>
+    )
+  }
+
+  // Where Tier Guess / Year Guess are in their staged reveal, for the stepper.
+  function stageStepper(className = '') {
+    if (!isTierGuess && !isYear) return null
+    const stage = isTierGuess ? tierGuessStage : yearGuessStage
+    const second = isTierGuess ? 'position' : 'month'
+    const first = isTierGuess ? 'tier' : 'year'
+    const current = phase === 'clue' ? 0 : stage === first ? 1 : stage === (isTierGuess ? 'guessPosition' : 'guessMonth') ? 2 : 3
+    return <StageStepper steps={[`Guess ${first}`, `Reveal ${first}`, `Guess ${second}`, `Reveal ${second}`]} current={current} className={className} />
+  }
+
   function lockInWager(team: Team, amount: number) {
     setWagerTeamId(team.id)
     setWagerAmount(Math.max(0, Math.round(amount)))
@@ -1020,7 +1067,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   function autoScoreGuesses(
     valid: boolean,
     match: (text: string) => boolean,
-    grades: Array<{ credited: Set<string>; setCredited: (next: Set<string>) => void; points: number; match?: (text: string) => boolean }>,
+    grades: Array<{ credited: Set<string>; setCredited: (next: Set<string>) => void; points: number; match?: (text: string) => boolean; label: string }>,
     opts: { accuracy?: boolean; clear?: boolean } = {},
   ) {
     const { accuracy = true, clear = true } = opts
@@ -1030,6 +1077,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     }
     const nextSets = grades.map((g) => new Set(g.credited))
     const deltas: Record<string, number> = {}
+    const earned: Record<string, string[]> = {}
     for (const guess of modeGuesses.values()) {
       if (accuracy) {
         const isMatch = match(guess.text)
@@ -1040,6 +1088,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         if (!(g.match ?? match)(guess.text) || nextSets[i].has(guess.teamId)) return
         nextSets[i].add(guess.teamId)
         deltas[guess.teamId] = (deltas[guess.teamId] ?? 0) + g.points
+        ;(earned[guess.teamId] ??= []).push(g.label)
         bumpPlayer(guess.name, guess.teamId, (p) => void (p.points += g.points))
         recordScoreEvent(g.points, teamName, round)
       })
@@ -1047,6 +1096,13 @@ export default function HostController({ gameId }: { gameId: string }) {
     if (Object.keys(deltas).length > 0) {
       grades.forEach((g, i) => g.setCredited(nextSets[i]))
       setGame(saveGame(applyScoreDeltas(game, deltas, possessionIndex)))
+      // One line saying where the points came from, so an auto-credit never just appears.
+      showEarnBanner(
+        Object.entries(deltas)
+          .map(([id, pts]) => `+${pts} ${game.teams.find((t) => t.id === id)?.name ?? ''} (${earned[id].join(' + ')})`)
+          .join('  ·  '),
+        '✅',
+      )
     }
     if (clear) setModeGuesses(new Map())
   }
@@ -1179,6 +1235,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       completeGame(current)
       return
     }
+    if (possessionIndex === 0) rankMarksRef.current.first = ranksOf(current.teams)
     const next = possessionIndex + 1
     setGame(saveGame(checkpointStats({ ...current, progress: { possessionIndex: next, completed: false } })))
     setPossessionIndex(next)
@@ -1186,6 +1243,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     const halftimeIndex = Math.floor(game.rounds.length / 2)
     if (game.halftimeEnabled && game.rounds.length >= 4 && next === halftimeIndex && !halftimeShownRef.current) {
       halftimeShownRef.current = true
+      rankMarksRef.current.half = ranksOf(current.teams)
       setHalftimePrompt(HALFTIME_PROMPTS[Math.floor(Math.random() * HALFTIME_PROMPTS.length)])
       setPhase('halftime')
     } else {
@@ -1232,6 +1290,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     setPossessionIndex(0)
     setLastAward(null)
     setPhase('intro')
+    rankMarksRef.current = {}
     recapRef.current = { correctCount: 0, noScoreCount: 0, scoredRounds: new Set(), roundTotals: new Map(), biggest: null, fastestBuzz: null, seenBuzzKeys: new Set(), players: new Map() }
     halftimeShownRef.current = false
   }
@@ -1468,9 +1527,9 @@ export default function HostController({ gameId }: { gameId: string }) {
   return (
     <div className="fixed inset-0 flex flex-col bg-arena-950 court-lines text-white">
       {earnBanner && (
-        <div className="pointer-events-none absolute inset-x-0 top-16 z-40 flex justify-center">
+        <div className="pointer-events-none absolute inset-x-0 top-3 z-40 flex justify-center">
           <div key={earnBanner.key} className="animate-pop-in rounded-full border border-scoreboard-amber/60 bg-arena-900/95 px-6 py-2 text-lg font-semibold text-scoreboard-amber shadow-xl">
-            🎁 {earnBanner.text}
+            {earnBanner.icon} {earnBanner.text}
           </div>
         </div>
       )}
@@ -1658,6 +1717,8 @@ export default function HostController({ gameId }: { gameId: string }) {
             <span>{game.name.toUpperCase()}</span>
             <span>{game.suddenDeath ? '💀 SUDDEN DEATH' : `POSSESSION ${possessionIndex + 1} OF ${game.rounds.length}`}</span>
           </div>
+
+          {stageStepper()}
 
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto text-center">
             {round.wager && !wagerTeamId ? (
@@ -1869,9 +1930,7 @@ export default function HostController({ gameId }: { gameId: string }) {
             )}
           </div>
 
-          {powerUpBar()}
-
-          {ejectRow()}
+          {hostTools(!lastAward)}
 
           <Scoreboard teams={game.teams} compact />
         </div>
@@ -1879,6 +1938,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
       {phase === 'revealed' && round && (
         <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-6 py-8 text-center">
+          {stageStepper('mt-10')}
           {/* guessPosition/guessMonth is a thinking beat, not a reveal moment — the coarse
               answer is already known and nothing new has been shown yet, so the flash/banner
               would be misleading here. */}
@@ -2068,13 +2128,13 @@ export default function HostController({ gameId }: { gameId: string }) {
               <div className="relative z-10 w-full max-w-lg space-y-3">
                 {tierGuessStage === 'tier' ? (
                   <div>
-                    <CreditGrid title={`Got the tier right? (+${SCORING.tier})`} teams={game.teams} credited={tierCredits} onToggle={toggleTierCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} />
+                    <CreditGrid title={`Got the tier right? (+${SCORING.tier})`} teams={game.teams} credited={tierCredits} onToggle={toggleTierCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} submittedIds={submittedTeamIds} />
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {submittedSoFarPanel()}
-                    <CreditGrid title={`Closest to position? (+${SCORING.position}, auto-credited to the nearest guess — tap to adjust)`} teams={game.teams} credited={positionCredits} onToggle={togglePositionCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} />
-                    <CreditGrid title={`🎯 Exact position? (+${SCORING.positionExact} bonus)`} teams={game.teams} credited={exactCredits} onToggle={toggleExactCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} />
+                    <CreditGrid title={`Closest to position? (+${SCORING.position}, auto-credited to the nearest guess — tap to adjust)`} teams={game.teams} credited={positionCredits} onToggle={togglePositionCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} submittedIds={submittedTeamIds} />
+                    <CreditGrid title={`🎯 Exact position? (+${SCORING.positionExact} bonus)`} teams={game.teams} credited={exactCredits} onToggle={toggleExactCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} submittedIds={submittedTeamIds} />
                   </div>
                 )}
               </div>
@@ -2086,13 +2146,13 @@ export default function HostController({ gameId }: { gameId: string }) {
               <div className="relative z-10 w-full max-w-lg space-y-3">
                 {yearGuessStage === 'year' ? (
                   <div>
-                    <CreditGrid title={`Got the year right? (+${SCORING.year})`} teams={game.teams} credited={yearCredits} onToggle={toggleYearCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} />
+                    <CreditGrid title={`Got the year right? (+${SCORING.year})`} teams={game.teams} credited={yearCredits} onToggle={toggleYearCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} submittedIds={submittedTeamIds} />
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {submittedSoFarPanel()}
-                    <CreditGrid title={`Closest to month? (+${SCORING.month}, auto-credited to the nearest guess — tap to adjust)`} teams={game.teams} credited={monthCredits} onToggle={toggleMonthCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} />
-                    <CreditGrid title={`🎯 Exact month? (+${SCORING.monthExact} bonus)`} teams={game.teams} credited={exactMonthCredits} onToggle={toggleExactMonthCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} />
+                    <CreditGrid title={`Closest to month? (+${SCORING.month}, auto-credited to the nearest guess — tap to adjust)`} teams={game.teams} credited={monthCredits} onToggle={toggleMonthCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} submittedIds={submittedTeamIds} />
+                    <CreditGrid title={`🎯 Exact month? (+${SCORING.monthExact} bonus)`} teams={game.teams} credited={exactMonthCredits} onToggle={toggleExactMonthCredit} isBlocked={(id) => blocked.has(id)} blockedMark={blockedMark} submittedIds={submittedTeamIds} />
                   </div>
                 )}
               </div>
@@ -2156,9 +2216,7 @@ export default function HostController({ gameId }: { gameId: string }) {
             </div>
           )}
 
-          {powerUpBar()}
-
-          {((isTierGuess && tierGuessStage === 'guessPosition') || (isYear && yearGuessStage === 'guessMonth')) && ejectRow()}
+          {hostTools((isTierGuess && tierGuessStage === 'guessPosition') || (isYear && yearGuessStage === 'guessMonth'))}
 
           <Scoreboard teams={game.teams} compact />
 
@@ -2186,7 +2244,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           <div className="text-6xl">🏀</div>
           <div className="font-display text-5xl tracking-widest text-hardwood-400">HALFTIME</div>
           <p className="max-w-md text-slate-400">{halftimePrompt}</p>
-          <Scoreboard teams={game.teams} />
+          <Scoreboard teams={game.teams} moves={boardMoves} />
           <button
             onClick={() => setPhase('clue')}
             className="rounded-full bg-hardwood-500 px-8 py-3 font-display text-xl tracking-wide text-arena-950 shadow-lg shadow-hardwood-500/20 hover:bg-hardwood-400"
@@ -2234,6 +2292,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 <span className="font-display text-xl" style={{ color: team.color }}>
                   {i === 0 ? '🏆 ' : ''}{team.avatar ? `${team.avatar} ` : ''}{team.name}
                   {(team.streak ?? 0) >= 2 && <span className="ml-1 text-sm">🔥{team.streak}</span>}
+                  <MoveTag move={boardMoves?.[team.id] ?? 0} />
                 </span>
                 <span className="scoreboard-digit font-display text-3xl">{team.score}</span>
               </div>

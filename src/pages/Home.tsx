@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import ButtonLink from '../components/ui/ButtonLink'
+import EmptyState from '../components/ui/EmptyState'
 import { Link, useNavigate } from 'react-router-dom'
 import { listGames, deleteGame, saveGame, exportAllGames, importGames } from '../lib/storage/game-repository'
 import { listTierLists, deleteTierList, saveTierList, exportAllTierLists, importTierLists } from '../lib/storage/tierlist-repository'
@@ -402,59 +404,38 @@ export default function Home() {
           <p className="mt-2 text-slate-400">A basketball-themed party trivia game — songs, lyrics, years, and rankings.</p>
 
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link
-              to="/new"
-              className="inline-block rounded-full bg-hardwood-500 px-10 py-3 text-lg font-semibold text-arena-950 shadow-lg shadow-hardwood-500/20 hover:bg-hardwood-400"
-            >
+            <ButtonLink to="/new" variant="primary" size="lg" className="px-10 shadow-lg shadow-hardwood-500/20">
               + CREATE GAME
-            </Link>
+            </ButtonLink>
             {tierListsEnabled && (
-              <Link
-                to="/tierlists/new"
-                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
-              >
+              <ButtonLink to="/tierlists/new" size="lg" className="px-10">
                 + CREATE TIER LIST
-              </Link>
+              </ButtonLink>
             )}
             {tournamentsEnabled && (
-              <Link
-                to="/tournaments/new"
-                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
-              >
+              <ButtonLink to="/tournaments/new" size="lg" className="px-10">
                 + CREATE TOURNAMENT
-              </Link>
+              </ButtonLink>
             )}
             {draftEnabled && (
-              <Link
-                to="/drafts/new"
-                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
-              >
+              <ButtonLink to="/drafts/new" size="lg" className="px-10">
                 + CREATE DRAFT
-              </Link>
+              </ButtonLink>
             )}
             {popularityEnabled && (
-              <Link
-                to="/popularity/new"
-                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
-              >
+              <ButtonLink to="/popularity/new" size="lg" className="px-10">
                 + GUESS THE POPULARITY
-              </Link>
+              </ButtonLink>
             )}
             {timelineEnabled && (
-              <Link
-                to="/timeline/new"
-                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
-              >
+              <ButtonLink to="/timeline/new" size="lg" className="px-10">
                 + GUESS THE TIMELINE
-              </Link>
+              </ButtonLink>
             )}
             {seasonsEnabled && (
-              <Link
-                to="/seasons/new"
-                className="inline-block rounded-full border border-arena-500 px-10 py-3 text-lg font-semibold text-slate-200 hover:border-hardwood-500"
-              >
+              <ButtonLink to="/seasons/new" size="lg" className="px-10">
                 + CREATE SEASON
-              </Link>
+              </ButtonLink>
             )}
           </div>
         </div>
@@ -536,7 +517,7 @@ export default function Home() {
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR GAMES</h2>
             {visibleGames.length === 0 ? (
-              <p className="text-sm text-slate-500">No games match your search/filters.</p>
+              <EmptyState icon="🔎">No games match your search or filters.</EmptyState>
             ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {visibleGames.map((game) => {
@@ -600,7 +581,7 @@ export default function Home() {
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TIER LISTS</h2>
             {visibleTierLists.length === 0 ? (
-              <p className="text-sm text-slate-500">No tier lists match your search/filters.</p>
+              <EmptyState icon="🔎">No tier lists match your search or filters.</EmptyState>
             ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {visibleTierLists.map((list) => {
@@ -666,7 +647,7 @@ export default function Home() {
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TOURNAMENTS</h2>
             {visibleTournaments.length === 0 ? (
-              <p className="text-sm text-slate-500">No tournaments match your search/filters.</p>
+              <EmptyState icon="🔎">No tournaments match your search or filters.</EmptyState>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {visibleTournaments.map((tournament) => (
@@ -723,7 +704,7 @@ export default function Home() {
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR SEASONS</h2>
             {visibleSeasons.length === 0 ? (
-              <p className="text-sm text-slate-500">No seasons match your search.</p>
+              <EmptyState icon="🔎">No seasons match your search.</EmptyState>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {visibleSeasons.map((season) => (
@@ -771,7 +752,7 @@ export default function Home() {
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR DRAFTS</h2>
             {visibleDraftBoards.length === 0 ? (
-              <p className="text-sm text-slate-500">No drafts match your search/filters.</p>
+              <EmptyState icon="🔎">No drafts match your search or filters.</EmptyState>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {visibleDraftBoards.map((board) => {
@@ -823,7 +804,7 @@ export default function Home() {
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR POPULARITY GAMES</h2>
             {visiblePopularityGames.length === 0 ? (
-              <p className="text-sm text-slate-500">No popularity games match your search.</p>
+              <EmptyState icon="🔎">No popularity games match your search.</EmptyState>
             ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {visiblePopularityGames.map((game) => {
@@ -866,7 +847,7 @@ export default function Home() {
           <div className="mt-16">
             <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TIMELINE GAMES</h2>
             {visibleTimelineGames.length === 0 ? (
-              <p className="text-sm text-slate-500">No timeline games match your search.</p>
+              <EmptyState icon="🔎">No timeline games match your search.</EmptyState>
             ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               {visibleTimelineGames.map((game) => {

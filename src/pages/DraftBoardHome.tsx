@@ -12,6 +12,7 @@ import ImportSpotifyModal from '../components/ImportSpotifyModal'
 import NewDraftSessionModal from '../components/NewDraftSessionModal'
 import TagInput from '../components/TagInput'
 import Spinner from '../components/Spinner'
+import EmptyState from '../components/ui/EmptyState'
 import Panel from '../components/ui/Panel'
 import Button from '../components/ui/Button'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
@@ -173,7 +174,7 @@ export default function DraftBoardHome() {
           </div>
 
           {board.songPool.length === 0 ? (
-            <p className="text-sm text-slate-500">No songs yet — import some to build the pool before starting a draft.</p>
+            <EmptyState icon="📂">No songs yet — import some to build the pool before starting a draft.</EmptyState>
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
               {board.songPool.map((song) => {
@@ -230,7 +231,7 @@ export default function DraftBoardHome() {
           </div>
 
           {board.sessions.length === 0 ? (
-            <p className="text-sm text-slate-500">No draft sessions yet.</p>
+            <EmptyState icon="🏀">No draft sessions yet.</EmptyState>
           ) : (
             <div className="space-y-2">
               {[...board.sessions].reverse().map((session) => (

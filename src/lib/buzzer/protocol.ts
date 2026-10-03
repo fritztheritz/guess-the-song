@@ -53,6 +53,8 @@ export interface PhoneRoundState {
   /** Venue theme (Themes flag): CSS-variable overrides the host's own skin resolves to, so
    *  guests' phones match the room. Absent = the default Arena skin. */
   theme?: Record<string, string>
+  /** Year/Tier Guess, while a guess window is open: how many teams have a guess in. */
+  guessProgress?: { teamsIn: number; of: number }
   /** Sudden death is in progress — teams not tied for the lead are sitting it out. */
   suddenDeath?: boolean
   /** mode: "tierguess" only — the tier list's own defined tiers (e.g. S/A/B/C/D), so a

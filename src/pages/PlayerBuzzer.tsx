@@ -5,6 +5,7 @@ import type { BuzzState, BuzzerTeam, BuzzerWinner, PhoneRoundState } from '../li
 import PopularityPicker from '../components/PopularityPicker'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import { applyThemeVars } from '../lib/themes'
+import { isSoundMuted, playBuzzIn, playEject, playWrong, setSoundMuted } from '../lib/sound-effects'
 
 const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   song: '🎧 Listen up!',
@@ -22,6 +23,23 @@ const MONTH_SHORT_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug
 // to just watch" from "hasn't picked anything yet" (both would otherwise be `null`, which is
 // the real spectator value sent to the room). Never leaves this component.
 const SPECTATOR_CHOICE = '__spectator__'
+
+// A guess going through is the one thing a player must be sure of — a big green banner, not a
+// grey footnote. (The status pill above carries how many teams are in.)
+function SentBanner({ text, hint }: { text: string; hint?: string }) {
+  return (
+    <div role="status" className="rounded-xl border-2 border-scoreboard-green bg-scoreboard-green/15 px-4 py-3 text-scoreboard-green">
+      <div className="font-display text-xl tracking-wide">✓ SENT: {text}</div>
+      {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
+    </div>
+  )
+}
+
+const STATUS_TONE = {
+  go: 'border-scoreboard-green/60 bg-scoreboard-green/15 text-scoreboard-green',
+  stop: 'border-scoreboard-500/60 bg-scoreboard-500/15 text-scoreboard-500',
+  wait: 'border-arena-600 bg-arena-800 text-slate-300',
+} as const
 
 function storageKey(code: string) {
   return `gts.buzzer.player.${code.toUpperCase()}`
@@ -125,6 +143,27 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
     if (hostTheme) applyThemeVars(hostTheme)
   }, [hostTheme])
 
+  // Haptic + sound cues for the moments a phone-in-hand player shouldn't have to be staring at
+  // the screen for: you won the buzz, you got locked/ejected out, a window just opened. Sounds
+  // follow the shared mute setting (see the toggle below).
+  const iAmIced = !!identity?.teamId && iced.includes(identity.teamId)
+  const iWon = buzzState === 'locked' && !!winner && winner.connId === myConnId
+  const cue = iWon ? 'won' : iAmIced ? 'iced' : buzzState === 'open' && identity?.teamId ? 'open' : 'idle'
+  const guessMode = roundState?.mode === 'year' || roundState?.mode === 'tierguess'
+  useEffect(() => {
+    if (cue === 'won') {
+      navigator.vibrate?.([60, 40, 60])
+      playBuzzIn()
+    } else if (cue === 'iced') {
+      navigator.vibrate?.([200])
+      if (guessMode) playEject()
+      else playWrong()
+    } else if (cue === 'open') {
+      navigator.vibrate?.(15)
+    }
+  }, [cue, guessMode])
+  const [soundMuted, setSoundMutedState] = useState(() => isSoundMuted())
+
   function handleCodeSubmit(e: FormEvent) {
     e.preventDefault()
     const trimmed = codeInput.trim().toUpperCase()
@@ -212,9 +251,46 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
 
   const myTeam = teams.find((t) => t.id === identity?.teamId)
 
+  // One plain-language line for "what is my phone waiting on right now".
+  const status: { text: string; tone: keyof typeof STATUS_TONE } = (() => {
+    if (identity?.teamId === null) return { text: '👀 Watching — enjoy the show', tone: 'wait' }
+    if (roundState?.phase === 'final') return { text: '🏁 Game over', tone: 'wait' }
+    if (roundState?.phase === 'halftime') return { text: '🏀 Halftime — back soon', tone: 'wait' }
+    if (iAmIced && (!guessMode || roundState?.phase === 'clue' || roundState?.guessStage)) {
+      if (roundState?.suddenDeath) return { text: '💀 Sitting out sudden death', tone: 'stop' }
+      return { text: guessMode ? '🟥 Ejected for this possession' : '🧊 Locked out of this clue', tone: 'stop' }
+    }
+    if (buzzState === 'locked' && winner) {
+      return iWon ? { text: '✅ You buzzed first — answer now!', tone: 'go' } : { text: `🔒 ${winner.name} is answering`, tone: 'wait' }
+    }
+    if (buzzState === 'open') {
+      if (guessMode) {
+        const p = roundState?.guessProgress
+        return modeGuessSubmitted
+          ? { text: `✓ Guess in${p && p.of > 0 ? ` — ${p.teamsIn} of ${p.of} teams in` : ''}`, tone: 'go' }
+          : { text: '🟢 Guessing is open', tone: 'go' }
+      }
+      return { text: '🟢 Window open — BUZZ!', tone: 'go' }
+    }
+    return { text: '⏳ Waiting for the host', tone: 'wait' }
+  })()
+
   return (
     <div className="flex min-h-svh flex-col items-center justify-center court-lines px-6 py-10 text-center">
-      <div className="mb-4 text-xs uppercase tracking-widest text-slate-500">Room {activeCode}</div>
+      <div className="mb-4 flex items-center gap-3 text-xs uppercase tracking-widest text-slate-500">
+        <span>Room {activeCode}</span>
+        <button
+          onClick={() => {
+            setSoundMuted(!soundMuted)
+            setSoundMutedState(!soundMuted)
+          }}
+          aria-label={soundMuted ? 'Turn sound on' : 'Turn sound off'}
+          aria-pressed={!soundMuted}
+          className="rounded-full bg-arena-800 px-3 py-1 text-sm normal-case tracking-normal text-slate-300"
+        >
+          {soundMuted ? '🔇 Sound off' : '🔊 Sound on'}
+        </button>
+      </div>
 
       {/* Phone-only mode: a phone-safe mirror of what the host has on screen, so the room
           can play with no shared TV/laptop at all — visible even before joining/buzzing. */}
@@ -334,6 +410,14 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             )}
           </div>
 
+          <div
+            role="status"
+            aria-live="polite"
+            className={`w-full rounded-full border px-4 py-1.5 text-sm font-semibold ${STATUS_TONE[status.tone]}`}
+          >
+            {status.text}
+          </div>
+
           {roundState?.mode === 'popularity' ? (
             roundState.phase === 'final' || !roundState.popularity ? (
               <p className="text-sm text-slate-400">That's the board — check the screen for the results.</p>
@@ -371,7 +455,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                         <button
                           key={tier.name}
                           onClick={() => submitModeGuess(tier.name)}
-                          className="truncate rounded-xl border-2 px-2 py-3 font-display text-lg font-semibold"
+                          className="min-h-14 truncate rounded-xl border-2 px-2 py-4 font-display text-xl font-semibold"
                           style={{
                             background: `${tier.color}22`,
                             color: tier.color,
@@ -403,13 +487,13 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                     <button
                       type="submit"
                       disabled={!modeGuessInput.trim()}
-                      className="shrink-0 rounded-xl bg-hardwood-500 px-4 font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
+                      className="min-h-14 shrink-0 rounded-xl bg-hardwood-500 px-5 text-lg font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
                     >
                       Send
                     </button>
                   </form>
                   {modeGuessSubmitted && (
-                    <p className="text-sm text-slate-400">✓ Sent "{modeGuessSubmitted}" — change your mind? Just tap or type a new one.</p>
+                    <SentBanner text={modeGuessSubmitted} hint="Change your mind? Just tap or type a new one." />
                   )}
                   <p className="text-xs text-slate-500">No need to buzz — everyone can guess, right answers score automatically.</p>
                 </>
@@ -426,7 +510,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                     <select
                       value={modeGuessSubmitted ?? ''}
                       onChange={(e) => submitModeGuess(e.target.value)}
-                      className="w-full rounded-xl border border-arena-600 bg-arena-800 px-4 py-3 text-center font-display text-xl text-white outline-none focus:border-hardwood-500"
+                      className="min-h-14 w-full rounded-xl border border-arena-600 bg-arena-800 px-4 py-4 text-center font-display text-2xl text-white outline-none focus:border-hardwood-500"
                     >
                       <option value="" disabled>
                         Pick a position…
@@ -453,12 +537,12 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                     <button
                       type="submit"
                       disabled={!modeGuessInput.trim()}
-                      className="shrink-0 rounded-xl bg-hardwood-500 px-4 font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
+                      className="min-h-14 shrink-0 rounded-xl bg-hardwood-500 px-5 text-lg font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
                     >
                       Send
                     </button>
                   </form>
-                  {modeGuessSubmitted && <p className="text-sm text-slate-400">✓ Sent "{modeGuessSubmitted}"</p>}
+                  {modeGuessSubmitted && <SentBanner text={modeGuessSubmitted} />}
                 </>
               ) : roundState.phase === 'revealed' && roundState.guessStage === 'guessMonth' ? (
                 <>
@@ -468,7 +552,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                       <button
                         key={m}
                         onClick={() => submitModeGuess(m)}
-                        className="rounded-xl border-2 border-arena-600 bg-arena-800 px-2 py-3 font-display text-base font-semibold text-white"
+                        className="min-h-14 rounded-xl border-2 border-arena-600 bg-arena-800 px-2 py-4 font-display text-lg font-semibold text-white"
                         style={{ borderColor: modeGuessSubmitted === m ? '#f59e0b' : undefined }}
                       >
                         {modeGuessSubmitted === m ? '✓ ' : ''}
@@ -476,11 +560,11 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                       </button>
                     ))}
                   </div>
-                  {modeGuessSubmitted && <p className="text-sm text-slate-400">✓ Sent "{modeGuessSubmitted}"</p>}
+                  {modeGuessSubmitted && <SentBanner text={modeGuessSubmitted} />}
                 </>
-              ) : (
+              ) : roundState.phase === 'revealed' ? (
                 <p className="text-sm text-slate-400">⏳ Time's up — check the screen for the answer.</p>
-              )}
+              ) : null}
             </div>
           ) : buzzState === 'locked' && winner ? (
             winner.connId === myConnId ? (

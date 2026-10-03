@@ -9,11 +9,13 @@ interface Props {
   isBlocked?: (teamId: string) => boolean
   /** Prefix shown on a blocked team's button (🟥 / 🚫). */
   blockedMark?: (teamId: string) => string
+  /** Teams that have a guess in for this window — marked ✍️ so the host can tie names to buttons. */
+  submittedIds?: Set<string>
 }
 
 // One row of "who gets this credit" toggles for Tier Guess / Year Guess — the host taps teams
 // on and back off, since several can earn the same credit on one possession.
-export default function CreditGrid({ title, teams, credited, onToggle, isBlocked, blockedMark }: Props) {
+export default function CreditGrid({ title, teams, credited, onToggle, isBlocked, blockedMark, submittedIds }: Props) {
   return (
     <div>
       <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">{title}</div>
@@ -30,6 +32,7 @@ export default function CreditGrid({ title, teams, credited, onToggle, isBlocked
           >
             {credited.has(team.id) ? '✓ ' : ''}
             {blockedMark?.(team.id)}
+            {submittedIds?.has(team.id) ? '✍️ ' : ''}
             {team.name}
           </button>
         ))}

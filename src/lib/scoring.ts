@@ -60,3 +60,19 @@ export function applyScoreDeltas(game: Game, deltas: Record<string, number>, pos
 export function settleStreaks(teams: Team[], scoredTeamIds: Set<string>): Team[] {
   return trackTeamStats(teams.map((t) => ({ ...t, streak: scoredTeamIds.has(t.id) ? (t.streak ?? 0) + 1 : 0 })))
 }
+
+/** Each team's standing (1 = leading), ties sharing a place — a snapshot to compare against later. */
+export function ranksOf(teams: Team[]): Record<string, number> {
+  const ranks: Record<string, number> = {}
+  for (const t of teams) ranks[t.id] = 1 + teams.filter((o) => o.score > t.score).length
+  return ranks
+}
+
+/** Places each team has climbed (+) or dropped (−) since `from` was taken. */
+export function rankMoves(from: Record<string, number> | undefined, teams: Team[]): Record<string, number> {
+  if (!from) return {}
+  const now = ranksOf(teams)
+  const moves: Record<string, number> = {}
+  for (const t of teams) if (from[t.id] !== undefined) moves[t.id] = from[t.id] - now[t.id]
+  return moves
+}

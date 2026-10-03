@@ -4,6 +4,7 @@ import { getGame } from '../lib/storage/game-repository'
 import { useStoredEntity } from '../lib/use-stored-entity'
 import { presentationChannelName, type PresentationMessage, type PresentationSnapshot } from '../lib/presentation-sync'
 import Scoreboard from '../components/Scoreboard'
+import MoveTag from '../components/MoveTag'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
 import JoinQrCode from '../components/JoinQrCode'
@@ -367,7 +368,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
             <div className="text-6xl">{snapshot.suddenDeath ? '💀' : '🏀'}</div>
             <div className="font-display text-5xl tracking-widest text-hardwood-400">{snapshot.suddenDeath ? 'SUDDEN DEATH' : 'HALFTIME'}</div>
             {snapshot.halftimePrompt && <p className="max-w-md text-slate-400">{snapshot.halftimePrompt}</p>}
-            <Scoreboard teams={game.teams} />
+            <Scoreboard teams={game.teams} moves={snapshot.rankMoves} />
           </div>
         )}
 
@@ -381,6 +382,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                   <span className="font-display text-xl" style={{ color: team.color }}>
                     {i === 0 ? '🏆 ' : ''}{team.avatar ? `${team.avatar} ` : ''}{team.name}
                     {(team.streak ?? 0) >= 2 && <span className="ml-1 text-sm">🔥{team.streak}</span>}
+                    <MoveTag move={snapshot.rankMoves?.[team.id] ?? 0} />
                   </span>
                   <span className="scoreboard-digit font-display text-3xl">{team.score}</span>
                 </div>
