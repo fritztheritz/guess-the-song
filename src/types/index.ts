@@ -99,6 +99,18 @@ export interface Team {
   /** How many of each power-up this team has spent so far this playthrough (remaining =
    *  Game.powerUpAllowance − this). Absent on every team predating power-ups; reset on restart. */
   powerUpsUsed?: Partial<Record<PowerUpKind, number>>
+  /** Earned-power-ups games only (Game.earnedPowerUps): how many of each this team has earned
+   *  from streaks so far. Reset on restart. */
+  powerUpsEarned?: Partial<Record<PowerUpKind, number>>
+  // Per-game tallies that feed the season/stats awards (lib/achievements.ts). All absent on
+  // teams from before they existed, and reset on restart/duplicate like score is.
+  /** Longest run of consecutive scored possessions this playthrough. */
+  bestStreak?: number
+  /** Furthest this team ever trailed the leading team, in points — a game-winner with a big
+   *  number here came back from behind. */
+  maxDeficit?: number
+  /** Times the host ejected this team (Eject gag). */
+  ejections?: number
 }
 
 export interface GameProgress {
@@ -154,6 +166,10 @@ export interface Game {
   recap?: RecapCardStats
   /** Starting power-ups per team, per kind — absent kinds default to DEFAULT_POWER_UPS_PER_TEAM. */
   powerUpAllowance?: Partial<Record<PowerUpKind, number>>
+  /** Opt-in at game creation: teams start with no power-ups and earn them by scoring streaks
+   *  instead of spending a fixed allowance (see HostController's award()). Absent/false = the
+   *  fixed-allowance behavior every game had before this existed. */
+  earnedPowerUps?: boolean
   /** Song/Lyric modes only — Double/Steal armed by a team for its NEXT scoring possession via
    *  HostController's award(). Applies (and clears) the moment that team is actually awarded —
    *  not tied to a specific clue, so it carries forward if the armed team doesn't score right
@@ -237,10 +253,13 @@ export function createTierGuessRound(song: TierListSong, tierSize: number): Song
   })
 }
 
-/** Power-ups a team still has of one kind, given the game's per-team allowance. */
-export function powerUpsRemaining(game: Pick<Game, 'powerUpAllowance'>, team: Team, kind: PowerUpKind): number {
-  const allowance = game.powerUpAllowance?.[kind] ?? DEFAULT_POWER_UPS_PER_TEAM
-  return Math.max(0, allowance - (team.powerUpsUsed?.[kind] ?? 0))
+/** Power-ups a team still has of one kind — a fixed per-game allowance by default, or (in an
+ *  earned-power-ups game) whatever it's earned from streaks so far, minus what it's spent. */
+export function powerUpsRemaining(game: Pick<Game, 'powerUpAllowance' | 'earnedPowerUps'>, team: Team, kind: PowerUpKind): number {
+  const total = game.earnedPowerUps
+    ? (team.powerUpsEarned?.[kind] ?? 0)
+    : (game.powerUpAllowance?.[kind] ?? DEFAULT_POWER_UPS_PER_TEAM)
+  return Math.max(0, total - (team.powerUpsUsed?.[kind] ?? 0))
 }
 
 export function createTeam(name: string, color: string, avatar?: string): Team {
@@ -267,8 +286,9 @@ export function duplicateGame(game: Game): Game {
     id: crypto.randomUUID(),
     name: `${game.name} (Copy)`,
     rounds: game.rounds.map((r) => ({ ...r, id: crypto.randomUUID() })),
-    teams: game.teams.map((t) => ({ ...t, id: crypto.randomUUID(), score: 0, streak: 0, powerUpsUsed: undefined })),
+    teams: game.teams.map((t) => ({ ...t, id: crypto.randomUUID(), score: 0, streak: 0, powerUpsUsed: undefined, powerUpsEarned: undefined, bestStreak: undefined, maxDeficit: undefined, ejections: undefined })),
     powerUpAllowance: game.powerUpAllowance,
+    earnedPowerUps: game.earnedPowerUps,
     createdAt: now,
     updatedAt: now,
     mode: game.mode,

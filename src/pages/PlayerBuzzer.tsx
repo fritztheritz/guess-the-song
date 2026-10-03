@@ -4,6 +4,7 @@ import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
 import type { BuzzState, BuzzerTeam, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
 import PopularityPicker from '../components/PopularityPicker'
 import { useFeatureFlag } from '../state/feature-flags-context'
+import { applyThemeVars } from '../lib/themes'
 
 const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   song: '🎧 Listen up!',
@@ -116,6 +117,13 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
       socketRef.current = null
     }
   }, [activeCode, saved])
+
+  // Match the host's venue skin whenever it's part of the round state (not persisted — a
+  // guest's own device keeps its own setting).
+  const hostTheme = roundState?.theme
+  useEffect(() => {
+    if (hostTheme) applyThemeVars(hostTheme)
+  }, [hostTheme])
 
   function handleCodeSubmit(e: FormEvent) {
     e.preventDefault()

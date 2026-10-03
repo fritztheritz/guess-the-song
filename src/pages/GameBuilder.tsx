@@ -571,26 +571,43 @@ export default function GameBuilder() {
 
           {powerUpsEnabled && !isTierGuess && !isYear && (
             <div className="mt-6 border-t border-arena-700 pt-3">
-              <div className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">Power-ups per team</div>
-              <div className="flex flex-wrap gap-3">
-                {POWER_UP_KINDS.map((kind: PowerUpKind) => (
-                  <label key={kind} className="flex items-center gap-1.5 text-sm text-slate-300">
-                    {kind === 'double' ? '2x Double' : kind === 'steal' ? '🥷 Steal' : '🧊 Freeze'}
-                    <input
-                      type="number"
-                      min={0}
-                      max={9}
-                      value={game.powerUpAllowance?.[kind] ?? DEFAULT_POWER_UPS_PER_TEAM}
-                      onChange={(e) => {
-                        const n = Math.min(9, Math.max(0, Math.floor(Number(e.target.value) || 0)))
-                        persist({ ...game, powerUpAllowance: { ...game.powerUpAllowance, [kind]: n } })
-                      }}
-                      className="w-14 rounded-lg border border-arena-600 bg-arena-800 px-2 py-1 text-center text-slate-100 outline-none focus:border-hardwood-500"
-                    />
-                  </label>
-                ))}
-              </div>
-              <p className="mt-1 text-xs text-slate-500">How many of each a team can use this game (0 turns one off).</p>
+              <div className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">Power-ups</div>
+              <label className="mb-2 flex items-center gap-2 text-sm text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={game.earnedPowerUps ?? false}
+                  onChange={(e) => persist({ ...game, earnedPowerUps: e.target.checked })}
+                  className="h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
+                />
+                🎁 Earn power-ups from streaks
+              </label>
+              {game.earnedPowerUps ? (
+                <p className="text-xs text-slate-500">
+                  Teams start with none and earn a random Double, Steal, or Freeze for every second scored possession in a row.
+                </p>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-3">
+                    {POWER_UP_KINDS.map((kind: PowerUpKind) => (
+                      <label key={kind} className="flex items-center gap-1.5 text-sm text-slate-300">
+                        {kind === 'double' ? '2x Double' : kind === 'steal' ? '🥷 Steal' : '🧊 Freeze'}
+                        <input
+                          type="number"
+                          min={0}
+                          max={9}
+                          value={game.powerUpAllowance?.[kind] ?? DEFAULT_POWER_UPS_PER_TEAM}
+                          onChange={(e) => {
+                            const n = Math.min(9, Math.max(0, Math.floor(Number(e.target.value) || 0)))
+                            persist({ ...game, powerUpAllowance: { ...game.powerUpAllowance, [kind]: n } })
+                          }}
+                          className="w-14 rounded-lg border border-arena-600 bg-arena-800 px-2 py-1 text-center text-slate-100 outline-none focus:border-hardwood-500"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">How many of each a team can use this game (0 turns one off).</p>
+                </>
+              )}
             </div>
           )}
 

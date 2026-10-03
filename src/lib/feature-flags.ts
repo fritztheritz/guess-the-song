@@ -84,6 +84,20 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     default: false,
   },
   {
+    key: 'achievements',
+    label: 'Awards & Achievements',
+    description:
+      "Team awards on the Stats page and each Season's board — Fastest Finger, Most Wins, Hot Streak, Big Bucket, Comeback Kings, Photo Finish, and the Hall of Shame (most ejected). Computed from completed games; games played before tracking existed just won't count toward some awards.",
+    default: false,
+  },
+  {
+    key: 'themes',
+    label: 'Venue Themes',
+    description:
+      "Re-skin the whole app with a saved color/font theme (Holiday, Bar Night, Beach Party, Halloween, Black Tie, or your own custom colors) from the 🎨 button on Home. The host's skin also carries over to the Public Display and to guests' phones in Phone Buzz-In.",
+    default: false,
+  },
+  {
     key: 'eject',
     label: 'Eject a Team',
     description:

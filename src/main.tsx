@@ -8,6 +8,7 @@ import { SpotifyProvider } from './state/SpotifyContext.tsx'
 import { FeatureFlagsProvider } from './state/FeatureFlagsContext.tsx'
 import { ConfirmProvider } from './state/ConfirmContext.tsx'
 import { ToastProvider } from './state/ToastContext.tsx'
+import { applyStoredTheme } from './lib/themes'
 
 // Real paths (no #) on GitHub Pages need the 404.html/index.html SPA-fallback trick
 // (public/404.html + the restore script in index.html) since GH Pages can't do
@@ -24,6 +25,13 @@ const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, '')
 if (window.location.search.includes('code=') || window.location.search.includes('error=')) {
   window.history.replaceState(null, '', `${BASENAME}/callback${window.location.search}`)
 }
+
+// Before the first paint so a re-skinned app never flashes the default palette, and again on
+// any storage change so the Public Display tab follows the host tab's picker live.
+applyStoredTheme()
+window.addEventListener('storage', (e) => {
+  if (e.key === 'gts.theme.v1' || e.key === 'gts.flags.v1') applyStoredTheme()
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

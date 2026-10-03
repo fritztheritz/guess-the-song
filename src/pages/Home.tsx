@@ -36,6 +36,7 @@ import type { TimelineGame } from '../types/timeline'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import { useConfirm } from '../state/confirm-context'
 import { useToast } from '../state/toast-context'
+import ThemePicker from '../components/ThemePicker'
 import SoundCloudAttribution from '../components/SoundCloudAttribution'
 import SoundCloudConnectPanel from '../components/SoundCloudConnectPanel'
 import SpotifyConnectPanel from '../components/SpotifyConnectPanel'
@@ -66,6 +67,8 @@ export default function Home() {
   const popularityEnabled = useFeatureFlag('popularity')
   const timelineEnabled = useFeatureFlag('timeline')
   const seasonsEnabled = useFeatureFlag('seasons')
+  const themesEnabled = useFeatureFlag('themes')
+  const [themePickerOpen, setThemePickerOpen] = useState(false)
   const [games, setGames] = useState<Game[]>([])
   const [tierLists, setTierLists] = useState<TierList[]>([])
   const [tournaments, setTournaments] = useState<Tournament[]>([])
@@ -382,8 +385,17 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-svh court-lines">
+    <div className="relative min-h-svh court-lines">
       <div className="mx-auto max-w-5xl px-6 py-16">
+        {themesEnabled && (
+          <button
+            onClick={() => setThemePickerOpen(true)}
+            className="absolute right-4 top-4 rounded-full border border-arena-600 bg-black/30 px-3 py-1.5 text-sm text-slate-300 hover:border-hardwood-500"
+          >
+            🎨 Theme
+          </button>
+        )}
+        {themePickerOpen && <ThemePicker onClose={() => setThemePickerOpen(false)} />}
         <div className="text-center">
           <div className="mb-3 text-5xl">🏀</div>
           <h1 className="font-display text-6xl tracking-wide text-white">BUZZER BEATS</h1>

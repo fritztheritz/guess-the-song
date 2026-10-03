@@ -9,6 +9,9 @@ import type { Game } from '../types'
 import type { PopularityGame } from '../types/popularity'
 import type { TimelineGame } from '../types/timeline'
 import Panel from '../components/ui/Panel'
+import AwardsPanel from '../components/AwardsPanel'
+import { computeAwards } from '../lib/achievements'
+import { useFeatureFlag } from '../state/feature-flags-context'
 
 function StatTile({ label, value }: { label: string; value: number }) {
   return (
@@ -37,6 +40,9 @@ export default function Stats() {
   const accuracy = useMemo(() => computeAccuracy(tallySources(popularityGames, timelineGames)), [popularityGames, timelineGames])
   const longestStreak = useMemo(() => findLongestStreak(tallySources(popularityGames, timelineGames)), [popularityGames, timelineGames])
   const totalPossessions = useMemo(() => completed.reduce((sum, g) => sum + g.rounds.length, 0), [completed])
+
+  const achievementsEnabled = useFeatureFlag('achievements')
+  const awards = useMemo(() => computeAwards([...games, ...popularityGames, ...timelineGames]), [games, popularityGames, timelineGames])
 
   const topTags = useMemo(() => {
     const counts = new Map<string, number>()
@@ -112,6 +118,8 @@ export default function Stats() {
                 ))}
               </div>
             </section>
+
+            {achievementsEnabled && <AwardsPanel awards={awards} title="ALL-TIME AWARDS" />}
 
             {(biggestScore || fastestBuzz || longestStreak) && (
               <section>

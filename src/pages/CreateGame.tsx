@@ -24,8 +24,11 @@ function draftTeam(index: number): DraftTeam {
 export default function CreateGame() {
   const navigate = useNavigate()
   const tierListsEnabled = useFeatureFlag('tier-lists')
+  const powerUpsEnabled = useFeatureFlag('power-ups')
   const [name, setName] = useState('Friday Night Music Game')
   const [mode, setMode] = useState<GameMode>('song')
+  // Opt-in, never on by default — see Game.earnedPowerUps.
+  const [earnedPowerUps, setEarnedPowerUps] = useState(false)
   const [teams, setTeams] = useState<DraftTeam[]>([draftTeam(0), draftTeam(1)])
   const [presetPickerIndex, setPresetPickerIndex] = useState<number | null>(null)
   const presets = useMemo(() => listTeamPresets(), [])
@@ -50,10 +53,14 @@ export default function CreateGame() {
     setPresetPickerIndex(null)
   }
 
+  // Power-ups only exist for the buzz-race modes (Song/Lyric).
+  const showEarnedOption = powerUpsEnabled && (mode === 'song' || mode === 'lyric')
+
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const finalTeams = teams.map((t, i) => createTeam(t.name.trim() || `Team ${i + 1}`, t.color, t.avatar))
     const game = createGame(name.trim() || 'Untitled Game', finalTeams, mode)
+    if (earnedPowerUps && showEarnedOption) game.earnedPowerUps = true
     saveGame(game)
     navigate(`/games/${game.id}/edit`)
   }
@@ -192,6 +199,24 @@ export default function CreateGame() {
             </p>
           )}
         </div>
+
+        {showEarnedOption && (
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-arena-600 p-3">
+            <input
+              type="checkbox"
+              checked={earnedPowerUps}
+              onChange={(e) => setEarnedPowerUps(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-slate-200">🎁 Earn power-ups as you play</span>
+              <span className="block text-xs text-slate-500">
+                Teams start with none and earn a random Double, Steal, or Freeze for every second scored possession in a row. Off =
+                everyone gets a fixed stock up front.
+              </span>
+            </span>
+          </label>
+        )}
 
         <Button type="submit" fullWidth size="lg">
           {mode === 'lyric' ? 'ADD LYRIC ROUNDS →' : mode === 'tierguess' ? 'PICK YOUR TIER LIST →' : 'ADD TRACKS →'}

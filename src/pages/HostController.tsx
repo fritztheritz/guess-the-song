@@ -7,6 +7,7 @@ import {
   isYearMode,
   LYRIC_HINT_LABELS,
   type Game,
+  POWER_UP_KINDS,
   powerUpsRemaining,
   type PowerUpKind,
   type SongRound,
@@ -16,6 +17,8 @@ import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
 import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, playEject } from '../lib/sound-effects'
 import SoundControl from '../components/SoundControl'
+import { trackTeamStats } from '../lib/achievements'
+import { currentThemeVarsForGuests } from '../lib/themes'
 import { downloadRecapCard, type RecapCardStats } from '../lib/recap-card'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import {
@@ -71,6 +74,8 @@ const TIER_GUESS_POSITION_POINTS = 2
 // Same shape, applied to the year/month guess instead of tier/position.
 const YEAR_GUESS_YEAR_POINTS = 1
 const YEAR_GUESS_MONTH_POINTS = 2
+const POWER_UP_LABELS: Record<PowerUpKind, string> = { double: '2x Double', steal: '🥷 Steal', freeze: '🧊 Freeze' }
+
 function frozenTargetIds(game: Game | null): string[] {
   return Array.from(new Set((game?.freezes ?? []).map((f) => f.targetTeamId)))
 }
@@ -154,6 +159,8 @@ export default function HostController({ gameId }: { gameId: string }) {
   const [halftimePrompt, setHalftimePrompt] = useState('')
   const [freezePickerFor, setFreezePickerFor] = useState<string | null>(null)
   // Transient "EJECTED" banner (key bumps so back-to-back ejections restart the animation).
+  const [earnBanner, setEarnBanner] = useState<{ key: number; text: string } | null>(null)
+  const earnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [ejectBanner, setEjectBanner] = useState<{ key: number; team: Team; phrase: string } | null>(null)
   const ejectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Teams ejected from a specific possession — tagged with that possession's index so it
@@ -411,6 +418,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         tiers: isTierGuess ? game.tierListTiers?.map((t) => ({ name: t.name, color: t.color })) : undefined,
         guessStage,
         positionCount: guessStage === 'guessPosition' ? round?.tierSize : undefined,
+        theme: currentThemeVarsForGuests(),
       },
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -598,6 +606,19 @@ export default function HostController({ gameId }: { gameId: string }) {
       nextGame = { ...game, teams: game.teams.map((t) => ({ ...t, streak: 0 })) }
     }
     if (armedKind && team) nextGame = { ...nextGame, armedPowerUps: (game.armedPowerUps ?? []).filter((a) => a.teamId !== team.id) }
+    // Earned-power-ups games: every second scored possession in a row earns the team a random
+    // power-up (streak 2, 4, 6…), shown as a banner so the room sees it happen.
+    if (team && game.earnedPowerUps && points > 0 && ((team.streak ?? 0) + 1) % 2 === 0) {
+      const kind = POWER_UP_KINDS[Math.floor(Math.random() * POWER_UP_KINDS.length)]
+      nextGame = {
+        ...nextGame,
+        teams: nextGame.teams.map((t) =>
+          t.id === team.id ? { ...t, powerUpsEarned: { ...t.powerUpsEarned, [kind]: (t.powerUpsEarned?.[kind] ?? 0) + 1 } } : t,
+        ),
+      }
+      showEarnBanner(`${team.name} earned ${POWER_UP_LABELS[kind]}!`)
+    }
+    nextGame = { ...nextGame, teams: trackTeamStats(nextGame.teams) }
     // Recorded as soon as any score changes, not just on possession advance — otherwise
     // leaving right after awarding (before clicking "next possession") would lose the
     // fact that this game is mid-play, and reopening would look "fresh" with stale points.
@@ -606,12 +627,19 @@ export default function HostController({ gameId }: { gameId: string }) {
     setGame(saved)
   }
 
+  function showEarnBanner(text: string) {
+    setEarnBanner({ key: Date.now(), text })
+    if (earnTimerRef.current) clearTimeout(earnTimerRef.current)
+    earnTimerRef.current = setTimeout(() => setEarnBanner(null), 3200)
+  }
+
   // Host gag: throws a team out of the current possession. Song/Lyric: they can't buzz for the
   // rest of it (same ice as a wrong answer). Tier Guess/Year: their phone guesses are dropped
   // and the host can't credit them for the rest of the possession.
   function ejectTeam(team: Team) {
     if (!game || ejectedIds.includes(team.id)) return
     playEject()
+    setGame(saveGame({ ...game, teams: game.teams.map((t) => (t.id === team.id ? { ...t, ejections: (t.ejections ?? 0) + 1 } : t)) }))
     setEjected({ possession: possessionIndex, ids: [...ejectedIds, team.id] })
     setModeGuesses((prev) => new Map(Array.from(prev).filter(([, g]) => g.teamId !== team.id)))
     if (buzzerSocketRef.current) {
@@ -819,7 +847,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     if (!isOn) recordScoreEvent(points, team.name, round.title)
     const saved = saveGame({
       ...game,
-      teams: game.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + delta } : t)),
+      teams: trackTeamStats(game.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + delta } : t))),
       progress: { possessionIndex, completed: false },
     })
     setGame(saved)
@@ -880,7 +908,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       setCredited(nextCredited)
       const saved = saveGame({
         ...game,
-        teams: game.teams.map((t) => (newlyCreditedTeamIds.includes(t.id) ? { ...t, score: t.score + points } : t)),
+        teams: trackTeamStats(game.teams.map((t) => (newlyCreditedTeamIds.includes(t.id) ? { ...t, score: t.score + points } : t))),
         progress: { possessionIndex, completed: false },
       })
       setGame(saved)
@@ -964,7 +992,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   function restartGame() {
     if (!game) return
-    const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0, streak: 0, powerUpsUsed: undefined })), progress: undefined, recap: undefined, armedPowerUps: [], freezes: [] })
+    const reset = saveGame({ ...game, teams: game.teams.map((t) => ({ ...t, score: 0, streak: 0, powerUpsUsed: undefined, powerUpsEarned: undefined, bestStreak: undefined, maxDeficit: undefined, ejections: undefined })), progress: undefined, recap: undefined, armedPowerUps: [], freezes: [] })
     setGame(reset)
     setPossessionIndex(0)
     setLastAward(null)
@@ -1165,6 +1193,13 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-arena-950 court-lines text-white">
+      {earnBanner && (
+        <div className="pointer-events-none absolute inset-x-0 top-16 z-40 flex justify-center">
+          <div key={earnBanner.key} className="animate-pop-in rounded-full border border-scoreboard-amber/60 bg-arena-900/95 px-6 py-2 text-lg font-semibold text-scoreboard-amber shadow-xl">
+            🎁 {earnBanner.text}
+          </div>
+        </div>
+      )}
       {ejectBanner && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center overflow-hidden bg-scoreboard-500/10">
           <div key={ejectBanner.key} className="animate-eject-stamp max-w-xl rounded-2xl border-4 border-scoreboard-500 bg-arena-950/90 px-10 py-6 text-center shadow-2xl shadow-scoreboard-500/40">
