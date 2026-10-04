@@ -22,13 +22,16 @@ import { EJECT_PHRASES, HALFTIME_PROMPTS, MONTH_NAMES, PENDING_GUESSES_KEY, POWE
 import ShotClockDigit from '../components/ShotClockDigit'
 import ArtworkFill from '../components/ArtworkFill'
 import Kbd from '../components/Kbd'
+import FinalPodium from '../components/FinalPodium'
+import { PopReveal, RollReveal } from '../components/Reveal'
+import { readToolsOpen, writeToolsOpen } from '../lib/host-tools-state'
+import ProgressRing from '../components/ProgressRing'
 import HostTools from '../components/HostTools'
 import StageStepper from '../components/StageStepper'
 import CreditGrid from '../components/CreditGrid'
 import SoundControl from '../components/SoundControl'
 import { trackTeamStats } from '../lib/achievements'
 import { SCORING, TIMING, applyScoreDeltas, parseGuessNumber, rankMoves, ranksOf, settleStreaks } from '../lib/scoring'
-import MoveTag from '../components/MoveTag'
 import { BLOCK_MARK, blockedTeams, type BlockReason } from '../lib/blocked'
 import { currentThemeVarsForGuests } from '../lib/themes'
 import { downloadRecapCard, type RecapCardStats } from '../lib/recap-card'
@@ -65,7 +68,12 @@ export default function HostController({ gameId }: { gameId: string }) {
   const ejectEnabled = useFeatureFlag('eject')
   const suddenDeathEnabled = useFeatureFlag('sudden-death')
   const soundboardEnabled = useFeatureFlag('soundboard')
-  const [soundboardOpen, setSoundboardOpen] = useState(false)
+  const [toolsOpen, setToolsOpen] = useState(readToolsOpen)
+  const toggleTools = () => {
+    const next = !toolsOpen
+    setToolsOpen(next)
+    writeToolsOpen(next)
+  }
   const [socketStatus, setSocketStatus] = useState<SocketStatus>('connecting')
   const [rematchOpen, setRematchOpen] = useState(false)
   const [rematchShuffle, setRematchShuffle] = useState(true)
@@ -584,6 +592,8 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   // Keep the latest snapshot available synchronously for the message handler below (which
   // is wired up once and would otherwise close over stale phase/possessionIndex/etc).
+  // The tools tray only exists while a possession is on screen.
+  const trayVisible = (phase === 'clue' || phase === 'revealed') && !!round
   const boardMoves =
     game && phase === 'halftime'
       ? rankMoves(rankMarksRef.current.first, game.teams)
@@ -974,7 +984,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     if (!game) return null
     const bar = powerUpBar()
     const row = showEject ? ejectRow() : null
-    if (!bar && !row) return null
+    if (!bar && !row && !soundboardEnabled) return null
     const left = powerUpsEnabled && !isTierGuess && !isYear ? game.teams.reduce((n, t) => n + POWER_UP_KINDS.reduce((m, k) => m + powerUpsRemaining(game, t, k), 0), 0) : 0
     const bits = [
       left > 0 ? `${left} power-up${left === 1 ? '' : 's'} left` : '',
@@ -983,9 +993,28 @@ export default function HostController({ gameId }: { gameId: string }) {
       ejectedIds.length > 0 ? `${ejectedIds.length} ejected` : '',
     ].filter(Boolean)
     return (
-      <HostTools summary={bits.join(' · ')}>
+      <HostTools open={toolsOpen} onToggle={toggleTools} summary={bits.join(' · ')}>
         {bar}
         {row}
+        {soundboardEnabled && (
+          <div className="relative z-10">
+            <div className="mb-1.5 text-center text-[11px] uppercase tracking-widest text-slate-500">Soundboard</div>
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {SOUNDBOARD.map((b) => (
+                <button
+                  key={b.sound}
+                  onClick={() => playSoundboard(b.sound)}
+                  title={`${b.label} (${b.key})`}
+                  className="flex items-center gap-1.5 rounded-full border border-arena-600 bg-arena-800 px-2.5 py-1 text-xs text-slate-200 hover:border-hardwood-500"
+                >
+                  <span className="text-base">{b.icon}</span>
+                  <span>{b.label}</span>
+                  <kbd className="rounded bg-arena-700 px-1 font-mono text-[10px] text-slate-300">{b.key}</kbd>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </HostTools>
     )
   }
@@ -1066,8 +1095,11 @@ export default function HostController({ gameId }: { gameId: string }) {
     const teamsIn = new Set([...modeGuesses.values()].map((g) => g.teamId)).size
     return (
       <div className="mx-auto w-full max-w-sm space-y-1.5 text-center">
-        <div className="text-xs uppercase tracking-widest text-slate-500">
-          Submitted so far ({modeGuesses.size}) · {teamsIn} of {game.teams.length - blockedIds.length} teams in
+        <div className="flex items-center justify-center gap-3 text-xs uppercase tracking-widest text-slate-500">
+          <ProgressRing value={teamsIn} max={game.teams.length - blockedIds.length} />
+          <span>
+            Submitted so far ({modeGuesses.size}) · {teamsIn} of {game.teams.length - blockedIds.length} teams in
+          </span>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-1.5">
           {[...modeGuesses.values()].map((g, i) => {
@@ -1569,21 +1601,6 @@ export default function HostController({ gameId }: { gameId: string }) {
           </div>
         </div>
       )}
-      {soundboardEnabled && soundboardOpen && (
-        <div className="absolute right-4 top-16 z-30 grid w-56 grid-cols-1 gap-1.5 rounded-xl border border-arena-600 bg-arena-900/95 p-3 shadow-2xl">
-          {SOUNDBOARD.map((b) => (
-            <button
-              key={b.sound}
-              onClick={() => playSoundboard(b.sound)}
-              className="flex items-center gap-2 rounded-lg border border-arena-600 bg-arena-800 px-2 py-2 text-left text-sm text-slate-200 hover:border-hardwood-500"
-            >
-              <span className="text-xl">{b.icon}</span>
-              <span className="min-w-0 flex-1 truncate">{b.label}</span>
-              <kbd className="rounded bg-arena-700 px-1.5 font-mono text-[11px] text-slate-300">{b.key}</kbd>
-            </button>
-          ))}
-        </div>
-      )}
       {ejectBanner && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center overflow-hidden bg-scoreboard-500/10">
           <div key={ejectBanner.key} className="animate-eject-stamp max-w-xl rounded-2xl border-4 border-scoreboard-500 bg-arena-950/90 px-10 py-6 text-center shadow-2xl shadow-scoreboard-500/40">
@@ -1621,12 +1638,12 @@ export default function HostController({ gameId }: { gameId: string }) {
         <button onClick={openPublicDisplay} className="rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
           🖥️ Public Display{publicConnected ? ' ✓' : ''}
         </button>
-        {soundboardEnabled && (
+        {soundboardEnabled && trayVisible && (
           <button
-            onClick={() => setSoundboardOpen((v) => !v)}
-            className={`rounded-full px-3 py-1.5 text-sm ${soundboardOpen ? 'bg-hardwood-500 text-arena-950' : 'bg-black/40 text-slate-300 hover:bg-black/60'}`}
-            aria-label="Soundboard"
-            title="Soundboard (Z X C V B N)"
+            onClick={toggleTools}
+            className={`rounded-full px-3 py-1.5 text-sm ${toolsOpen ? 'bg-hardwood-500 text-arena-950' : 'bg-black/40 text-slate-300 hover:bg-black/60'}`}
+            aria-label="Soundboard and host tools"
+            title="Soundboard and host tools (Z X C V B N play sounds)"
           >
             🎛️
           </button>
@@ -1843,7 +1860,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Guess the ranking</div>
                 <div className="font-display text-3xl tracking-wide text-white">WHAT TIER IS IT IN?</div>
 
-                <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
+                <div className="h-40 w-40 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
                   <ArtworkFill url={round.artworkUrl} />
                 </div>
 
@@ -1889,7 +1906,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
                 <div className="font-display text-3xl tracking-wide text-white">WHAT YEAR IS IT FROM?</div>
 
-                <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
+                <div className="h-40 w-40 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
                   <ArtworkFill url={round.artworkUrl} />
                 </div>
 
@@ -2009,7 +2026,7 @@ export default function HostController({ gameId }: { gameId: string }) {
             </div>
           ) : isTierGuess ? (
             <>
-              <div className="relative z-10 h-32 w-32 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
+              <div className="relative z-10 h-32 w-32 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
                 <ArtworkFill url={round.artworkUrl} />
               </div>
 
@@ -2039,7 +2056,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                         className="inline-block rounded-full px-5 py-2 font-display text-2xl text-arena-950"
                         style={{ background: tier?.color ?? '#888' }}
                       >
-                        {tier?.name ?? 'Unranked'}
+                        <PopReveal>{tier?.name ?? 'Unranked'}</PopReveal>
                       </span>
                     </div>
                   )
@@ -2075,7 +2092,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                     </div>
                     {round.tierPosition !== undefined && (
                       <div className="font-display text-4xl text-white">
-                        #{round.tierPosition + 1}
+                        <PopReveal>#{round.tierPosition + 1}</PopReveal>
                         <span className="ml-2 text-lg text-slate-400">
                           of {round.tierSize ?? '?'} in {tier?.name ?? 'this tier'}
                         </span>
@@ -2087,7 +2104,7 @@ export default function HostController({ gameId }: { gameId: string }) {
             </>
           ) : isYear ? (
             <>
-              <div className="relative z-10 h-32 w-32 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
+              <div className="relative z-10 h-32 w-32 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
                 <ArtworkFill url={round.artworkUrl} />
               </div>
 
@@ -2111,7 +2128,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 <div className="relative z-10 space-y-1.5">
                   <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Released in</div>
                   <span className="inline-block rounded-full bg-hardwood-500 px-5 py-2 font-display text-2xl text-arena-950">
-                    {round.releaseYear ?? '—'}
+                    <RollReveal value={String(round.releaseYear ?? '—')} />
                   </span>
                 </div>
               ) : yearGuessStage === 'guessMonth' ? (
@@ -2127,13 +2144,15 @@ export default function HostController({ gameId }: { gameId: string }) {
                     <span className="rounded-full bg-hardwood-500 px-3 py-1 font-display text-sm text-arena-950">{round.releaseYear ?? '—'}</span>
                     <span className="text-xs uppercase tracking-[0.3em] text-slate-500">month</span>
                   </div>
-                  <div className="font-display text-4xl text-white">{round.releaseMonth ? MONTH_NAMES[round.releaseMonth - 1] : '—'}</div>
+                  <div className="font-display text-4xl text-white">
+                    <PopReveal>{round.releaseMonth ? MONTH_NAMES[round.releaseMonth - 1] : '—'}</PopReveal>
+                  </div>
                 </div>
               )}
             </>
           ) : (
             <>
-              <div className="relative z-10 h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
+              <div className="relative z-10 h-40 w-40 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
                 <ArtworkFill url={round.artworkUrl} />
               </div>
 
@@ -2327,18 +2346,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         <div className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
           <Confetti />
           <div className="font-display text-5xl tracking-widest text-hardwood-400">FINAL SCORE</div>
-          <div className="space-y-3">
-            {sortedFinal.map((team, i) => (
-              <div key={team.id} className="flex w-72 items-center justify-between rounded-xl border border-arena-600 bg-arena-800/70 px-5 py-3">
-                <span className="font-display text-xl" style={{ color: team.color }}>
-                  {i === 0 ? '🏆 ' : ''}{team.avatar ? `${team.avatar} ` : ''}{team.name}
-                  {(team.streak ?? 0) >= 2 && <span className="ml-1 text-sm">🔥{team.streak}</span>}
-                  <MoveTag move={boardMoves?.[team.id] ?? 0} />
-                </span>
-                <span className="scoreboard-digit font-display text-3xl">{team.score}</span>
-              </div>
-            ))}
-          </div>
+          <FinalPodium teams={game.teams} moves={boardMoves} />
           <div className="font-display text-lg tracking-widest text-slate-500">GAME OVER</div>
 
           {(recapRef.current.correctCount > 0 || recapRef.current.noScoreCount > 0 || recapRef.current.fastestBuzz) && (

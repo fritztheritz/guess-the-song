@@ -1,6 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { createGame, createTeam, teamColorForIndex, type GameMode } from '../types'
+import { createGame, createTeam, teamColorForIndex, TEAM_AVATARS, TEAM_COLORS, type GameMode } from '../types'
+import { randomTeams } from '../lib/team-names'
 import { saveGame } from '../lib/storage/game-repository'
 import { listTeamPresets, type TeamPreset } from '../lib/team-presets'
 import { findDuplicateTeamName } from '../lib/team-name-conflicts'
@@ -33,12 +34,29 @@ export default function CreateGame() {
   const [catchUp, setCatchUp] = useState(false)
   const [teams, setTeams] = useState<DraftTeam[]>([draftTeam(0), draftTeam(1)])
   const [presetPickerIndex, setPresetPickerIndex] = useState<number | null>(null)
+  // Which team's colour/mascot picker is open (inline, so styling a team doesn't wait for the builder).
+  const [stylePickerIndex, setStylePickerIndex] = useState<number | null>(null)
   const presets = useMemo(() => listTeamPresets(), [])
   const duplicateTeamName = useMemo(() => findDuplicateTeamName(teams.map((t) => t.name)), [teams])
 
   function addTeam() {
     if (teams.length >= MAX_TEAMS) return
     setTeams((prev) => [...prev, draftTeam(prev.length)])
+  }
+
+  // Jump straight to N teams, keeping the ones already filled in.
+  function setTeamCount(count: number) {
+    setTeams((prev) => (count <= prev.length ? prev.slice(0, count) : [...prev, ...Array.from({ length: count - prev.length }, (_, k) => draftTeam(prev.length + k))]))
+    setStylePickerIndex(null)
+  }
+
+  function randomizeTeams() {
+    setTeams(randomTeams(teams.length))
+    setStylePickerIndex(null)
+  }
+
+  function styleTeam(index: number, patch: Partial<DraftTeam>) {
+    setTeams((prev) => prev.map((t, i) => (i === index ? { ...t, ...patch } : t)))
   }
 
   function removeTeam(index: number) {
@@ -129,13 +147,46 @@ export default function CreateGame() {
         </div>
 
         <div>
-          <label className="mb-2 block text-sm text-slate-400">Choose teams</label>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <label className="text-sm text-slate-400">Choose teams</label>
+            <div className="flex items-center gap-1.5">
+              {[2, 3, 4, 5, 6].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setTeamCount(n)}
+                  aria-pressed={teams.length === n}
+                  aria-label={`${n} teams`}
+                  className={`h-7 w-7 rounded-full text-xs font-semibold ${
+                    teams.length === n ? 'bg-hardwood-500 text-arena-950' : 'border border-arena-600 text-slate-400 hover:border-hardwood-500'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={randomizeTeams}
+                className="ml-1 rounded-full border border-arena-600 px-3 py-1 text-xs text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
+                title="Give every team a random name and mascot"
+              >
+                🎲 Randomize
+              </button>
+            </div>
+          </div>
           <div className="space-y-2">
             {teams.map((team, i) => (
               <div key={i} className="relative flex items-center gap-2">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs" style={{ background: `${team.color}33`, color: team.color }}>
-                  {team.avatar ?? ''}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setStylePickerIndex(stylePickerIndex === i ? null : i)}
+                  aria-label={`Change ${team.name}'s colour and mascot`}
+                  aria-expanded={stylePickerIndex === i}
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm ring-2 ring-offset-2 ring-offset-arena-950 hover:brightness-125"
+                  style={{ background: `${team.color}33`, color: team.color, '--tw-ring-color': team.color } as React.CSSProperties}
+                >
+                  {team.avatar ?? '＋'}
+                </button>
                 <input
                   value={team.name}
                   onChange={(e) => renameTeam(i, e.target.value)}
@@ -160,6 +211,48 @@ export default function CreateGame() {
                   >
                     ✕
                   </button>
+                )}
+                {stylePickerIndex === i && (
+                  <>
+                    <div className="fixed inset-0 z-0" onClick={() => setStylePickerIndex(null)} />
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute left-0 top-11 z-10 w-64 space-y-3 rounded-lg border border-arena-600 bg-arena-900 p-3 shadow-xl"
+                    >
+                      <div>
+                        <div className="mb-1.5 text-[11px] uppercase tracking-widest text-slate-500">Colour</div>
+                        <div className="flex flex-wrap gap-2">
+                          {TEAM_COLORS.map((c) => (
+                            <button
+                              key={c}
+                              type="button"
+                              onClick={() => styleTeam(i, { color: c })}
+                              aria-label={`Colour ${c}`}
+                              aria-pressed={team.color === c}
+                              className={`h-6 w-6 rounded-full ${team.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-arena-900' : ''}`}
+                              style={{ background: c }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="mb-1.5 text-[11px] uppercase tracking-widest text-slate-500">Mascot</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {TEAM_AVATARS.map((a) => (
+                            <button
+                              key={a}
+                              type="button"
+                              onClick={() => styleTeam(i, { avatar: team.avatar === a ? undefined : a })}
+                              aria-pressed={team.avatar === a}
+                              className={`flex h-8 w-8 items-center justify-center rounded-lg text-base ${team.avatar === a ? 'bg-hardwood-500/30 ring-1 ring-hardwood-500' : 'hover:bg-arena-700'}`}
+                            >
+                              {a}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
                 )}
                 {presetPickerIndex === i && (
                   <>

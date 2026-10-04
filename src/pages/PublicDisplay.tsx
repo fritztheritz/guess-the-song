@@ -5,8 +5,9 @@ import { useStoredEntity } from '../lib/use-stored-entity'
 import { presentationChannelName, type PresentationMessage, type PresentationSnapshot } from '../lib/presentation-sync'
 import ShotClockDigit from '../components/ShotClockDigit'
 import ArtworkFill from '../components/ArtworkFill'
+import FinalPodium from '../components/FinalPodium'
+import { PopReveal, RollReveal } from '../components/Reveal'
 import Scoreboard from '../components/Scoreboard'
-import MoveTag from '../components/MoveTag'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
 import JoinQrCode from '../components/JoinQrCode'
@@ -117,7 +118,8 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
   const isTierGuess = isTierGuessMode(game)
   const isYear = isYearMode(game)
   const { phase, clueIndex, tierGuessStage, yearGuessStage, wager } = snapshot
-  const sortedFinal = [...game.teams].sort((a, b) => b.score - a.score)
+  const modeLabel = isLyric ? '📝 Guess the Lyric' : isTierGuess ? '🎯 Guess the Ranking' : isYear ? '📅 Guess the Year' : '🎵 Guess the Song'
+  const toGo = Math.max(0, game.rounds.length - snapshot.possessionIndex)
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-arena-950">
@@ -126,17 +128,34 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
         style={bigScreen ? { transform: `scale(${BIG_SCREEN_FACTOR})` } : undefined}
       >
         {(phase === 'resume' || phase === 'intro') && (
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-pop-in">
-            <div className="font-display text-5xl tracking-wide text-hardwood-400">{game.name}</div>
-            <div className="text-6xl">🏀</div>
-            <Scoreboard teams={game.teams} />
-            {game.buzzerRoomCode && (
-              <div className="flex flex-col items-center gap-2 rounded-2xl border border-arena-700 bg-arena-900/60 px-6 py-4">
-                <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Scan to buzz in from your phone</div>
-                <JoinQrCode code={game.buzzerRoomCode} size={140} />
-                <div className="font-display text-2xl tracking-[0.3em] text-white">{game.buzzerRoomCode}</div>
+          <div className="flex flex-1 flex-col items-center justify-center gap-8 px-8 text-center animate-pop-in">
+            <div>
+              <div className="text-6xl">🏀</div>
+              <div className="mt-2 font-display text-6xl tracking-wide text-hardwood-400">{game.name}</div>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-sm text-slate-300">
+                <span className="rounded-full border border-arena-600 px-3 py-1">{modeLabel}</span>
+                <span className="rounded-full border border-arena-600 px-3 py-1">
+                  {game.rounds.length} possession{game.rounds.length === 1 ? '' : 's'}
+                </span>
+                <span className="rounded-full border border-arena-600 px-3 py-1">{game.teams.length} teams</span>
               </div>
-            )}
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-10">
+              <div className="space-y-3">
+                <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Tonight's teams</div>
+                <Scoreboard teams={game.teams} />
+              </div>
+              {game.buzzerRoomCode && (
+                <div className="flex flex-col items-center gap-2 rounded-2xl border border-arena-700 bg-arena-900/60 px-6 py-4">
+                  <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Scan to buzz in from your phone</div>
+                  <JoinQrCode code={game.buzzerRoomCode} size={160} />
+                  <div className="font-display text-3xl tracking-[0.3em] text-white">{game.buzzerRoomCode}</div>
+                </div>
+              )}
+            </div>
+            <div className="text-sm uppercase tracking-[0.3em] text-slate-500">
+              {phase === 'resume' ? 'Picking up where we left off…' : 'Waiting for tip-off…'}
+            </div>
           </div>
         )}
 
@@ -192,7 +211,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                   )}
                   <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Guess the ranking</div>
                   <div className="font-display text-3xl tracking-wide text-white">WHAT TIER IS IT IN?</div>
-                  <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
+                  <div className="h-40 w-40 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
                     <ArtworkFill url={round.artworkUrl} />
                   </div>
                   <div>
@@ -214,7 +233,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                     </>
                   )}
                   <div className="font-display text-3xl tracking-wide text-white">WHAT YEAR IS IT FROM?</div>
-                  <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
+                  <div className="h-40 w-40 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
                     <ArtworkFill url={round.artworkUrl} />
                   </div>
                   <div>
@@ -262,7 +281,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
               </div>
             ) : isTierGuess ? (
               <>
-                <div className="relative z-10 h-32 w-32 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
+                <div className="relative z-10 h-32 w-32 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
                   <ArtworkFill url={round.artworkUrl} />
                 </div>
                 <div className="relative z-10">
@@ -277,7 +296,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                       <div className="relative z-10 space-y-1.5">
                         <div className="text-xs uppercase tracking-[0.3em] text-slate-500">It's in tier</div>
                         <span className="inline-block rounded-full px-5 py-2 font-display text-2xl text-arena-950" style={{ background: tier?.color ?? '#888' }}>
-                          {tier?.name ?? 'Unranked'}
+                          <PopReveal>{tier?.name ?? 'Unranked'}</PopReveal>
                         </span>
                       </div>
                     )
@@ -307,7 +326,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                       </div>
                       {round.tierPosition !== undefined && (
                         <div className="font-display text-4xl text-white">
-                          #{round.tierPosition + 1}
+                          <PopReveal>#{round.tierPosition + 1}</PopReveal>
                           <span className="ml-2 text-lg text-slate-400">of {round.tierSize ?? '?'} in {tier?.name ?? 'this tier'}</span>
                         </div>
                       )}
@@ -317,7 +336,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
               </>
             ) : isYear ? (
               <>
-                <div className="relative z-10 h-32 w-32 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
+                <div className="relative z-10 h-32 w-32 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
                   <ArtworkFill url={round.artworkUrl} />
                 </div>
                 <div className="relative z-10">
@@ -329,7 +348,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                   <div className="relative z-10 space-y-1.5">
                     <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Released in</div>
                     <span className="inline-block rounded-full bg-hardwood-500 px-5 py-2 font-display text-2xl text-arena-950">
-                      {round.releaseYear ?? '—'}
+                      <RollReveal value={String(round.releaseYear ?? '—')} />
                     </span>
                   </div>
                 ) : yearGuessStage === 'guessMonth' ? (
@@ -345,13 +364,15 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                       <span className="rounded-full bg-hardwood-500 px-3 py-1 font-display text-sm text-arena-950">{round.releaseYear ?? '—'}</span>
                       <span className="text-xs uppercase tracking-[0.3em] text-slate-500">month</span>
                     </div>
-                    <div className="font-display text-4xl text-white">{round.releaseMonth ? MONTH_NAMES[round.releaseMonth - 1] : '—'}</div>
+                    <div className="font-display text-4xl text-white">
+                    <PopReveal>{round.releaseMonth ? MONTH_NAMES[round.releaseMonth - 1] : '—'}</PopReveal>
+                  </div>
                   </div>
                 )}
               </>
             ) : (
               <>
-                <div className="relative z-10 h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
+                <div className="relative z-10 h-40 w-40 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
                   <ArtworkFill url={round.artworkUrl} />
                 </div>
                 <div className="relative z-10">
@@ -371,6 +392,20 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
             <div className="font-display text-5xl tracking-widest text-hardwood-400">{snapshot.suddenDeath ? 'SUDDEN DEATH' : 'HALFTIME'}</div>
             {snapshot.halftimePrompt && <p className="max-w-md text-slate-400">{snapshot.halftimePrompt}</p>}
             <Scoreboard teams={game.teams} moves={snapshot.rankMoves} />
+            {!snapshot.suddenDeath && (
+              <div className="text-sm uppercase tracking-[0.3em] text-slate-500">
+                {toGo} possession{toGo === 1 ? '' : 's'} to go
+              </div>
+            )}
+            {game.buzzerRoomCode && (
+              <div className="flex items-center gap-4 rounded-2xl border border-arena-700 bg-arena-900/60 px-5 py-3">
+                <JoinQrCode code={game.buzzerRoomCode} size={96} />
+                <div className="text-left">
+                  <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Late? Join now</div>
+                  <div className="font-display text-2xl tracking-[0.3em] text-white">{game.buzzerRoomCode}</div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -378,22 +413,16 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
           <div className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
             <Confetti />
             <div className="font-display text-5xl tracking-widest text-hardwood-400">FINAL SCORE</div>
-            <div className="space-y-3">
-              {sortedFinal.map((team, i) => (
-                <div key={team.id} className="flex w-72 items-center justify-between rounded-xl border border-arena-600 bg-arena-800/70 px-5 py-3">
-                  <span className="font-display text-xl" style={{ color: team.color }}>
-                    {i === 0 ? '🏆 ' : ''}{team.avatar ? `${team.avatar} ` : ''}{team.name}
-                    {(team.streak ?? 0) >= 2 && <span className="ml-1 text-sm">🔥{team.streak}</span>}
-                    <MoveTag move={snapshot.rankMoves?.[team.id] ?? 0} />
-                  </span>
-                  <span className="scoreboard-digit font-display text-3xl">{team.score}</span>
-                </div>
-              ))}
-            </div>
+            <FinalPodium teams={game.teams} moves={snapshot.rankMoves} />
             <div className="font-display text-lg tracking-widest text-slate-500">GAME OVER</div>
           </div>
         )}
       </div>
+      {game.buzzerRoomCode && (phase === 'clue' || phase === 'revealed') && (
+        <div className="fixed bottom-3 left-3 z-20 rounded-full bg-black/40 px-3 py-1.5 text-xs text-slate-400">
+          📱 Join: <span className="font-display tracking-[0.2em] text-slate-200">{game.buzzerRoomCode}</span>
+        </div>
+      )}
       <button
         onClick={toggleBigScreen}
         className={`fixed bottom-3 right-3 z-20 rounded-full px-3 py-1.5 text-xs ${

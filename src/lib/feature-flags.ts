@@ -13,6 +13,29 @@ export interface FeatureFlagDef {
   default: boolean
 }
 
+/** How /admin groups flags, in display order. A flag not listed in FLAG_GROUPS falls under "Other". */
+export const FLAG_GROUP_ORDER = ['Game modes', 'Phones & room', 'Host tools', 'Stats & looks', 'Imports'] as const
+export const FLAG_GROUPS: Record<string, (typeof FLAG_GROUP_ORDER)[number]> = {
+  'tier-lists': 'Game modes',
+  tournaments: 'Game modes',
+  draft: 'Game modes',
+  popularity: 'Game modes',
+  timeline: 'Game modes',
+  seasons: 'Game modes',
+  'phone-buzzer': 'Phones & room',
+  'spectator-mode': 'Phones & room',
+  'power-ups': 'Host tools',
+  eject: 'Host tools',
+  'sudden-death': 'Host tools',
+  soundboard: 'Host tools',
+  achievements: 'Stats & looks',
+  themes: 'Stats & looks',
+  'spotify-import': 'Imports',
+  'draft-soundcloud-playlists': 'Imports',
+}
+/** Flags worth turning on for most hosts — shown with a badge on /admin. */
+export const RECOMMENDED_FLAGS = new Set(['phone-buzzer', 'power-ups', 'achievements', 'themes'])
+
 export const FEATURE_FLAGS: FeatureFlagDef[] = [
   {
     key: 'tier-lists',

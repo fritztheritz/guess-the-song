@@ -11,6 +11,7 @@ import SpotifyConnectPanel from '../components/SpotifyConnectPanel'
 import { SkeletonRows } from '../components/skeletons'
 import TextInput from '../components/ui/TextInput'
 import Button from '../components/ui/Button'
+import ErrorState from '../components/ui/ErrorState'
 import Panel from '../components/ui/Panel'
 
 const MIN_SONGS = 8
@@ -186,7 +187,7 @@ export default function CreateTimelineGame() {
                   </button>
                 ))}
               </div>
-              {error && <div className="rounded-lg bg-scoreboard-500/10 px-4 py-2 text-sm text-scoreboard-500">{error}</div>}
+              {error && <ErrorState message={error} />}
             </div>
 
             {searching ? (

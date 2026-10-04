@@ -31,6 +31,7 @@ import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
 import { isSpotifyConfigured } from '../lib/spotify/config'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import Panel from '../components/ui/Panel'
+import EmptyState from '../components/ui/EmptyState'
 import BuilderSection from '../components/BuilderSection'
 import Button from '../components/ui/Button'
 import { useToast } from '../state/toast-context'
@@ -769,22 +770,26 @@ export default function GameBuilder() {
         <main className="flex-1 overflow-y-auto p-8">
           {!selectedRound ? (
             isTierGuess ? (
-              <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-slate-400">
-                <p>
-                  {game.sourceTierListId
-                    ? 'No songs yet — add some from your tier list to get started.'
-                    : 'Pick a tier list to build this game from.'}
-                </p>
-                <Button onClick={openTierGuessImport}>
-                  {game.sourceTierListId ? '+ ADD SONGS' : 'PICK A TIER LIST'}
-                </Button>
+              <div className="flex h-full items-center justify-center">
+                <EmptyState
+                  icon="🎯"
+                  action={<Button onClick={openTierGuessImport}>{game.sourceTierListId ? '+ ADD SONGS' : 'PICK A TIER LIST'}</Button>}
+                >
+                  {game.sourceTierListId ? 'No songs yet — add some from your tier list to get started.' : 'Pick a tier list to build this game from.'}
+                </EmptyState>
               </div>
             ) : (
-              <div className="flex h-full flex-col items-center justify-center gap-4 text-center text-slate-400">
-                <p>{isLyric ? 'No rounds yet. Add one and type in the clues.' : 'No possessions yet. Import tracks from SoundCloud to get started.'}</p>
-                <Button onClick={() => (isLyric ? handleAddLyricRound() : setImportOpen(true))}>
-                  {isLyric ? '+ ADD LYRIC ROUND' : '+ ADD FROM SOUNDCLOUD'}
-                </Button>
+              <div className="flex h-full items-center justify-center">
+                <EmptyState
+                  icon={isLyric ? '📝' : '🎵'}
+                  action={
+                    <Button onClick={() => (isLyric ? handleAddLyricRound() : setImportOpen(true))}>
+                      {isLyric ? '+ ADD LYRIC ROUND' : '+ ADD FROM SOUNDCLOUD'}
+                    </Button>
+                  }
+                >
+                  {isLyric ? 'No rounds yet. Add one and type in the clues.' : 'No possessions yet. Import tracks from SoundCloud to get started.'}
+                </EmptyState>
               </div>
             )
           ) : (

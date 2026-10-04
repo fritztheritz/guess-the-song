@@ -1,33 +1,38 @@
+import { Suspense } from 'react'
+import { lazyPage } from './lib/lazy-page'
 import { Route, Routes } from 'react-router-dom'
+import { PageSkeleton } from './components/skeletons'
 import Home from './pages/Home'
-import CreateGame from './pages/CreateGame'
-import GameBuilder from './pages/GameBuilder'
-import Presentation from './pages/Presentation'
-import Callback from './pages/Callback'
-import ImportGame from './pages/ImportGame'
-import SharedDraftResults from './pages/SharedDraftResults'
-import Stats from './pages/Stats'
-import Admin from './pages/Admin'
-import CreateTierList from './pages/CreateTierList'
-import TierListBuilder from './pages/TierListBuilder'
-import TierListPresent from './pages/TierListPresent'
-import PlayerBuzzer from './pages/PlayerBuzzer'
-import CreateTournament from './pages/CreateTournament'
-import TournamentBuilder from './pages/TournamentBuilder'
-import CreateSeason from './pages/CreateSeason'
-import SeasonBoard from './pages/SeasonBoard'
-import CreateDraftBoard from './pages/CreateDraftBoard'
-import DraftBoardHome from './pages/DraftBoardHome'
-import DraftSessionRoom from './pages/DraftSessionRoom'
-import DraftPresentation from './pages/DraftPresentation'
-import CreatePopularityGame from './pages/CreatePopularityGame'
-import PopularityPresent from './pages/PopularityPresent'
-import CreateTimelineGame from './pages/CreateTimelineGame'
-import TimelinePresent from './pages/TimelinePresent'
 import RequireFlag from './components/RequireFlag'
+
+const CreateGame = lazyPage(() => import('./pages/CreateGame'))
+const GameBuilder = lazyPage(() => import('./pages/GameBuilder'))
+const Presentation = lazyPage(() => import('./pages/Presentation'))
+const Callback = lazyPage(() => import('./pages/Callback'))
+const ImportGame = lazyPage(() => import('./pages/ImportGame'))
+const SharedDraftResults = lazyPage(() => import('./pages/SharedDraftResults'))
+const Stats = lazyPage(() => import('./pages/Stats'))
+const Admin = lazyPage(() => import('./pages/Admin'))
+const CreateTierList = lazyPage(() => import('./pages/CreateTierList'))
+const TierListBuilder = lazyPage(() => import('./pages/TierListBuilder'))
+const TierListPresent = lazyPage(() => import('./pages/TierListPresent'))
+const PlayerBuzzer = lazyPage(() => import('./pages/PlayerBuzzer'))
+const CreateTournament = lazyPage(() => import('./pages/CreateTournament'))
+const TournamentBuilder = lazyPage(() => import('./pages/TournamentBuilder'))
+const CreateSeason = lazyPage(() => import('./pages/CreateSeason'))
+const SeasonBoard = lazyPage(() => import('./pages/SeasonBoard'))
+const CreateDraftBoard = lazyPage(() => import('./pages/CreateDraftBoard'))
+const DraftBoardHome = lazyPage(() => import('./pages/DraftBoardHome'))
+const DraftSessionRoom = lazyPage(() => import('./pages/DraftSessionRoom'))
+const DraftPresentation = lazyPage(() => import('./pages/DraftPresentation'))
+const CreatePopularityGame = lazyPage(() => import('./pages/CreatePopularityGame'))
+const PopularityPresent = lazyPage(() => import('./pages/PopularityPresent'))
+const CreateTimelineGame = lazyPage(() => import('./pages/CreateTimelineGame'))
+const TimelinePresent = lazyPage(() => import('./pages/TimelinePresent'))
 
 export default function App() {
   return (
+    <Suspense fallback={<PageSkeleton />}>
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/new" element={<CreateGame />} />
@@ -161,5 +166,6 @@ export default function App() {
         }
       />
     </Routes>
+    </Suspense>
   )
 }

@@ -67,3 +67,24 @@ export function SkeletonRows({ count = 6 }: { count?: number }) {
     </div>
   )
 }
+
+/** A whole-page placeholder (header bar + a few content blocks) shown while a page's code loads. */
+export function PageSkeleton() {
+  return (
+    <div className="min-h-svh court-lines" role="status" aria-label="Loading page">
+      <div className="mx-auto max-w-3xl space-y-6 px-6 py-16">
+        <Skeleton className="h-9 w-56" />
+        <Skeleton className="h-4 w-80 max-w-full" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="space-y-3 rounded-xl border border-arena-600 bg-arena-800/60 p-4">
+              <Skeleton className="h-5 w-2/3" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-4/5" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}

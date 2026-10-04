@@ -110,6 +110,21 @@
   animation: eject-stamp 2600ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
 
+/* The answer slamming in on a reveal — small, a touch of overshoot, then settles. */
+@keyframes reveal-pop {
+  0% { transform: scale(0.4); opacity: 0; filter: blur(6px); }
+  60% { transform: scale(1.12); opacity: 1; filter: blur(0); }
+  100% { transform: scale(1); }
+}
+
+.animate-reveal-pop {
+  animation: reveal-pop 550ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-reveal-pop { animation: none; }
+}
+
 /* "+3" chip that floats up off a team's score card and fades. */
 @keyframes score-delta {
   0% { transform: translateY(0); opacity: 0; }
@@ -136,4 +151,24 @@
   animation-name: confetti-fall;
   animation-timing-function: linear;
   animation-fill-mode: forwards;
+}
+
+/* Small tactile touches: buttons press in, and keyboard focus is always visible. */
+button {
+  transition: transform 90ms ease-out, background-color 150ms, border-color 150ms, color 150ms, opacity 150ms;
+}
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+:focus-visible {
+  outline: 2px solid var(--color-hardwood-400);
+  outline-offset: 2px;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none; /* inputs already show a hardwood border on focus */
+}
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):active { transform: none; }
 }

@@ -24,6 +24,7 @@ import { useSoundCloudPreview } from '../lib/soundcloud/use-soundcloud-preview'
 import ModalShell from './ui/ModalShell'
 import TextInput from './ui/TextInput'
 import Button from './ui/Button'
+import ErrorState from './ui/ErrorState'
 
 type Tab = 'mine' | 'liked' | 'playlists' | 'search' | 'paste'
 
@@ -46,6 +47,8 @@ function errorMessage(err: unknown): string {
   if (err instanceof SoundCloudNotConnectedError) return 'Connect SoundCloud to import tracks.'
   if (err instanceof SoundCloudRateLimitError) return err.message
   if (err instanceof SoundCloudApiError) return err.message
+  // fetch() rejects with a TypeError when the request never reached the server.
+  if (err instanceof TypeError) return "Couldn't reach SoundCloud — check your connection and try again."
   return err instanceof Error ? err.message : 'Something went wrong talking to SoundCloud.'
 }
 
@@ -346,7 +349,7 @@ export default function ImportSoundCloudModal({
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-4">
-              {error && <div className="mb-4 rounded-lg bg-scoreboard-500/10 px-4 py-2 text-sm text-scoreboard-500">{error}</div>}
+              {error && <ErrorState message={error} onDismiss={() => setError(null)} className="mb-4" />}
 
               {tab === 'search' && (
                 <>
