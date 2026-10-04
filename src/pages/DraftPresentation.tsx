@@ -9,6 +9,7 @@ import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
 import FinalPodium from '../components/FinalPodium'
 import JoinQrCode from '../components/JoinQrCode'
+import { joinUrl } from '../lib/buzzer/join-url'
 import ProgressRing from '../components/ProgressRing'
 import { PopReveal } from '../components/Reveal'
 
@@ -198,6 +199,9 @@ export default function DraftPresentation() {
                 <div className="text-left">
                   <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Vote from your phone</div>
                   <div className="font-display text-3xl tracking-[0.3em] text-white">{session.buzzerRoomCode}</div>
+                  <div className="mt-1 text-xs text-slate-400">
+                    or go to <span className="text-slate-200">{joinUrl(session.buzzerRoomCode).replace(/^https?:\/\//, '')}</span>
+                  </div>
                 </div>
               </div>
             )}

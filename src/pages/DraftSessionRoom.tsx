@@ -21,6 +21,7 @@ import { BuzzerSocket, type SocketStatus } from '../lib/buzzer/buzzer-socket'
 import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
 import type { BuzzerPlayer, PhoneRoundState } from '../lib/buzzer/protocol'
 import JoinQrCode from '../components/JoinQrCode'
+import JoinLink from '../components/JoinLink'
 import ConnectionBanner from '../components/ConnectionBanner'
 import DrafterRoster from '../components/DrafterRoster'
 import DraftTurnBanner from '../components/DraftTurnBanner'
@@ -662,6 +663,10 @@ export default function DraftSessionRoom() {
                       <button onClick={stopPhoneVoting} className="text-xs text-slate-500 underline hover:text-slate-300">
                         Stop phone voting
                       </button>
+                    </div>
+                    <div>
+                      <div className="mb-1 text-[11px] uppercase tracking-widest text-slate-500">On a computer? Use this link</div>
+                      <JoinLink code={session.buzzerRoomCode} />
                     </div>
                     <ConnectionBanner status={voteStatus} />
                     <div className="flex flex-wrap gap-1.5" aria-label="Phone voting status">
