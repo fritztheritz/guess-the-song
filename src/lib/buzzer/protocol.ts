@@ -61,7 +61,7 @@ export interface PhoneRoundState {
    *  is the order the ballot's digits follow; `submitted` lists the connIds that have voted. A
    *  voter's ballot rides the `ballot` message (see lib/tierlist-ballot.ts for the packing). */
   tierlist?: {
-    songs: Array<{ id: string; title: string; artist: string; artworkUrl?: string }>
+    songs: Array<{ id: string; title: string; artist: string; artworkUrl?: string; url?: string }>
     tiers: Array<{ name: string; color: string }>
     submitted: string[]
   }

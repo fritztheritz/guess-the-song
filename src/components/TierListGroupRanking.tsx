@@ -17,6 +17,9 @@ interface Vote {
 
 const VOTER_TEAM_ID = 'voters'
 
+/** Mirrored to localStorage so the big-screen Display tab can show the join code while voting runs. */
+export const GROUP_VOTE_KEY = 'gts.tierlist.groupvote.v1'
+
 // Phone voting for a tier list: everyone joins one room, files every song into a tier on their own
 // phone, and the host sees the group's average. Applying it fills in the host's tier list (which can
 // be undone like any other move). The songs and tiers phones vote on are frozen when voting starts,
@@ -26,6 +29,7 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
   const [status, setStatus] = useState<SocketStatus>('connecting')
   const [players, setPlayers] = useState<BuzzerPlayer[]>([])
   const [votes, setVotes] = useState<Record<string, Vote>>({})
+  const [expanded, setExpanded] = useState(true)
   const socketRef = useRef<BuzzerSocket | null>(null)
   // What phones were shown: set once per voting round, so ballots always decode against it.
   const [frozen, setFrozen] = useState<{ songs: TierList['songs']; tiers: TierList['tiers'] } | null>(null)
@@ -37,6 +41,7 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
       tiers: list.tiers.map((t) => ({ ...t })),
     })
     setVotes({})
+    setExpanded(true)
     setCode(generateRoomCode())
   }
 
@@ -95,7 +100,7 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
       revealed: null,
       teams: [],
       tierlist: {
-        songs: frozen.songs.map((s) => ({ id: s.id, title: s.title, artist: s.artist, artworkUrl: s.artworkUrl })),
+        songs: frozen.songs.map((s) => ({ id: s.id, title: s.title, artist: s.artist, artworkUrl: s.artworkUrl, url: s.soundcloudUrl })),
         tiers: frozen.tiers.map((t) => ({ name: t.name, color: t.color })),
         submitted: Object.keys(votes),
       },
@@ -105,6 +110,25 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
   }, [code, frozen, status, votes])
 
   const ballots = Object.values(votes)
+
+  useEffect(() => {
+    try {
+      if (code) localStorage.setItem(GROUP_VOTE_KEY, JSON.stringify({ listId: list.id, code, joined: players.length, voted: Object.keys(votes).length }))
+      else localStorage.removeItem(GROUP_VOTE_KEY)
+    } catch {
+      // Best-effort only.
+    }
+  }, [code, list.id, players.length, votes])
+  useEffect(
+    () => () => {
+      try {
+        localStorage.removeItem(GROUP_VOTE_KEY)
+      } catch {
+        // Best-effort only.
+      }
+    },
+    [],
+  )
   const consensus = useMemo(
     () => (frozen ? groupConsensus(frozen.songs.map((s) => s.id), ballots.map((v) => v.tiers)) : []),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,6 +151,29 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
 
   return (
     <Panel padding="md" className="mb-6 space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0 text-sm text-slate-200">
+          <span className="font-semibold">📱 Group ranking</span> · <span className="font-display tracking-[0.2em] text-white">{code}</span> ·{' '}
+          <span className="text-slate-400">
+            {ballots.length} of {Math.max(players.length, ballots.length)} voted
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          {!expanded && ballots.length > 0 && frozen && (
+            <Button size="sm" onClick={() => onApply(applyConsensus(list, consensus))}>
+              Use group ranking
+            </Button>
+          )}
+          <button onClick={() => setExpanded((v) => !v)} aria-expanded={expanded} className="text-xs text-slate-400 underline hover:text-slate-200">
+            {expanded ? 'Hide details' : 'Show details'}
+          </button>
+          <button onClick={stop} className="text-xs text-slate-500 underline hover:text-slate-300">
+            Stop
+          </button>
+        </div>
+      </div>
+      {expanded && (
+      <>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <JoinQrCode code={code} size={112} />
@@ -136,9 +183,6 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
             <p className="mt-1 max-w-xs text-xs text-slate-400">Pick a name, then tap a tier for every song. Phones vote on the songs and tiers as they are right now.</p>
           </div>
         </div>
-        <button onClick={stop} className="text-xs text-slate-500 underline hover:text-slate-300">
-          Stop group ranking
-        </button>
       </div>
       <div>
         <div className="mb-1 text-[11px] uppercase tracking-widest text-slate-500">On a computer? Use this link</div>
@@ -203,6 +247,8 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
           </div>
           <p className="mt-2 text-[11px] text-slate-500">The number is the average tier (1 = top). Songs land in the tier closest to their average.</p>
         </div>
+      )}
+      </>
       )}
     </Panel>
   )

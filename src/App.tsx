@@ -16,6 +16,7 @@ const Admin = lazyPage(() => import('./pages/Admin'))
 const CreateTierList = lazyPage(() => import('./pages/CreateTierList'))
 const TierListBuilder = lazyPage(() => import('./pages/TierListBuilder'))
 const TierListPresent = lazyPage(() => import('./pages/TierListPresent'))
+const TierListDisplay = lazyPage(() => import('./pages/TierListDisplay'))
 const PlayerBuzzer = lazyPage(() => import('./pages/PlayerBuzzer'))
 const CreateTournament = lazyPage(() => import('./pages/CreateTournament'))
 const TournamentBuilder = lazyPage(() => import('./pages/TournamentBuilder'))
@@ -66,6 +67,14 @@ export default function App() {
         element={
           <RequireFlag flag="tier-lists">
             <TierListPresent />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/tierlists/:tierListId/display"
+        element={
+          <RequireFlag flag="tier-lists">
+            <TierListDisplay />
           </RequireFlag>
         }
       />

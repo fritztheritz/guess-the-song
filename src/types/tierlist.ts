@@ -54,6 +54,9 @@ const DEFAULT_TIER_NAMES = TIER_PRESETS[0].names
 /** Best-to-worst colours for a preset's tiers — warm to cool, so the top tier reads as the "hot" one. */
 const TIER_COLOR_RAMP = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b']
 
+/** Swatches offered in the builder's colour picker (the ramp first, then extras). */
+export const TIER_SWATCHES = [...TIER_COLOR_RAMP, '#14b8a6', '#06b6d4', '#a855f7', '#f43f5e', '#84cc16', '#f59e0b', '#e2e8f0', '#475569']
+
 export function tierColorForIndex(index: number): string {
   return TIER_COLOR_RAMP[index % TIER_COLOR_RAMP.length]
 }

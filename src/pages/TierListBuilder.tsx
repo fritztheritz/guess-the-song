@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { applyTierPreset, createTierDef, MAX_TIERS, MIN_TIERS, TIER_PRESETS, type TierList, type TierListSong } from '../types/tierlist'
 import { rankedCount, shuffleUnranked } from '../lib/tierlist-ranking'
 import { getTierList, listTierLists, saveTierList } from '../lib/storage/tierlist-repository'
@@ -11,6 +11,7 @@ import Button from '../components/ui/Button'
 import ButtonLink from '../components/ui/ButtonLink'
 import EmptyState from '../components/ui/EmptyState'
 import ErrorState from '../components/ui/ErrorState'
+import TierColorPicker from '../components/TierColorPicker'
 import BuilderSection from '../components/BuilderSection'
 import { useConfirm } from '../state/confirm-context'
 import { useToast } from '../state/toast-context'
@@ -20,7 +21,9 @@ import { useStoredEntity } from '../lib/use-stored-entity'
 export default function TierListBuilder() {
   const { tierListId } = useParams()
   const [list, setList] = useStoredEntity(tierListId, getTierList)
-  const [importOpen, setImportOpen] = useState(false)
+  // Arriving straight from "Create" with nothing in the list yet: open the song picker right away.
+  const location = useLocation()
+  const [importOpen, setImportOpen] = useState(() => !!(location.state as { addSongs?: boolean } | null)?.addSongs && (list?.songs.length ?? 0) === 0)
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<'added' | 'title' | 'artist'>('added')
   const [savedAt, setSavedAt] = useState<string | null>(null)
@@ -162,26 +165,36 @@ export default function TierListBuilder() {
 
         <BuilderSection id="tl-tiers" title="Tiers" summary={list.tiers.map((t) => t.name).join(' · ')}>
           <div className="mb-3 flex flex-wrap gap-2">
-            {TIER_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => choosePreset(preset.names)}
-                className="rounded-full border border-arena-500 px-3 py-1 text-xs text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
-              >
-                {preset.label}
-              </button>
+            {TIER_PRESETS.map((preset) => {
+              const active = preset.names.length === list.tiers.length && preset.names.every((n, i) => n === list.tiers[i].name)
+              return (
+                <button
+                  key={preset.id}
+                  onClick={() => choosePreset(preset.names)}
+                  aria-pressed={active}
+                  className={`rounded-full border px-3 py-1 text-xs ${
+                    active ? 'border-hardwood-500 bg-hardwood-500/15 text-hardwood-400' : 'border-arena-500 text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              )
+            })}
+          </div>
+          <div className="mb-3 overflow-hidden rounded-xl border border-arena-600" aria-label="Tier preview">
+            {list.tiers.map((tier) => (
+              <div key={tier.id} className="flex items-stretch border-b border-arena-700 last:border-b-0">
+                <div className="flex min-w-14 max-w-32 items-center justify-center px-3 py-1.5 text-center font-display text-lg leading-tight text-arena-950" style={{ background: tier.color }}>
+                  {tier.name || '—'}
+                </div>
+                <div className="flex-1 bg-arena-800/60" />
+              </div>
             ))}
           </div>
           <div className="space-y-2">
             {list.tiers.map((tier, i) => (
               <div key={tier.id} className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={tier.color}
-                  onChange={(e) => recolorTier(tier.id, e.target.value)}
-                  aria-label={`${tier.name} colour`}
-                  className="h-8 w-8 shrink-0 cursor-pointer rounded-md border border-arena-600 bg-transparent p-0.5"
-                />
+                <TierColorPicker color={tier.color} label={`${tier.name} colour`} onChange={(c) => recolorTier(tier.id, c)} />
                 <TextInput value={tier.name} onChange={(e) => renameTier(tier.id, e.target.value)} className="w-full" />
                 <button
                   onClick={() => moveTier(tier.id, -1)}
@@ -294,8 +307,16 @@ export default function TierListBuilder() {
                       >
                         ✕
                       </button>
-                      <div className="aspect-square w-full bg-arena-700">
+                      <div className="relative aspect-square w-full bg-arena-700">
                         {song.artworkUrl && <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                        {(() => {
+                          const tier = list.tiers.find((t) => t.id === song.tierId)
+                          return tier ? (
+                            <span className="absolute bottom-1 left-1 max-w-[80%] truncate rounded-md px-1.5 py-0.5 text-[10px] font-bold text-arena-950" style={{ background: tier.color }}>
+                              {tier.name}
+                            </span>
+                          ) : null
+                        })()}
                       </div>
                       <div className="p-2">
                         <div className="truncate text-xs font-medium text-slate-100" title={song.title}>

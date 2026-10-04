@@ -13,7 +13,7 @@ export default function CreateTierList() {
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const list = saveTierList(createEmptyTierList(name.trim() || 'Untitled Tier List', TIER_PRESETS.find((p) => p.id === presetId)?.names))
-    navigate(`/tierlists/${list.id}/edit`)
+    navigate(`/tierlists/${list.id}/edit`, { state: { addSongs: true } })
   }
 
   return (
