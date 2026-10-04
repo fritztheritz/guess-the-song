@@ -166,7 +166,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
               <span>POSSESSION {snapshot.possessionIndex + 1} OF {game.rounds.length}</span>
             </div>
 
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto text-center">
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-6 overflow-y-auto text-center">
               {round.wager && !wager ? (
                 <>
                   <div className="text-xs uppercase tracking-[0.3em] text-scoreboard-amber">⭐ Wager Round</div>
@@ -264,7 +264,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
         )}
 
         {phase === 'revealed' && round && (
-          <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-6 py-8 text-center">
+          <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-5 overflow-y-auto px-6 py-8 text-center">
             {!(isTierGuess && tierGuessStage === 'guessPosition') && !(isYear && yearGuessStage === 'guessMonth') && (
               <>
                 <div className="pointer-events-none absolute inset-0 bg-hardwood-500/20 animate-buzzer-flash" />

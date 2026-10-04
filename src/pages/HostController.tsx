@@ -1776,7 +1776,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
           {stageStepper()}
 
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-6 overflow-y-auto text-center">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-6 overflow-y-auto text-center">
             {round.wager && !wagerTeamId ? (
               <>
                 <div className="text-xs uppercase tracking-[0.3em] text-scoreboard-amber">⭐ Wager Round</div>
@@ -1994,7 +1994,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       )}
 
       {phase === 'revealed' && round && (
-        <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center gap-5 overflow-y-auto px-6 py-8 text-center">
+        <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-5 overflow-y-auto px-6 py-8 text-center">
           {stageStepper('mt-10')}
           {/* guessPosition/guessMonth is a thinking beat, not a reveal moment — the coarse
               answer is already known and nothing new has been shown yet, so the flash/banner
@@ -2281,7 +2281,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
           <button
             onClick={isTierGuess ? tierGuessAdvance : isYear ? yearGuessAdvance : nextPossession}
-            className="relative z-10 mt-2 rounded-full bg-hardwood-500 px-8 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400"
+            className="sticky bottom-3 z-20 mt-2 shrink-0 rounded-full bg-hardwood-500 px-8 py-2.5 shadow-xl shadow-black/50 font-semibold text-arena-950 hover:bg-hardwood-400"
           >
             {isTierGuess && tierGuessStage === 'tier'
               ? 'NEXT: GUESS POSITION →'
