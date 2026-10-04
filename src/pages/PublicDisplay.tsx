@@ -3,6 +3,8 @@ import { isLyricMode, isTierGuessMode, isYearMode, LYRIC_HINT_LABELS, type SongR
 import { getGame } from '../lib/storage/game-repository'
 import { useStoredEntity } from '../lib/use-stored-entity'
 import { presentationChannelName, type PresentationMessage, type PresentationSnapshot } from '../lib/presentation-sync'
+import ShotClockDigit from '../components/ShotClockDigit'
+import ArtworkFill from '../components/ArtworkFill'
 import Scoreboard from '../components/Scoreboard'
 import MoveTag from '../components/MoveTag'
 import Spinner from '../components/Spinner'
@@ -155,7 +157,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                 <>
                   {snapshot.playing && (
                     <>
-                      <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(remaining)}</div>
+                      <ShotClockDigit seconds={remaining} />
                       <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
                     </>
                   )}
@@ -184,14 +186,14 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                 <>
                   {snapshot.playing && (
                     <>
-                      <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(remaining)}</div>
+                      <ShotClockDigit seconds={remaining} />
                       <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
                     </>
                   )}
                   <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Guess the ranking</div>
                   <div className="font-display text-3xl tracking-wide text-white">WHAT TIER IS IT IN?</div>
                   <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
-                    {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                    <ArtworkFill url={round.artworkUrl} />
                   </div>
                   <div>
                     <div className="font-display text-2xl text-white">{round.title}</div>
@@ -207,13 +209,13 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                   )}
                   {snapshot.playing && (
                     <>
-                      <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(remaining)}</div>
+                      <ShotClockDigit seconds={remaining} />
                       <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
                     </>
                   )}
                   <div className="font-display text-3xl tracking-wide text-white">WHAT YEAR IS IT FROM?</div>
                   <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
-                    {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                    <ArtworkFill url={round.artworkUrl} />
                   </div>
                   <div>
                     <div className="font-display text-2xl text-white">{round.title}</div>
@@ -227,7 +229,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                       ⭐ {wager.teamName} wagering {wager.amount} pts
                     </div>
                   )}
-                  <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(remaining)}</div>
+                  <ShotClockDigit seconds={remaining} />
                   <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Shot Clock</div>
                   <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE TRACK?</div>
                   <div className="flex h-40 w-40 items-center justify-center rounded-2xl border-2 border-dashed border-arena-600 bg-arena-800 text-5xl text-arena-600">
@@ -261,7 +263,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
             ) : isTierGuess ? (
               <>
                 <div className="relative z-10 h-32 w-32 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
-                  {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                  <ArtworkFill url={round.artworkUrl} />
                 </div>
                 <div className="relative z-10">
                   <div className="font-display text-2xl text-white">{round.title}</div>
@@ -316,7 +318,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
             ) : isYear ? (
               <>
                 <div className="relative z-10 h-32 w-32 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
-                  {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                  <ArtworkFill url={round.artworkUrl} />
                 </div>
                 <div className="relative z-10">
                   <div className="font-display text-2xl text-white">{round.title}</div>
@@ -350,7 +352,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
             ) : (
               <>
                 <div className="relative z-10 h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
-                  {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                  <ArtworkFill url={round.artworkUrl} />
                 </div>
                 <div className="relative z-10">
                   <div className="font-display text-3xl text-white">{round.title}</div>

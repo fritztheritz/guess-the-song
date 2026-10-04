@@ -80,6 +80,17 @@ function scaled(peak: number): number {
   return peak * (volume / 100)
 }
 
+/** Creates/resumes the shared audio context. Phones (iOS especially) only let audio start from a
+ *  tap, so call this from a tap handler early — then cues that fire later, off a socket message
+ *  rather than a tap, can still make sound. */
+export function unlockAudio() {
+  try {
+    void getContext().resume()
+  } catch {
+    // No Web Audio here — sounds just won't play.
+  }
+}
+
 /** A short two-tone arena buzzer, for the Buzzer Beater reveal. Call from a user-gesture handler. */
 export function playBuzzer() {
   if (silent()) return

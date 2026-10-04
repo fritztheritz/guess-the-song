@@ -3,6 +3,9 @@ import type { HostOutMessage, PlayerOutMessage, ServerMessage } from './protocol
 
 type OutMessage = HostOutMessage | PlayerOutMessage
 
+/** 'connecting' before the first open, 'open' while live, 'reconnecting' after a drop. */
+export type SocketStatus = 'connecting' | 'open' | 'reconnecting'
+
 // Phones lock their screens mid-game and mobile browsers suspend/drop the socket when
 // backgrounded — a buzzer that can't recover from that is unusable in practice, so this
 // wraps the raw WebSocket with auto-reconnect (backoff, capped) and a "replay on
@@ -14,6 +17,8 @@ export class BuzzerSocket {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectDelay = 1000
   private handlers = new Set<(msg: ServerMessage) => void>()
+  private statusHandlers = new Set<(status: SocketStatus) => void>()
+  private hasOpened = false
   private replayOnReconnect: OutMessage[] = []
   private code: string
   private role: 'host' | 'player'
@@ -29,6 +34,8 @@ export class BuzzerSocket {
     this.ws = ws
 
     ws.addEventListener('open', () => {
+      this.hasOpened = true
+      this.emitStatus('open')
       this.reconnectDelay = 1000
       for (const msg of this.replayOnReconnect) this.send(msg)
     })
@@ -40,7 +47,10 @@ export class BuzzerSocket {
         // Malformed frame — ignore rather than crash the whole connection over one message.
       }
     })
-    ws.addEventListener('close', () => this.scheduleReconnect())
+    ws.addEventListener('close', () => {
+      if (!this.closedByUser) this.emitStatus(this.hasOpened ? 'reconnecting' : 'connecting')
+      this.scheduleReconnect()
+    })
     ws.addEventListener('error', () => ws.close())
 
     if (typeof document !== 'undefined' && !this.visibilityListenerAttached) {
@@ -75,6 +85,16 @@ export class BuzzerSocket {
 
   send(msg: OutMessage) {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg))
+  }
+
+  private emitStatus(status: SocketStatus) {
+    this.statusHandlers.forEach((h) => h(status))
+  }
+
+  /** Connection state changes — lets the UI say so when the link drops instead of failing silently. */
+  onStatus(handler: (status: SocketStatus) => void): () => void {
+    this.statusHandlers.add(handler)
+    return () => this.statusHandlers.delete(handler)
   }
 
   onMessage(handler: (msg: ServerMessage) => void): () => void {

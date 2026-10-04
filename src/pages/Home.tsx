@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import ButtonLink from '../components/ui/ButtonLink'
+import HomeSection from '../components/HomeSection'
 import EmptyState from '../components/ui/EmptyState'
 import { Link, useNavigate } from 'react-router-dom'
 import { listGames, deleteGame, saveGame, exportAllGames, importGames } from '../lib/storage/game-repository'
@@ -56,6 +57,26 @@ function describeBackupContents(contents: BackupContents): string[] {
     label(contents.timelineGames.length, 'timeline game'),
     label(contents.seasons.length, 'season'),
   ].filter((part): part is string => part !== null)
+}
+
+/** "3 days ago"-style label for a saved timestamp. */
+function timeAgo(iso: string): string {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000))
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.round(hours / 24)
+  return days < 30 ? `${days}d ago` : new Date(iso).toLocaleDateString()
+}
+
+/** Where a game stands: not played, mid-game (with how far), or finished (with the winner). */
+function gameStatus(game: Game): { text: string; tone: 'idle' | 'live' | 'done' } {
+  if (!game.progress) return { text: 'Not played yet', tone: 'idle' }
+  if (!game.progress.completed) return { text: `In progress · possession ${game.progress.possessionIndex + 1} of ${game.rounds.length}`, tone: 'live' }
+  const top = Math.max(...game.teams.map((t) => t.score))
+  const winners = game.teams.filter((t) => t.score === top)
+  return { text: winners.length === 1 ? `🏆 ${winners[0].name} won · ${top}` : `🤝 Tied at ${top}`, tone: 'done' }
 }
 
 export default function Home() {
@@ -311,6 +332,7 @@ export default function Home() {
       timelineGames.length +
       seasons.length >
     0
+  const recentFinished = modeVisibleGames.filter((g) => g.progress?.completed).slice(0, 3)
   const visibleGames = modeVisibleGames.filter((g) => matchesActiveTags(g.tags) && matchesSearch(g.name))
   const visibleTierLists = tierLists.filter((l) => matchesActiveTags(l.tags) && matchesSearch(l.name))
   const visibleTournaments = tournaments.filter((t) => matchesActiveTags(t.tags) && matchesSearch(t.name))
@@ -489,6 +511,25 @@ export default function Home() {
           </div>
         )}
 
+        {recentFinished.length > 0 && searchQuery.trim() === '' && (
+          <div className="mx-auto mt-10 max-w-3xl">
+            <div className="mb-2 text-xs uppercase tracking-widest text-slate-500">Recently finished</div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {recentFinished.map((game) => (
+                <Link
+                  key={game.id}
+                  to={`/games/${game.id}/present`}
+                  className="rounded-xl border border-arena-600 bg-arena-800/60 px-3 py-2 hover:border-hardwood-500"
+                >
+                  <div className="truncate text-sm font-semibold text-slate-100">{game.name}</div>
+                  <div className="truncate text-xs text-scoreboard-green">{gameStatus(game).text}</div>
+                  <div className="text-[11px] text-slate-500">{timeAgo(game.updatedAt)}</div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         {allTags.length > 0 && (
           <div className="mx-auto mt-12 flex max-w-2xl flex-wrap items-center justify-center gap-2">
             <span className="text-xs uppercase tracking-widest text-slate-500">Tags</span>
@@ -514,8 +555,7 @@ export default function Home() {
         )}
 
         {modeVisibleGames.length > 0 && (
-          <div className="mt-16">
-            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR GAMES</h2>
+          <HomeSection id="games" title="YOUR GAMES" count={modeVisibleGames.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleGames.length === 0 ? (
               <EmptyState icon="🔎">No games match your search or filters.</EmptyState>
             ) : (
@@ -538,6 +578,13 @@ export default function Home() {
                     <div className="truncate font-semibold text-slate-100">{game.name}</div>
                     <div className="text-sm text-slate-500">
                       {game.rounds.length} possession{game.rounds.length === 1 ? '' : 's'} · {game.teams.map((t) => t.name).join(' vs ')}
+                    </div>
+                    <div
+                      className={`mt-0.5 text-xs ${
+                        gameStatus(game).tone === 'live' ? 'text-hardwood-400' : gameStatus(game).tone === 'done' ? 'text-scoreboard-green' : 'text-slate-500'
+                      }`}
+                    >
+                      {gameStatus(game).text} · {timeAgo(game.updatedAt)}
                     </div>
                     {game.tags && game.tags.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
@@ -574,12 +621,11 @@ export default function Home() {
               })}
             </div>
             )}
-          </div>
+          </HomeSection>
         )}
 
         {tierListsEnabled && tierLists.length > 0 && (
-          <div className="mt-16">
-            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TIER LISTS</h2>
+          <HomeSection id="tierlists" title="YOUR TIER LISTS" count={tierLists.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleTierLists.length === 0 ? (
               <EmptyState icon="🔎">No tier lists match your search or filters.</EmptyState>
             ) : (
@@ -640,12 +686,11 @@ export default function Home() {
               })}
             </div>
             )}
-          </div>
+          </HomeSection>
         )}
 
         {tournamentsEnabled && tournaments.length > 0 && (
-          <div className="mt-16">
-            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TOURNAMENTS</h2>
+          <HomeSection id="tournaments" title="YOUR TOURNAMENTS" count={tournaments.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleTournaments.length === 0 ? (
               <EmptyState icon="🔎">No tournaments match your search or filters.</EmptyState>
             ) : (
@@ -697,12 +742,11 @@ export default function Home() {
                 ))}
               </div>
             )}
-          </div>
+          </HomeSection>
         )}
 
         {seasonsEnabled && seasons.length > 0 && (
-          <div className="mt-16">
-            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR SEASONS</h2>
+          <HomeSection id="seasons" title="YOUR SEASONS" count={seasons.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleSeasons.length === 0 ? (
               <EmptyState icon="🔎">No seasons match your search.</EmptyState>
             ) : (
@@ -745,12 +789,11 @@ export default function Home() {
                 ))}
               </div>
             )}
-          </div>
+          </HomeSection>
         )}
 
         {draftEnabled && draftBoards.length > 0 && (
-          <div className="mt-16">
-            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR DRAFTS</h2>
+          <HomeSection id="drafts" title="YOUR DRAFTS" count={draftBoards.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleDraftBoards.length === 0 ? (
               <EmptyState icon="🔎">No drafts match your search or filters.</EmptyState>
             ) : (
@@ -797,12 +840,11 @@ export default function Home() {
                 })}
               </div>
             )}
-          </div>
+          </HomeSection>
         )}
 
         {popularityEnabled && popularityGames.length > 0 && (
-          <div className="mt-16">
-            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR POPULARITY GAMES</h2>
+          <HomeSection id="popularity" title="YOUR POPULARITY GAMES" count={popularityGames.length} forceOpen={searchQuery.trim() !== ''}>
             {visiblePopularityGames.length === 0 ? (
               <EmptyState icon="🔎">No popularity games match your search.</EmptyState>
             ) : (
@@ -840,12 +882,11 @@ export default function Home() {
               })}
             </div>
             )}
-          </div>
+          </HomeSection>
         )}
 
         {timelineEnabled && timelineGames.length > 0 && (
-          <div className="mt-16">
-            <h2 className="mb-4 font-display text-2xl tracking-wide text-slate-300">YOUR TIMELINE GAMES</h2>
+          <HomeSection id="timeline" title="YOUR TIMELINE GAMES" count={timelineGames.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleTimelineGames.length === 0 ? (
               <EmptyState icon="🔎">No timeline games match your search.</EmptyState>
             ) : (
@@ -883,7 +924,7 @@ export default function Home() {
               })}
             </div>
             )}
-          </div>
+          </HomeSection>
         )}
 
         <div className="mt-16 text-center">

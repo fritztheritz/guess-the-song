@@ -11,6 +11,7 @@ import type { TimelineGame } from '../types/timeline'
 import ButtonLink from '../components/ui/ButtonLink'
 import EmptyState from '../components/ui/EmptyState'
 import Panel from '../components/ui/Panel'
+import ScoreTrend from '../components/ScoreTrend'
 import AwardsPanel from '../components/AwardsPanel'
 import { aggregatePlayers, computeAwards } from '../lib/achievements'
 import PlayerLeaderboard from '../components/PlayerLeaderboard'
@@ -33,6 +34,7 @@ export default function Stats() {
   const [timelineGames] = useState<TimelineGame[]>(() => listTimelineGames())
 
   const completed = useMemo(() => games.filter((g) => g.progress?.completed), [games])
+  const recentGames = useMemo(() => completed.slice(0, 8).reverse(), [completed])
   const completedPopularity = useMemo(() => popularityGames.filter((g) => g.progress.completed), [popularityGames])
   const completedTimeline = useMemo(() => timelineGames.filter((g) => g.progress.completed), [timelineGames])
   const totalCompleted = completed.length + completedPopularity.length + completedTimeline.length
@@ -109,19 +111,26 @@ export default function Stats() {
               <p className="mb-3 text-xs text-slate-500">Teams matched by name across every completed game.</p>
               <div className="space-y-2">
                 {standings.map((s, i) => (
-                  <Panel key={s.name} padding="sm" className="flex items-center justify-between">
-                    <span className="font-medium" style={{ color: s.color }}>
+                  <Panel key={s.name} padding="sm" className="relative flex items-center justify-between overflow-hidden">
+                    <span
+                      aria-hidden
+                      className="absolute inset-y-0 left-0 opacity-15"
+                      style={{ width: `${Math.max(3, (s.totalScore / Math.max(1, standings[0].totalScore)) * 100)}%`, background: s.color }}
+                    />
+                    <span className="relative font-medium" style={{ color: s.color }}>
                       {i === 0 ? '🏆 ' : ''}
                       {s.name}
                       <span className="ml-2 text-xs text-slate-500">
                         {s.gamesPlayed} game{s.gamesPlayed === 1 ? '' : 's'}
                       </span>
                     </span>
-                    <span className="scoreboard-digit font-display text-lg text-slate-100">{s.totalScore}</span>
+                    <span className="scoreboard-digit relative font-display text-lg text-slate-100">{s.totalScore}</span>
                   </Panel>
                 ))}
               </div>
             </section>
+
+            <ScoreTrend games={recentGames} />
 
             {achievementsEnabled && <AwardsPanel awards={awards} title="ALL-TIME AWARDS" />}
             {achievementsEnabled && <PlayerLeaderboard players={players} />}

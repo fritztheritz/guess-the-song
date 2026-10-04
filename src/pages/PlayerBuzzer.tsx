@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
+import { BuzzerSocket, type SocketStatus } from '../lib/buzzer/buzzer-socket'
+import ConnectionBanner from '../components/ConnectionBanner'
 import type { BuzzState, BuzzerTeam, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
 import PopularityPicker from '../components/PopularityPicker'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import { applyThemeVars } from '../lib/themes'
-import { isSoundMuted, playBuzzIn, playEject, playWrong, setSoundMuted } from '../lib/sound-effects'
+import { isSoundMuted, playBuzzIn, playEject, playWrong, setSoundMuted, unlockAudio } from '../lib/sound-effects'
 
 const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   song: '🎧 Listen up!',
@@ -86,6 +87,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
   const [saved] = useState(() => (activeCode ? loadIdentity(activeCode) : null))
   const [codeInput, setCodeInput] = useState(activeCode ?? '')
   const [connected, setConnected] = useState(false)
+  const [socketStatus, setSocketStatus] = useState<SocketStatus>('connecting')
   const [teams, setTeams] = useState<BuzzerTeam[]>([])
   const [identity, setIdentity] = useState<SavedIdentity | null>(saved)
   const [nameInput, setNameInput] = useState(saved?.name ?? '')
@@ -112,6 +114,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
 
     const socket = new BuzzerSocket(activeCode, 'player')
     socketRef.current = socket
+    const unsubscribeStatus = socket.onStatus(setSocketStatus)
     const unsubscribe = socket.onMessage((msg) => {
       if (msg.type === 'teams') setTeams(msg.teams)
       else if (msg.type === 'state') {
@@ -131,6 +134,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
 
     return () => {
       unsubscribe()
+      unsubscribeStatus()
       socket.close()
       socketRef.current = null
     }
@@ -171,6 +175,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
   }
 
   function handleJoin() {
+    unlockAudio()
     if (!activeCode || !nameInput.trim() || !selectedTeamId) return
     const teamId = selectedTeamId === SPECTATOR_CHOICE ? null : selectedTeamId
     const saved: SavedIdentity = { name: nameInput.trim(), teamId }
@@ -180,6 +185,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
   }
 
   function handleBuzz() {
+    unlockAudio()
     navigator.vibrate?.(40)
     socketRef.current?.send({ type: 'buzz' })
   }
@@ -253,6 +259,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
 
   // One plain-language line for "what is my phone waiting on right now".
   const status: { text: string; tone: keyof typeof STATUS_TONE } = (() => {
+    if (socketStatus === 'reconnecting') return { text: '⚠️ Reconnecting — hang tight', tone: 'stop' }
     if (identity?.teamId === null) return { text: '👀 Watching — enjoy the show', tone: 'wait' }
     if (roundState?.phase === 'final') return { text: '🏁 Game over', tone: 'wait' }
     if (roundState?.phase === 'halftime') return { text: '🏀 Halftime — back soon', tone: 'wait' }
@@ -281,6 +288,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
         <span>Room {activeCode}</span>
         <button
           onClick={() => {
+            unlockAudio()
             setSoundMuted(!soundMuted)
             setSoundMutedState(!soundMuted)
           }}
@@ -291,6 +299,9 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
           {soundMuted ? '🔇 Sound off' : '🔊 Sound on'}
         </button>
       </div>
+
+      {/* Once joined, the status pill below carries the reconnecting message. */}
+      {!identity && <ConnectionBanner status={socketStatus} className="mb-3" />}
 
       {/* Phone-only mode: a phone-safe mirror of what the host has on screen, so the room
           can play with no shared TV/laptop at all — visible even before joining/buzzing. */}
@@ -632,7 +643,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
           ) : (
             <button
               onClick={handleBuzz}
-              disabled={buzzState !== 'open'}
+              disabled={buzzState !== 'open' || socketStatus !== 'open'}
               className="flex h-56 w-56 flex-col items-center justify-center rounded-full bg-scoreboard-500 text-3xl font-display tracking-wide text-white shadow-2xl transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-arena-700 disabled:text-slate-500"
             >
               {buzzState === 'open' ? 'BUZZ!' : 'WAIT…'}

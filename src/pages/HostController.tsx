@@ -17,8 +17,11 @@ import {
 } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
-import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, playEject, playSoundboard } from '../lib/sound-effects'
+import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, playStreak, playEject, playSoundboard } from '../lib/sound-effects'
 import { EJECT_PHRASES, HALFTIME_PROMPTS, MONTH_NAMES, PENDING_GUESSES_KEY, POWER_UP_LABELS, SOUNDBOARD } from '../lib/host-content'
+import ShotClockDigit from '../components/ShotClockDigit'
+import ArtworkFill from '../components/ArtworkFill'
+import Kbd from '../components/Kbd'
 import HostTools from '../components/HostTools'
 import StageStepper from '../components/StageStepper'
 import CreditGrid from '../components/CreditGrid'
@@ -42,7 +45,8 @@ import Scoreboard from '../components/Scoreboard'
 import BuzzerPanel from '../components/BuzzerPanel'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
-import { BuzzerSocket } from '../lib/buzzer/buzzer-socket'
+import { BuzzerSocket, type SocketStatus } from '../lib/buzzer/buzzer-socket'
+import ConnectionBanner from '../components/ConnectionBanner'
 import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
 import type { BuzzState, BuzzerPlayer, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
 
@@ -62,6 +66,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   const suddenDeathEnabled = useFeatureFlag('sudden-death')
   const soundboardEnabled = useFeatureFlag('soundboard')
   const [soundboardOpen, setSoundboardOpen] = useState(false)
+  const [socketStatus, setSocketStatus] = useState<SocketStatus>('connecting')
   const [rematchOpen, setRematchOpen] = useState(false)
   const [rematchShuffle, setRematchShuffle] = useState(true)
   const [rematchHandicap, setRematchHandicap] = useState(0)
@@ -305,6 +310,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     }
     const socket = new BuzzerSocket(current.buzzerRoomCode!, 'host')
     buzzerSocketRef.current = socket
+    const unsubscribeStatus = socket.onStatus(setSocketStatus)
     const unsubscribe = socket.onMessage((msg) => {
       if (msg.type === 'roster') {
         buzzRosterRef.current = msg.players
@@ -335,9 +341,11 @@ export default function HostController({ gameId }: { gameId: string }) {
     setBuzzerConnected(true)
     return () => {
       unsubscribe()
+      unsubscribeStatus()
       socket.close()
       buzzerSocketRef.current = null
       setBuzzerConnected(false)
+      setSocketStatus('connecting')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buzzerEnabled, game?.id])
@@ -518,6 +526,31 @@ export default function HostController({ gameId }: { gameId: string }) {
   useEffect(() => {
     if (phase === 'final') playFanfare()
   }, [phase])
+
+  // A team reaching a 3+ streak gets a short confetti burst (and the streak sound) — a
+  // celebration for the room, separate from the final-score one. Tracks each team's last
+  // seen streak so only a genuine increase fires it.
+  const seenStreaksRef = useRef<Record<string, number>>({})
+  const [streakBurst, setStreakBurst] = useState<number | null>(null)
+  const burstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const streakKey = game?.teams.map((t) => `${t.id}:${t.streak ?? 0}`).join('|') ?? ''
+  useEffect(() => {
+    if (!game || phase === 'final') return
+    let hit = false
+    for (const t of game.teams) {
+      const now = t.streak ?? 0
+      if (now >= 3 && now > (seenStreaksRef.current[t.id] ?? 0)) hit = true
+      seenStreaksRef.current[t.id] = now
+    }
+    if (!hit) return
+    playStreak()
+    // Deferred a tick (not set synchronously in the effect); the stop timer is held in a ref so a
+    // later streak change can't strand the burst on screen.
+    setTimeout(() => setStreakBurst(Date.now()), 0)
+    if (burstTimerRef.current) clearTimeout(burstTimerRef.current)
+    burstTimerRef.current = setTimeout(() => setStreakBurst(null), 3600)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streakKey])
 
   useEffect(() => {
     audioSourceRef.current?.stop()
@@ -942,7 +975,9 @@ export default function HostController({ gameId }: { gameId: string }) {
     const bar = powerUpBar()
     const row = showEject ? ejectRow() : null
     if (!bar && !row) return null
+    const left = powerUpsEnabled && !isTierGuess && !isYear ? game.teams.reduce((n, t) => n + POWER_UP_KINDS.reduce((m, k) => m + powerUpsRemaining(game, t, k), 0), 0) : 0
     const bits = [
+      left > 0 ? `${left} power-up${left === 1 ? '' : 's'} left` : '',
       (game.armedPowerUps?.length ?? 0) > 0 ? `${game.armedPowerUps?.length} armed` : '',
       (game.freezes?.length ?? 0) > 0 ? `${game.freezes?.length} frozen` : '',
       ejectedIds.length > 0 ? `${ejectedIds.length} ejected` : '',
@@ -1526,6 +1561,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   return (
     <div className="fixed inset-0 flex flex-col bg-arena-950 court-lines text-white">
+      {streakBurst && <Confetti key={streakBurst} />}
       {earnBanner && (
         <div className="pointer-events-none absolute inset-x-0 top-3 z-40 flex justify-center">
           <div key={earnBanner.key} className="animate-pop-in rounded-full border border-scoreboard-amber/60 bg-arena-900/95 px-6 py-2 text-lg font-semibold text-scoreboard-amber shadow-xl">
@@ -1558,6 +1594,9 @@ export default function HostController({ gameId }: { gameId: string }) {
             </div>
           </div>
         </div>
+      )}
+      {buzzerEnabled && game.buzzerRoomCode && socketStatus !== 'open' && (
+        <ConnectionBanner status={socketStatus} className="absolute left-1/2 top-14 z-30 -translate-x-1/2 shadow-lg" />
       )}
       <div className="absolute right-4 top-4 z-20 flex flex-wrap justify-end gap-2">
         {buzzerEnabled && game.buzzerRoomCode && (
@@ -1706,14 +1745,14 @@ export default function HostController({ gameId }: { gameId: string }) {
             onClick={() => setPhase('clue')}
             className="rounded-full bg-hardwood-500 px-12 py-4 font-display text-2xl tracking-wide text-arena-950 shadow-xl shadow-hardwood-500/30 hover:bg-hardwood-400"
           >
-            TIP OFF
+            TIP OFF <Kbd>Enter</Kbd>
           </button>
         </div>
       )}
 
       {phase === 'clue' && round && (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-between px-6 py-8">
-          <div className="flex w-full items-center justify-between pr-36 font-display text-lg tracking-widest text-slate-400">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-between px-6 pb-8 pt-16">
+          <div className="flex w-full items-center justify-between font-display text-lg tracking-widest text-slate-400">
             <span>{game.name.toUpperCase()}</span>
             <span>{game.suddenDeath ? '💀 SUDDEN DEATH' : `POSSESSION ${possessionIndex + 1} OF ${game.rounds.length}`}</span>
           </div>
@@ -1753,7 +1792,7 @@ export default function HostController({ gameId }: { gameId: string }) {
               <>
                 {isPlaying ? (
                   <>
-                    <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(shotClock)}</div>
+                    <ShotClockDigit seconds={shotClock} />
                     <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
                   </>
                 ) : (
@@ -1790,7 +1829,7 @@ export default function HostController({ gameId }: { gameId: string }) {
               <>
                 {isPlaying ? (
                   <>
-                    <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(shotClock)}</div>
+                    <ShotClockDigit seconds={shotClock} />
                     <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
                   </>
                 ) : (
@@ -1805,7 +1844,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 <div className="font-display text-3xl tracking-wide text-white">WHAT TIER IS IT IN?</div>
 
                 <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
-                  {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                  <ArtworkFill url={round.artworkUrl} />
                 </div>
 
                 <div>
@@ -1836,7 +1875,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
                 {isPlaying ? (
                   <>
-                    <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(shotClock)}</div>
+                    <ShotClockDigit seconds={shotClock} />
                     <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
                   </>
                 ) : (
@@ -1851,7 +1890,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 <div className="font-display text-3xl tracking-wide text-white">WHAT YEAR IS IT FROM?</div>
 
                 <div className="h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
-                  {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                  <ArtworkFill url={round.artworkUrl} />
                 </div>
 
                 <div>
@@ -1868,7 +1907,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                     ⭐ {game.teams.find((t) => t.id === wagerTeamId)?.name} wagering {wagerAmount} pts
                   </div>
                 )}
-                <div className="scoreboard-digit font-display text-7xl text-scoreboard-amber">{Math.ceil(shotClock)}</div>
+                <ShotClockDigit seconds={shotClock} />
                 <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Shot Clock</div>
 
                 <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE TRACK?</div>
@@ -1925,6 +1964,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 )}
                 <button onClick={reveal} className="rounded-full bg-scoreboard-500 px-5 py-2 text-sm font-semibold text-white hover:bg-scoreboard-500/80">
                   {isTierGuess ? 'REVEAL TIER' : isYear ? 'REVEAL YEAR' : 'REVEAL ANSWER'}
+                  <Kbd>Enter</Kbd>
                 </button>
               </div>
             )}
@@ -1970,7 +2010,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           ) : isTierGuess ? (
             <>
               <div className="relative z-10 h-32 w-32 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
-                {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                <ArtworkFill url={round.artworkUrl} />
               </div>
 
               <div className="relative z-10">
@@ -2048,7 +2088,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           ) : isYear ? (
             <>
               <div className="relative z-10 h-32 w-32 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
-                {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                <ArtworkFill url={round.artworkUrl} />
               </div>
 
               <div className="relative z-10">
@@ -2094,7 +2134,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           ) : (
             <>
               <div className="relative z-10 h-40 w-40 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
-                {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                <ArtworkFill url={round.artworkUrl} />
               </div>
 
               <div className="relative z-10">
@@ -2235,6 +2275,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                     : possessionIndex >= game.rounds.length - 1
                       ? 'FINAL SCORE →'
                       : 'NEXT POSSESSION →'}
+            <Kbd>Enter</Kbd>
           </button>
         </div>
       )}
@@ -2249,7 +2290,7 @@ export default function HostController({ gameId }: { gameId: string }) {
             onClick={() => setPhase('clue')}
             className="rounded-full bg-hardwood-500 px-8 py-3 font-display text-xl tracking-wide text-arena-950 shadow-lg shadow-hardwood-500/20 hover:bg-hardwood-400"
           >
-            SECOND HALF →
+            SECOND HALF → <Kbd>Enter</Kbd>
           </button>
         </div>
       )}

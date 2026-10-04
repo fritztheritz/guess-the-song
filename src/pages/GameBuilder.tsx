@@ -31,6 +31,7 @@ import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
 import { isSpotifyConfigured } from '../lib/spotify/config'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import Panel from '../components/ui/Panel'
+import BuilderSection from '../components/BuilderSection'
 import Button from '../components/ui/Button'
 import { useToast } from '../state/toast-context'
 
@@ -94,11 +95,15 @@ export default function GameBuilder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameId, tierListsEnabled])
 
+  // When this editing session last saved (every change is written straight to this browser).
+  const [savedAt, setSavedAt] = useState<number | null>(null)
+
   const selectedRound = useMemo(() => game?.rounds.find((r) => r.id === selectedRoundId) ?? null, [game, selectedRoundId])
 
   function persist(next: Game) {
     const saved = saveGame(next)
     setGame(saved)
+    setSavedAt(Date.now())
   }
 
   function updateRound(updated: SongRound) {
@@ -372,6 +377,12 @@ export default function GameBuilder() {
             onChange={(e) => persist({ ...game, name: e.target.value })}
             className="bg-transparent font-display text-2xl tracking-wide text-white outline-none focus:border-b focus:border-hardwood-500"
           />
+          <span className="hidden text-xs text-slate-500 sm:inline" role="status">
+            {game.rounds.length} {game.rounds.length === 1 ? 'possession' : 'possessions'} · {game.teams.length} teams ·{' '}
+            <span className="text-scoreboard-green">
+              ✓ {savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'All changes saved'}
+            </span>
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -555,8 +566,7 @@ export default function GameBuilder() {
           </div>
 
           {!isLyric && !isTierGuess && game.rounds.length > 1 && (
-            <div className="mt-6 border-t border-arena-700 pt-3">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Auto Configure</div>
+            <BuilderSection id="auto" title="Auto Configure">
               <label className="mb-1 block text-xs text-slate-500">Start (m:ss)</label>
               <div className="flex gap-2">
                 <input
@@ -572,12 +582,11 @@ export default function GameBuilder() {
               >
                 Apply start to all {game.rounds.length} tracks
               </button>
-            </div>
+            </BuilderSection>
           )}
 
           {(isLyric || isTierGuess || isYear) && (
-            <div className="mt-6 border-t border-arena-700 pt-3">
-              <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Answer Timer</div>
+            <BuilderSection id="timer" title="Answer Timer" summary={(game.answerTimerSeconds ?? DEFAULT_ANSWER_TIMER_SECONDS) + 's'}>
               <label className="mb-1 block text-xs text-slate-500">Seconds to think before reveal</label>
               <input
                 type="number"
@@ -590,10 +599,10 @@ export default function GameBuilder() {
                 }}
                 className="w-full rounded-md border border-arena-700 bg-arena-800 px-2 py-1 text-sm text-slate-100 outline-none focus:border-hardwood-500"
               />
-            </div>
+            </BuilderSection>
           )}
 
-          <div className="mt-6 border-t border-arena-700 pt-3">
+          <BuilderSection id="rules" title="Game rules">
             <label className="flex items-center gap-2 text-sm text-slate-300">
               <input
                 type="checkbox"
@@ -624,11 +633,10 @@ export default function GameBuilder() {
                 <p className="mt-1 text-xs text-slate-500">Trailing by 8+ earns a bonus point on a correct answer; falling 12+ behind gifts a free Steal (needs Power-Ups).</p>
               </>
             )}
-          </div>
+          </BuilderSection>
 
           {powerUpsEnabled && !isTierGuess && !isYear && (
-            <div className="mt-6 border-t border-arena-700 pt-3">
-              <div className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">Power-ups</div>
+            <BuilderSection id="powerups" title="Power-ups">
               <label className="mb-2 flex items-center gap-2 text-sm text-slate-300">
                 <input
                   type="checkbox"
@@ -665,11 +673,10 @@ export default function GameBuilder() {
                   <p className="mt-1 text-xs text-slate-500">How many of each a team can use this game (0 turns one off).</p>
                 </>
               )}
-            </div>
+            </BuilderSection>
           )}
 
-          <div className="mt-6 border-t border-arena-700 pt-3">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Teams</div>
+          <BuilderSection id="teams" title="Teams" summary={`${game.teams.length} teams`}>
             <div className="space-y-1.5">
               {game.teams.map((team) => (
                 <div key={team.id} className="relative flex items-center gap-2">
@@ -752,12 +759,11 @@ export default function GameBuilder() {
                 + Add Team
               </button>
             )}
-          </div>
+          </BuilderSection>
 
-          <div className="mt-6 border-t border-arena-700 pt-3">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Tags</div>
+          <BuilderSection id="tags" title="Tags" summary={(game.tags ?? []).join(', ') || 'none'}>
             <TagInput tags={game.tags ?? []} onChange={updateTags} suggestions={tagSuggestions} listId="game-tag-suggestions" />
-          </div>
+          </BuilderSection>
         </aside>
 
         <main className="flex-1 overflow-y-auto p-8">
