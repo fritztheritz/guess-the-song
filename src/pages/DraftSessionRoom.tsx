@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { DraftBoard, DraftPoolSong, Drafter } from '../types/draft'
 import { snakeOrder, computeDraftStandings } from '../types/draft'
@@ -17,6 +17,11 @@ import DialogShell from '../components/ui/DialogShell'
 import TextInput from '../components/ui/TextInput'
 import Button from '../components/ui/Button'
 import Panel from '../components/ui/Panel'
+import { BuzzerSocket, type SocketStatus } from '../lib/buzzer/buzzer-socket'
+import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
+import type { BuzzerPlayer, PhoneRoundState } from '../lib/buzzer/protocol'
+import JoinQrCode from '../components/JoinQrCode'
+import ConnectionBanner from '../components/ConnectionBanner'
 import DrafterRoster from '../components/DrafterRoster'
 import DraftTurnBanner from '../components/DraftTurnBanner'
 import RosterStrip from '../components/RosterStrip'
@@ -93,6 +98,11 @@ export default function DraftSessionRoom() {
   const soundcloudPlaylistsEnabled = useFeatureFlag('draft-soundcloud-playlists') && isSoundCloudConfigured()
   const [board, setBoard] = useState<DraftBoard | null>(null)
   const [ballotOrder, setBallotOrder] = useState<string[]>([])
+  // Phone voting (ranking phase): drafters join the room from their phones and submit their own ballot.
+  const phoneVotingAvailable = useFeatureFlag('phone-buzzer') && isBuzzerConfigured()
+  const voteSocketRef = useRef<BuzzerSocket | null>(null)
+  const [voteStatus, setVoteStatus] = useState<SocketStatus>('connecting')
+  const [votePlayers, setVotePlayers] = useState<BuzzerPlayer[]>([])
   const [playlistModalDrafterId, setPlaylistModalDrafterId] = useState<string | null>(null)
   const [creatingPlaylistId, setCreatingPlaylistId] = useState<string | null>(null)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
@@ -338,6 +348,101 @@ export default function DraftSessionRoom() {
     })
   }
 
+  function startPhoneVoting() {
+    if (!board || !session) return
+    persist({ ...board, sessions: board.sessions.map((x) => (x.id === session.id ? { ...x, buzzerRoomCode: x.buzzerRoomCode ?? generateRoomCode() } : x)) })
+  }
+
+  function stopPhoneVoting() {
+    if (!board || !session) return
+    persist({ ...board, sessions: board.sessions.map((x) => (x.id === session.id ? { ...x, buzzerRoomCode: undefined } : x)) })
+  }
+
+  // A ballot arriving from a phone. Reads fresh from storage (several can land close together, and
+  // the host may be submitting one on this screen at the same time) and validates it fully — the
+  // sender must be a drafter who hasn't voted, ranking exactly every OTHER drafter once.
+  function receiveBallot(drafterId: string, ranked: string[]) {
+    if (!boardId || !sessionId) return
+    const latest = getDraftBoard(boardId)
+    const sess = latest?.sessions.find((x) => x.id === sessionId)
+    if (!latest || !sess || sess.phase !== 'ranking') return
+    const voter = sess.drafters.find((d) => d.id === drafterId)
+    if (!voter || sess.rankings.some((r) => r.drafterId === drafterId)) return
+    const others = sess.drafters.filter((d) => d.id !== drafterId).map((d) => d.id)
+    const valid = ranked.length === others.length && new Set(ranked).size === ranked.length && ranked.every((id) => others.includes(id))
+    if (!valid) return
+    const rankings = [...sess.rankings, { drafterId, rankedDrafterIds: ranked }]
+    const allDone = rankings.length >= sess.drafters.length
+    persist({
+      ...latest,
+      sessions: latest.sessions.map((x) =>
+        x.id === sessionId ? { ...x, rankings, phase: allDone ? 'complete' : 'ranking', completedAt: allDone ? new Date().toISOString() : x.completedAt } : x,
+      ),
+    })
+    showToast(`${voter.name} submitted a ballot`)
+  }
+
+  const voteCode = phoneVotingAvailable && session?.phase === 'ranking' ? session.buzzerRoomCode : undefined
+  useEffect(() => {
+    if (!voteCode) return
+    const socket = new BuzzerSocket(voteCode, 'host')
+    voteSocketRef.current = socket
+    const offStatus = socket.onStatus(setVoteStatus)
+    const off = socket.onMessage((msg) => {
+      if (msg.type === 'roster') setVotePlayers(msg.players)
+      else if (msg.type === 'ballot') receiveBallot(msg.teamId, msg.rankedTeamIds)
+    })
+    socket.connect()
+    return () => {
+      // Tell phones how it ended before hanging up: all ballots in → final, otherwise voting just stopped.
+      const done = boardId ? getDraftBoard(boardId)?.sessions.find((x) => x.id === sessionId)?.phase === 'complete' : false
+      socket.send({
+        type: 'sync-round',
+        state: {
+          gameName: '',
+          possessionIndex: 0,
+          totalPossessions: 0,
+          phase: done ? 'final' : 'intro',
+          mode: 'draft',
+          clueText: null,
+          revealed: null,
+          teams: [],
+          draft: { rosters: {}, submitted: [] },
+        },
+      })
+      off()
+      offStatus()
+      socket.close()
+      voteSocketRef.current = null
+      setVoteStatus('connecting')
+      setVotePlayers([])
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voteCode])
+
+  // Keep the room's drafters (as "teams") and the phone-safe ranking state current: who can vote, whose
+  // roster is whose (titles only), and who already has. Re-sent on reconnect via sendAndRemember.
+  useEffect(() => {
+    const socket = voteSocketRef.current
+    if (!socket || !board || !session || !voteCode) return
+    socket.sendAndRemember({ type: 'sync-teams', teams: session.drafters.map((d) => ({ id: d.id, name: d.name, color: d.color, avatar: d.avatar })) })
+    const rosters: Record<string, string[]> = {}
+    for (const d of session.drafters) rosters[d.id] = rosterFor(d.id).map((x) => x.title)
+    const state: PhoneRoundState = {
+      gameName: session.name,
+      possessionIndex: 0,
+      totalPossessions: 0,
+      phase: 'ranking',
+      mode: 'draft',
+      clueText: null,
+      revealed: null,
+      teams: session.drafters.map((d) => ({ id: d.id, name: d.name, color: d.color, score: 0, avatar: d.avatar })),
+      draft: { rosters, submitted: session.rankings.map((r) => r.drafterId) },
+    }
+    socket.sendAndRemember({ type: 'sync-round', state })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session, board, voteCode, voteStatus])
+
   function openPresentation() {
     // Built off the current URL (not a hand-written absolute path) so it works unchanged
     // under GitHub Pages' /guess-the-song/ base path — same approach as Game Present mode's
@@ -529,6 +634,59 @@ export default function DraftSessionRoom() {
                   ↩ Undo Last Pick
                 </button>
               )}
+            </div>
+
+            {phoneVotingAvailable && (
+              <Panel padding="md" className="space-y-3">
+                {!session.buzzerRoomCode ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="font-semibold text-slate-100">📱 Vote from phones</div>
+                      <p className="text-sm text-slate-400">Each drafter ranks the others privately on their own phone — nobody sees anyone else's ballot.</p>
+                    </div>
+                    <Button size="sm" onClick={startPhoneVoting}>
+                      Start phone voting
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <JoinQrCode code={session.buzzerRoomCode} size={112} />
+                        <div>
+                          <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Scan or enter the code</div>
+                          <div className="font-display text-3xl tracking-[0.3em] text-white">{session.buzzerRoomCode}</div>
+                          <p className="mt-1 max-w-xs text-xs text-slate-400">Pick your own name on the phone, then rank everyone else. You can still rank on this screen below.</p>
+                        </div>
+                      </div>
+                      <button onClick={stopPhoneVoting} className="text-xs text-slate-500 underline hover:text-slate-300">
+                        Stop phone voting
+                      </button>
+                    </div>
+                    <ConnectionBanner status={voteStatus} />
+                    <div className="flex flex-wrap gap-1.5" aria-label="Phone voting status">
+                      {session.drafters.map((d) => {
+                        const voted = session.rankings.some((r) => r.drafterId === d.id)
+                        const joined = votePlayers.some((p) => p.teamId === d.id)
+                        return (
+                          <span
+                            key={d.id}
+                            className={`rounded-full px-3 py-1 text-xs ${
+                              voted ? 'bg-scoreboard-green/15 text-scoreboard-green' : joined ? 'bg-hardwood-500/20 text-hardwood-300' : 'bg-arena-800 text-slate-500'
+                            }`}
+                          >
+                            {voted ? '✓ Voted' : joined ? '📱 Connected' : '○ Not joined'} · {d.name}
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </>
+                )}
+              </Panel>
+            )}
+
+            <div className="pt-1 text-center text-xs uppercase tracking-widest text-slate-500">
+              {phoneVotingAvailable && session.buzzerRoomCode ? 'Or rank on this screen' : ''}
             </div>
 
             <div className="space-y-2">

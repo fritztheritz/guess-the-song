@@ -29,8 +29,8 @@ export interface BuzzerWinner {
   reactionMs: number | null
 }
 
-export type PhonePhase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime' | 'suddendeath'
-export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year' | 'popularity'
+export type PhonePhase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime' | 'suddendeath' | 'ranking'
+export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year' | 'popularity' | 'draft'
 
 // A deliberately reduced view of the game, computed host-side and pushed down through the
 // same room every buzz already flows through — Phone Buzz-In's players are on their own
@@ -53,6 +53,10 @@ export interface PhoneRoundState {
   /** Venue theme (Themes flag): CSS-variable overrides the host's own skin resolves to, so
    *  guests' phones match the room. Absent = the default Arena skin. */
   theme?: Record<string, string>
+  /** mode: "draft" only — what a drafter's phone needs to cast a ranking ballot. The room's `teams`
+   *  are the drafters; `rosters` maps each drafter id to the titles they picked (so a voter can
+   *  tell whose roster is whose), and `submitted` lists who has already voted. */
+  draft?: { rosters: Record<string, string[]>; submitted: string[] }
   /** Year/Tier Guess, while a guess window is open: how many teams have a guess in. */
   guessProgress?: { teamsIn: number; of: number }
   /** Sudden death is in progress — teams not tied for the lead are sitting it out. */
@@ -112,6 +116,10 @@ export type PlayerOutMessage =
   | { type: 'buzz' }
   /** Only accepted from whoever's currently locked in as the buzz winner — see buzzer-room.js. */
   | { type: 'guess'; text: string }
+  /** Draft ranking: a drafter's ballot — every OTHER drafter's id, best roster first. Host-only,
+   *  never relayed to other players. Whose ballot it is comes from the Worker's own record of
+   *  the sender's team, not from the message. */
+  | { type: 'ballot'; rankedTeamIds: string[] }
 
 export type ServerMessage =
   | { type: 'state'; buzzState: BuzzState; winner: BuzzerWinner | null; order: BuzzerWinner[]; iced: string[] }
@@ -121,3 +129,5 @@ export type ServerMessage =
   | { type: 'joined'; connId: string }
   /** Host-only — never relayed to other players. What the current buzz winner typed. */
   | { type: 'guess'; connId: string; text: string }
+  /** Host-only — a drafter's ranking ballot. teamId is the sender's own drafter id. */
+  | { type: 'ballot'; connId: string; teamId: string; rankedTeamIds: string[] }

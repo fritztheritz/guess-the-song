@@ -4,6 +4,7 @@ import { BuzzerSocket, type SocketStatus } from '../lib/buzzer/buzzer-socket'
 import ConnectionBanner from '../components/ConnectionBanner'
 import type { BuzzState, BuzzerTeam, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
 import PopularityPicker from '../components/PopularityPicker'
+import DraftBallot from '../components/DraftBallot'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import { applyThemeVars } from '../lib/themes'
 import { isSoundMuted, playBuzzIn, playEject, playWrong, setSoundMuted, unlockAudio } from '../lib/sound-effects'
@@ -14,6 +15,7 @@ const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   tierguess: '🎯 Guess the ranking!',
   lyric: '📝 Finish the lyric',
   popularity: '📈 Guess the popularity rank',
+  draft: '🏀 Draft night',
 }
 
 // Short labels for the month tap-grid (guessStage: 'guessMonth') — full names would wrap
@@ -260,6 +262,17 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
   // One plain-language line for "what is my phone waiting on right now".
   const status: { text: string; tone: keyof typeof STATUS_TONE } = (() => {
     if (socketStatus === 'reconnecting') return { text: '⚠️ Reconnecting — hang tight', tone: 'stop' }
+    if (roundState?.mode === 'draft') {
+      if (identity?.teamId === null) return { text: '👀 Watching the draft', tone: 'wait' }
+      if (roundState.phase === 'final') return { text: '🏁 Draft complete — check the screen', tone: 'wait' }
+      if (roundState.phase === 'ranking') {
+        const mine = identity?.teamId ?? ''
+        return roundState.draft?.submitted.includes(mine)
+          ? { text: '✓ Ballot in — waiting for the others', tone: 'go' }
+          : { text: '🗳️ Your ballot — rank everyone else', tone: 'go' }
+      }
+      return { text: '⏳ Waiting for the host', tone: 'wait' }
+    }
     if (identity?.teamId === null) return { text: '👀 Watching — enjoy the show', tone: 'wait' }
     if (roundState?.phase === 'final') return { text: '🏁 Game over', tone: 'wait' }
     if (roundState?.phase === 'halftime') return { text: '🏀 Halftime — back soon', tone: 'wait' }
@@ -335,6 +348,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             <div className="text-sm text-slate-400">Get ready…</div>
           )}
           {roundState.phase === 'halftime' && <div className="text-sm text-slate-300">🏀 Halftime — back soon</div>}
+          {roundState.mode === 'draft' && roundState.phase === 'ranking' && <div className="text-sm text-hardwood-300">📊 Time to rank the rosters</div>}
           {roundState.phase === 'suddendeath' && <div className="text-sm text-scoreboard-500">💀 Sudden death — look at the screen</div>}
           {roundState.phase === 'final' && (
             <div className="text-sm text-slate-300">
@@ -349,7 +363,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             .sort((a, b) => b.score - a.score)
             .map((t) => (
               <span key={t.id} className="rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: `${t.color}22`, color: t.color }}>
-                {t.avatar ? `${t.avatar} ` : ''}{t.name} {t.score}
+                {t.avatar ? `${t.avatar} ` : ''}{t.name}{roundState.mode === 'draft' ? '' : ` ${t.score}`}
               </span>
             ))}
         </div>
@@ -429,7 +443,29 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             {status.text}
           </div>
 
-          {roundState?.mode === 'popularity' ? (
+          {roundState?.mode === 'draft' ? (
+            roundState.phase === 'final' ? (
+              <p className="text-sm text-slate-400">That's the draft — check the screen for the final standings. 🏆</p>
+            ) : roundState.phase !== 'ranking' ? (
+              <p className="text-sm text-slate-400">Ranking opens once the draft's picks are in — hang tight.</p>
+            ) : identity?.teamId === null ? (
+              <p className="text-sm text-slate-400">Just watching — drafters are casting their ballots.</p>
+            ) : roundState.draft?.submitted.includes(identity?.teamId ?? '') ? (
+              <div role="status" className="rounded-xl border-2 border-scoreboard-green bg-scoreboard-green/15 px-5 py-4 text-scoreboard-green">
+                <div className="font-display text-xl tracking-wide">✓ BALLOT SUBMITTED</div>
+                <div className="text-xs text-slate-300">
+                  {roundState.draft.submitted.length} of {roundState.teams.length} in
+                </div>
+              </div>
+            ) : (
+              <DraftBallot
+                key={identity?.teamId ?? 'none'}
+                drafters={roundState.teams.filter((t) => t.id !== identity?.teamId)}
+                rosters={roundState.draft?.rosters ?? {}}
+                onSubmit={(rankedTeamIds) => socketRef.current?.send({ type: 'ballot', rankedTeamIds })}
+              />
+            )
+          ) : roundState?.mode === 'popularity' ? (
             roundState.phase === 'final' || !roundState.popularity ? (
               <p className="text-sm text-slate-400">That's the board — check the screen for the results.</p>
             ) : identity?.teamId === null ? (

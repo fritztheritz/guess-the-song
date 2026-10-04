@@ -8,6 +8,7 @@ import SoundControl from '../components/SoundControl'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
 import FinalPodium from '../components/FinalPodium'
+import JoinQrCode from '../components/JoinQrCode'
 import ProgressRing from '../components/ProgressRing'
 import { PopReveal } from '../components/Reveal'
 
@@ -191,6 +192,15 @@ export default function DraftPresentation() {
             <p className="mt-2 text-slate-400">
               {session.rankings.length} of {session.drafters.length} ballots submitted
             </p>
+            {session.buzzerRoomCode && (
+              <div className="mx-auto mt-5 flex w-fit items-center gap-4 rounded-2xl border border-arena-700 bg-arena-900/60 px-5 py-3">
+                <JoinQrCode code={session.buzzerRoomCode} size={110} />
+                <div className="text-left">
+                  <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Vote from your phone</div>
+                  <div className="font-display text-3xl tracking-[0.3em] text-white">{session.buzzerRoomCode}</div>
+                </div>
+              </div>
+            )}
             <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
               {session.drafters.map((d) => {
                 const done = session.rankings.some((r) => r.drafterId === d.id)

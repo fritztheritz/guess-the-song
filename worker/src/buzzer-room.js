@@ -198,6 +198,14 @@ export class BuzzerRoom {
       // cover Year/Tier Guess's free-for-all guesses too, or ejecting a team would do nothing there.
       if (this.buzzState === 'open' && player.teamId && this.iced.has(player.teamId)) return
       this.broadcastToHost({ type: 'guess', connId: player.connId, text: msg.text.slice(0, 200) })
+    } else if (msg.type === 'ballot' && Array.isArray(msg.rankedTeamIds)) {
+      // Draft ranking: a drafter's ballot, host-only like 'guess'. Whose ballot it is comes from the
+      // sender's own joined team (a spectator has none, so can't vote) — never from the message, so
+      // one phone can't vote as someone else. The host validates the ranking itself.
+      const player = this.players.get(socket)
+      if (!player || player.teamId === null) return
+      const ids = msg.rankedTeamIds.filter((id) => typeof id === 'string').slice(0, 20).map((id) => id.slice(0, 100))
+      this.broadcastToHost({ type: 'ballot', connId: player.connId, teamId: player.teamId, rankedTeamIds: ids })
     }
   }
 

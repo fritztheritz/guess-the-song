@@ -63,6 +63,9 @@ export interface DraftSession {
   rankings: DraftRanking[]
   createdAt: string
   completedAt?: string
+  /** Set while phone voting is on for the ranking phase — the room drafters join from their
+   *  phones to submit their own ballot (see DraftSessionRoom / PlayerBuzzer's draft mode). */
+  buzzerRoomCode?: string
 }
 
 export interface DraftBoard {
