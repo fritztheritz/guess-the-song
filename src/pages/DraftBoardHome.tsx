@@ -36,9 +36,38 @@ export default function DraftBoardHome() {
   const [importOpen, setImportOpen] = useState(false)
   const [spotifyImportOpen, setSpotifyImportOpen] = useState(false)
   const [newSessionOpen, setNewSessionOpen] = useState(false)
+  // The pool is reference material, so it starts collapsed and remembers the choice per draft.
+  const poolKey = `gts.draft.poolOpen.${boardId}`
+  const [poolOpen, setPoolOpen] = useState(() => {
+    try {
+      return localStorage.getItem(poolKey) === '1'
+    } catch {
+      return false
+    }
+  })
+  const togglePool = () => {
+    const next = !poolOpen
+    setPoolOpen(next)
+    try {
+      localStorage.setItem(poolKey, next ? '1' : '0')
+    } catch {
+      // Best-effort only.
+    }
+  }
+  const [poolQuery, setPoolQuery] = useState('')
+  const [poolFilter, setPoolFilter] = useState<'all' | 'available' | 'taken'>('all')
 
   const availableSongs = useMemo(() => board?.songPool.filter((s) => !s.takenBySessionId) ?? [], [board])
   const takenSongs = useMemo(() => board?.songPool.filter((s) => s.takenBySessionId) ?? [], [board])
+
+  const visiblePool = useMemo(() => {
+    const q = poolQuery.trim().toLowerCase()
+    return (board?.songPool ?? []).filter(
+      (s) =>
+        (poolFilter === 'all' || (poolFilter === 'taken') === !!s.takenBySessionId) &&
+        (!q || `${s.title} ${s.artist}`.toLowerCase().includes(q)),
+    )
+  }, [board, poolQuery, poolFilter])
 
   function persist(next: DraftBoard) {
     setBoard(saveDraftBoard(next))
@@ -153,11 +182,83 @@ export default function DraftBoardHome() {
           />
         </div>
 
-        <Panel padding="lg">
-          <div className="mb-3 flex items-center justify-between">
-            <div className="font-display text-xl tracking-wide text-hardwood-400">
-              SONG POOL <span className="text-sm text-slate-500">({availableSongs.length} available{takenSongs.length > 0 ? `, ${takenSongs.length} taken` : ''})</span>
+        {/* Sessions come first — they're what you open the draft to get to. The song pool is
+            reference material (and can be hundreds of tracks), so it sits below, collapsed by
+            default, as a compact searchable list instead of a wall of artwork. */}
+        <section>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="font-display text-xl tracking-wide text-hardwood-400">DRAFT SESSIONS</div>
+              <div className="text-xs text-slate-500">
+                {board.sessions.length} session{board.sessions.length === 1 ? '' : 's'} · {availableSongs.length} song{availableSongs.length === 1 ? '' : 's'} still available
+              </div>
             </div>
+            <Button size="sm" onClick={() => setNewSessionOpen(true)} disabled={availableSongs.length === 0}>
+              + New Session
+            </Button>
+          </div>
+
+          {board.sessions.length === 0 ? (
+            <EmptyState
+              icon="🏀"
+              action={
+                availableSongs.length === 0 ? (
+                  <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
+                    + Add songs first
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={() => setNewSessionOpen(true)}>
+                    + Start a draft
+                  </Button>
+                )
+              }
+            >
+              {availableSongs.length === 0 ? 'No draft sessions yet — add songs to the pool, then start one.' : 'No draft sessions yet.'}
+            </EmptyState>
+          ) : (
+            <div className="space-y-2">
+              {[...board.sessions].reverse().map((session) => (
+                <Panel
+                  key={session.id}
+                  padding="sm"
+                  highlight={session.phase !== 'complete'}
+                  className="group flex items-center gap-2 hover:border-hardwood-500"
+                >
+                  <Link to={`/drafts/${board.id}/sessions/${session.id}`} className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-semibold text-slate-100">{session.name}</div>
+                      <div className="text-xs text-slate-500">
+                        {session.drafters.length} drafters · {session.picksPerDrafter} picks each
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-sm text-slate-400">{PHASE_LABEL[session.phase]}</span>
+                  </Link>
+                  <button
+                    onClick={() => deleteSession(session)}
+                    aria-label={`Delete ${session.name}`}
+                    className="shrink-0 rounded-full p-1.5 text-slate-500 opacity-0 hover:text-scoreboard-500 focus:opacity-100 group-hover:opacity-100"
+                  >
+                    ✕
+                  </button>
+                </Panel>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <Panel padding="lg">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <button
+              onClick={togglePool}
+              aria-expanded={poolOpen}
+              className="flex items-center gap-2 text-left font-display text-xl tracking-wide text-hardwood-400 hover:text-hardwood-300"
+            >
+              <span aria-hidden>{poolOpen ? '▾' : '▸'}</span>
+              SONG POOL
+              <span className="text-sm font-normal tracking-normal text-slate-500">
+                {availableSongs.length} available{takenSongs.length > 0 ? `, ${takenSongs.length} taken` : ''}
+              </span>
+            </button>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
                 + From SoundCloud
@@ -173,90 +274,88 @@ export default function DraftBoardHome() {
             </div>
           </div>
 
-          {board.songPool.length === 0 ? (
-            <EmptyState icon="📂">No songs yet — import some to build the pool before starting a draft.</EmptyState>
-          ) : (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
-              {board.songPool.map((song) => {
-                const takenSession = song.takenBySessionId ? board.sessions.find((s) => s.id === song.takenBySessionId) : undefined
-                const takenDrafter = takenSession?.drafters.find((d) => d.id === song.takenByDrafterId)
-                return (
-                  <div
-                    key={song.id}
-                    className={`group relative flex flex-col overflow-hidden rounded-xl border bg-arena-800 text-left ${
-                      song.takenBySessionId ? 'border-arena-700 opacity-50' : 'border-arena-600'
-                    }`}
-                  >
-                    {!song.takenBySessionId && (
-                      <button
-                        onClick={() => removeSong(song)}
-                        aria-label={`Remove ${song.title}`}
-                        className="absolute right-1.5 top-1.5 z-10 hidden h-6 w-6 items-center justify-center rounded-full bg-black/60 text-xs text-slate-300 hover:text-scoreboard-500 group-hover:flex"
-                      >
-                        ✕
-                      </button>
-                    )}
-                    <div className="aspect-square w-full bg-arena-700">
-                      {song.artworkUrl ? <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" /> : (
-                        <div className="flex h-full w-full items-center justify-center text-3xl text-arena-500">♪</div>
-                      )}
-                    </div>
-                    <div className="p-2.5">
-                      <div className="truncate text-sm font-semibold text-slate-100" title={song.title}>
-                        {song.title}
-                      </div>
-                      <div className="truncate text-xs text-slate-400" title={song.artist}>
-                        {song.artist}
-                      </div>
-                      {takenSession && (
-                        <div className="mt-1 truncate text-[11px]" style={{ color: takenDrafter?.color }}>
-                          {takenDrafter?.avatar ? `${takenDrafter.avatar} ` : ''}
-                          {takenDrafter?.name ?? 'Taken'} · {takenSession.name}
-                        </div>
-                      )}
-                    </div>
+          {poolOpen &&
+            (board.songPool.length === 0 ? (
+              <div className="mt-3">
+                <EmptyState icon="📂">No songs yet — import some to build the pool before starting a draft.</EmptyState>
+              </div>
+            ) : (
+              <div className="mt-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative min-w-[12rem] flex-1">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
+                    <input
+                      value={poolQuery}
+                      onChange={(e) => setPoolQuery(e.target.value)}
+                      placeholder="Search the pool…"
+                      aria-label="Search the song pool"
+                      className="w-full rounded-full border border-arena-600 bg-arena-800 py-1.5 pl-9 pr-3 text-sm text-slate-100 outline-none focus:border-hardwood-500"
+                    />
                   </div>
-                )
-              })}
-            </div>
-          )}
+                  {(['all', 'available', 'taken'] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setPoolFilter(f)}
+                      aria-pressed={poolFilter === f}
+                      className={`rounded-full px-3 py-1 text-xs font-medium capitalize ${
+                        poolFilter === f ? 'bg-hardwood-500 text-arena-950' : 'border border-arena-600 text-slate-300 hover:border-hardwood-500'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+
+                {visiblePool.length === 0 ? (
+                  <EmptyState icon="🔎">No songs match.</EmptyState>
+                ) : (
+                  <ul className="max-h-96 divide-y divide-arena-700 overflow-y-auto rounded-xl border border-arena-700">
+                    {visiblePool.map((song) => {
+                      const takenSession = song.takenBySessionId ? board.sessions.find((s) => s.id === song.takenBySessionId) : undefined
+                      const takenDrafter = takenSession?.drafters.find((d) => d.id === song.takenByDrafterId)
+                      return (
+                        <li key={song.id} className={`group flex items-center gap-3 px-3 py-2 ${song.takenBySessionId ? 'opacity-50' : ''}`}>
+                          <div className="h-10 w-10 shrink-0 overflow-hidden rounded-md bg-arena-700">
+                            {song.artworkUrl ? (
+                              <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-lg text-arena-500">♪</div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-semibold text-slate-100" title={song.title}>
+                              {song.title}
+                            </div>
+                            <div className="truncate text-xs text-slate-400" title={song.artist}>
+                              {song.artist}
+                            </div>
+                          </div>
+                          {takenSession && (
+                            <div className="hidden max-w-[40%] shrink-0 truncate text-[11px] sm:block" style={{ color: takenDrafter?.color }}>
+                              {takenDrafter?.avatar ? `${takenDrafter.avatar} ` : ''}
+                              {takenDrafter?.name ?? 'Taken'} · {takenSession.name}
+                            </div>
+                          )}
+                          {!song.takenBySessionId && (
+                            <button
+                              onClick={() => removeSong(song)}
+                              aria-label={`Remove ${song.title}`}
+                              className="shrink-0 rounded-full p-1.5 text-xs text-slate-500 opacity-0 hover:text-scoreboard-500 focus:opacity-100 group-hover:opacity-100"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+                <div className="text-xs text-slate-500">
+                  Showing {visiblePool.length} of {board.songPool.length}
+                </div>
+              </div>
+            ))}
         </Panel>
-
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <div className="font-display text-xl tracking-wide text-hardwood-400">DRAFT SESSIONS</div>
-            <Button variant="outline" size="sm" onClick={() => setNewSessionOpen(true)} disabled={availableSongs.length === 0}>
-              + New Session
-            </Button>
-          </div>
-
-          {board.sessions.length === 0 ? (
-            <EmptyState icon="🏀">No draft sessions yet.</EmptyState>
-          ) : (
-            <div className="space-y-2">
-              {[...board.sessions].reverse().map((session) => (
-                <Panel key={session.id} padding="sm" className="group flex items-center gap-2 hover:border-hardwood-500">
-                  <Link to={`/drafts/${board.id}/sessions/${session.id}`} className="flex min-w-0 flex-1 items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="truncate font-semibold text-slate-100">{session.name}</div>
-                      <div className="text-xs text-slate-500">
-                        {session.drafters.length} drafters · {session.picksPerDrafter} picks each
-                      </div>
-                    </div>
-                    <span className="shrink-0 text-sm text-slate-400">{PHASE_LABEL[session.phase]}</span>
-                  </Link>
-                  <button
-                    onClick={() => deleteSession(session)}
-                    aria-label={`Delete ${session.name}`}
-                    className="shrink-0 rounded-full p-1.5 text-slate-500 opacity-0 hover:text-scoreboard-500 group-hover:opacity-100"
-                  >
-                    ✕
-                  </button>
-                </Panel>
-              ))}
-            </div>
-          )}
-        </div>
 
         <div>
           <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-slate-500">Tags</div>

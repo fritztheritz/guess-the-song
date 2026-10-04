@@ -23,6 +23,7 @@ function DrafterRoster({
   songs,
   highlight,
   onCreatePlaylist,
+  createDisabledReason,
   onResetPlaylist,
   onPreviewSong,
   previewingSongId,
@@ -33,6 +34,8 @@ function DrafterRoster({
   /** Opens the naming modal. Only passed on the listening screen, and only when the drafter
    *  has an eligible song. */
   onCreatePlaylist?: () => void
+  /** When set, the Create button shows but is disabled, with this as the reason (instead of silently vanishing). */
+  createDisabledReason?: string
   /** Clears a stale/broken playlist link so "Create" reappears. Only passed on the listening
    *  screen, alongside onCreatePlaylist — covers links made before the secret_token fix, or a
    *  playlist deleted on SoundCloud's side. */
@@ -63,7 +66,12 @@ function DrafterRoster({
           </div>
         ) : (
           onCreatePlaylist && (
-            <button onClick={onCreatePlaylist} className="shrink-0 text-xs text-slate-400 hover:text-[#ff7733]">
+            <button
+              onClick={onCreatePlaylist}
+              disabled={!!createDisabledReason}
+              title={createDisabledReason}
+              className="shrink-0 text-xs text-slate-400 enabled:hover:text-[#ff7733] disabled:cursor-not-allowed disabled:opacity-40"
+            >
               🎵 Create
             </button>
           )
@@ -559,9 +567,10 @@ export default function DraftSessionRoom() {
                     drafter={drafter}
                     songs={songs}
                     onCreatePlaylist={
-                      soundcloudPlaylistsEnabled && soundcloud.connection && soundcloudSongsFor(drafter.id).length > 0
-                        ? () => setPlaylistModalDrafterId(drafter.id)
-                        : undefined
+                      soundcloudPlaylistsEnabled && soundcloud.connection ? () => setPlaylistModalDrafterId(drafter.id) : undefined
+                    }
+                    createDisabledReason={
+                      soundcloudSongsFor(drafter.id).length === 0 ? "None of this drafter's picks are SoundCloud tracks, so there's nothing to put in a playlist" : undefined
                     }
                     onResetPlaylist={soundcloudPlaylistsEnabled && soundcloud.connection ? () => resetPlaylistFor(drafter.id) : undefined}
                     onPreviewSong={
