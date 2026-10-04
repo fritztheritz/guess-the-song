@@ -5,6 +5,8 @@ import ConnectionBanner from '../components/ConnectionBanner'
 import type { BuzzState, BuzzerTeam, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
 import PopularityPicker from '../components/PopularityPicker'
 import DraftBallot from '../components/DraftBallot'
+import TierBallot from '../components/TierBallot'
+import { encodeTierBallot } from '../lib/tierlist-ballot'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import { applyThemeVars } from '../lib/themes'
 import { isSoundMuted, playBuzzIn, playEject, playWrong, setSoundMuted, unlockAudio } from '../lib/sound-effects'
@@ -16,6 +18,7 @@ const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   lyric: '📝 Finish the lyric',
   popularity: '📈 Guess the popularity rank',
   draft: '🏀 Draft night',
+  tierlist: '🏆 Group tier list',
 }
 
 // Short labels for the month tap-grid (guessStage: 'guessMonth') — full names would wrap
@@ -176,10 +179,13 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
     if (trimmed) navigate(`/buzz/${trimmed}`)
   }
 
+  // A room with a single team (Group ranking's one "Voters" team) has nothing to pick.
+  const chosenTeamId = selectedTeamId ?? (teams.length === 1 ? teams[0].id : null)
+
   function handleJoin() {
     unlockAudio()
-    if (!activeCode || !nameInput.trim() || !selectedTeamId) return
-    const teamId = selectedTeamId === SPECTATOR_CHOICE ? null : selectedTeamId
+    if (!activeCode || !nameInput.trim() || !chosenTeamId) return
+    const teamId = chosenTeamId === SPECTATOR_CHOICE ? null : chosenTeamId
     const saved: SavedIdentity = { name: nameInput.trim(), teamId }
     setIdentity(saved)
     saveIdentity(activeCode, saved)
@@ -262,6 +268,13 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
   // One plain-language line for "what is my phone waiting on right now".
   const status: { text: string; tone: keyof typeof STATUS_TONE } = (() => {
     if (socketStatus === 'reconnecting') return { text: '⚠️ Reconnecting — hang tight', tone: 'stop' }
+    if (roundState?.mode === 'tierlist') {
+      if (roundState.phase === 'final') return { text: '🏁 Voting closed — check the screen', tone: 'wait' }
+      if (identity?.teamId === null) return { text: '👀 Watching the vote', tone: 'wait' }
+      return myConnId && roundState.tierlist?.submitted.includes(myConnId)
+        ? { text: '✓ Tier list in — waiting for the others', tone: 'go' }
+        : { text: '🗳️ Your turn — tier every song', tone: 'go' }
+    }
     if (roundState?.mode === 'draft') {
       if (identity?.teamId === null) return { text: '👀 Watching the draft', tone: 'wait' }
       if (roundState.phase === 'final') return { text: '🏁 Draft complete — check the screen', tone: 'wait' }
@@ -350,7 +363,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
           {roundState.phase === 'halftime' && <div className="text-sm text-slate-300">🏀 Halftime — back soon</div>}
           {roundState.mode === 'draft' && roundState.phase === 'ranking' && <div className="text-sm text-hardwood-300">📊 Time to rank the rosters</div>}
           {roundState.phase === 'suddendeath' && <div className="text-sm text-scoreboard-500">💀 Sudden death — look at the screen</div>}
-          {roundState.phase === 'final' && (
+          {roundState.phase === 'final' && roundState.teams.length > 0 && (
             <div className="text-sm text-slate-300">
               🏆 {[...roundState.teams].sort((a, b) => b.score - a.score)[0]?.name ?? '—'} wins!
             </div>
@@ -384,16 +397,16 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                 className="w-full rounded-xl border border-arena-600 bg-arena-800 px-4 py-3 text-center text-lg text-white outline-none focus:border-hardwood-500"
               />
               <div>
-                <div className="mb-2 text-sm text-slate-400">Pick your team</div>
+                {teams.length !== 1 && <div className="mb-2 text-sm text-slate-400">Pick your team</div>}
                 <div className="grid grid-cols-2 gap-2">
                   {teams.map((team) => (
                     <button
                       key={team.id}
                       onClick={() => setSelectedTeamId(team.id)}
                       className={`rounded-xl border-2 px-3 py-3 font-semibold ${
-                        selectedTeamId === team.id ? 'border-white' : 'border-transparent'
+                        chosenTeamId === team.id ? 'border-white' : 'border-transparent'
                       }`}
-                      style={{ background: `${team.color}22`, color: team.color, borderColor: selectedTeamId === team.id ? team.color : 'transparent' }}
+                      style={{ background: `${team.color}22`, color: team.color, borderColor: chosenTeamId === team.id ? team.color : 'transparent' }}
                     >
                       {team.avatar ? `${team.avatar} ` : ''}
                       {team.name}
@@ -413,7 +426,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
               )}
               <button
                 onClick={handleJoin}
-                disabled={!nameInput.trim() || !selectedTeamId}
+                disabled={!nameInput.trim() || !chosenTeamId}
                 className="w-full rounded-full bg-hardwood-500 py-3 font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
               >
                 READY
@@ -443,7 +456,24 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             {status.text}
           </div>
 
-          {roundState?.mode === 'draft' ? (
+          {roundState?.mode === 'tierlist' ? (
+            roundState.phase === 'final' || !roundState.tierlist ? (
+              <p className="text-sm text-slate-400">Voting's closed — check the screen for the group's tier list. 🏆</p>
+            ) : identity?.teamId === null ? (
+              <p className="text-sm text-slate-400">Just watching — everyone else is tiering the songs.</p>
+            ) : myConnId && roundState.tierlist.submitted.includes(myConnId) ? (
+              <div role="status" className="rounded-xl border-2 border-scoreboard-green bg-scoreboard-green/15 px-5 py-4 text-scoreboard-green">
+                <div className="font-display text-xl tracking-wide">✓ TIER LIST SUBMITTED</div>
+                <div className="text-xs text-slate-300">{roundState.tierlist.submitted.length} in so far</div>
+              </div>
+            ) : (
+              <TierBallot
+                key={roundState.gameName}
+                state={roundState.tierlist}
+                onSubmit={(tierIndexes) => socketRef.current?.send({ type: 'ballot', rankedTeamIds: encodeTierBallot(tierIndexes) })}
+              />
+            )
+          ) : roundState?.mode === 'draft' ? (
             roundState.phase === 'final' ? (
               <p className="text-sm text-slate-400">That's the draft — check the screen for the final standings. 🏆</p>
             ) : roundState.phase !== 'ranking' ? (

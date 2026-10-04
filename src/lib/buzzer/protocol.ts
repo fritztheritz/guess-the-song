@@ -30,7 +30,7 @@ export interface BuzzerWinner {
 }
 
 export type PhonePhase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime' | 'suddendeath' | 'ranking'
-export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year' | 'popularity' | 'draft'
+export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year' | 'popularity' | 'draft' | 'tierlist'
 
 // A deliberately reduced view of the game, computed host-side and pushed down through the
 // same room every buzz already flows through — Phone Buzz-In's players are on their own
@@ -57,6 +57,14 @@ export interface PhoneRoundState {
    *  are the drafters; `rosters` maps each drafter id to the titles they picked (so a voter can
    *  tell whose roster is whose), and `submitted` lists who has already voted. */
   draft?: { rosters: Record<string, string[]>; submitted: string[] }
+  /** mode: "tierlist" only — Group ranking: everyone on a phone files every song into a tier. `songs`
+   *  is the order the ballot's digits follow; `submitted` lists the connIds that have voted. A
+   *  voter's ballot rides the `ballot` message (see lib/tierlist-ballot.ts for the packing). */
+  tierlist?: {
+    songs: Array<{ id: string; title: string; artist: string; artworkUrl?: string }>
+    tiers: Array<{ name: string; color: string }>
+    submitted: string[]
+  }
   /** Year/Tier Guess, while a guess window is open: how many teams have a guess in. */
   guessProgress?: { teamsIn: number; of: number }
   /** Sudden death is in progress — teams not tied for the lead are sitting it out. */

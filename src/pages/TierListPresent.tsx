@@ -11,6 +11,9 @@ import Confetti from '../components/Confetti'
 import ProgressRing from '../components/ProgressRing'
 import Button from '../components/ui/Button'
 import Kbd from '../components/Kbd'
+import TierListGroupRanking from '../components/TierListGroupRanking'
+import { isBuzzerConfigured } from '../lib/buzzer/config'
+import { useFeatureFlag } from '../state/feature-flags-context'
 import { downloadTierListImage } from '../lib/tierlist-image'
 import { useStoredEntity } from '../lib/use-stored-entity'
 
@@ -231,6 +234,7 @@ function tierForKey(tiers: TierList['tiers'], key: string): string | null {
 export default function TierListPresent() {
   const { tierListId } = useParams()
   const showToast = useToast()
+  const groupRankingAvailable = useFeatureFlag('phone-buzzer') && isBuzzerConfigured()
   const [list, setList] = useStoredEntity(tierListId, getTierList)
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dragOverZone, setDragOverZone] = useState<string | null>(null)
@@ -453,6 +457,16 @@ export default function TierListPresent() {
 
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
         {celebrating && <Confetti />}
+
+        {groupRankingAvailable && (
+          <TierListGroupRanking
+            list={list}
+            onApply={(next) => {
+              persist(next)
+              showToast('Group ranking applied', { action: { label: 'Undo', onAction: undo } })
+            }}
+          />
+        )}
 
         {list.songs.length === 0 ? (
           <div className="mb-6 rounded-xl border border-dashed border-arena-600 p-8 text-center text-slate-400">
