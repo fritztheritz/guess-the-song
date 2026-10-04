@@ -1,3 +1,4 @@
+import ModeComparison from '../components/ModeComparison'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useFeatureFlags } from '../state/feature-flags-context'
@@ -150,6 +151,10 @@ export default function Admin() {
             </div>
           </div>
         )}
+        <section className="mt-8">
+          <h2 className="mb-2 font-display text-xl tracking-wide text-slate-300">MODE RULES</h2>
+          <ModeComparison />
+        </section>
       </div>
     </div>
   )

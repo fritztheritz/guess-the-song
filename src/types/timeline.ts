@@ -52,6 +52,8 @@ export interface TimelineGame {
   teams: Team[]
   /** Seconds each team gets per turn before it's passed on; absent/0 = untimed. */
   turnTimerSeconds?: number
+  /** Underdog catch-up: a team trailing the leader by the catch-up deficit scores a bonus point. */
+  catchUp?: boolean
   createdAt: string
   updatedAt: string
   progress: TimelineProgress

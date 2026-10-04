@@ -19,8 +19,19 @@ export function moveSong(list: TierList, songId: string, targetTierId: string | 
 
   const renumberedDest = destGroup.map((s, i) => ({ ...s, order: i }))
   const others = rest.filter((s) => s.tierId !== targetTierId)
+  // The group the song left closes its gap too, so orders stay 0..n-1 in every group.
+  const renumberedOthers =
+    moving.tierId === targetTierId
+      ? others
+      : [
+          ...others.filter((s) => s.tierId !== moving.tierId),
+          ...others
+            .filter((s) => s.tierId === moving.tierId)
+            .sort((a, b) => a.order - b.order)
+            .map((s, i) => ({ ...s, order: i })),
+        ]
 
-  return { ...list, songs: [...others, ...renumberedDest] }
+  return { ...list, songs: [...renumberedOthers, ...renumberedDest] }
 }
 
 export function songsInGroup(list: TierList, tierId: string | null) {

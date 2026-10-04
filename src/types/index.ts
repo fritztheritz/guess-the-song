@@ -301,6 +301,12 @@ export function createTeam(name: string, color: string, avatar?: string): Team {
   return { id: crypto.randomUUID(), name, color, score: 0, avatar }
 }
 
+/** A team back at the start of a fresh playthrough: no score, streak, power-ups spent/earned/gifted or
+ *  per-game tallies. Identity (id, name, colour, mascot) is kept. */
+export function resetTeamTallies(team: Team): Team {
+  return { ...team, score: 0, streak: 0, powerUpsUsed: undefined, powerUpsEarned: undefined, powerUpsGifted: undefined, catchUpGifted: undefined, bestStreak: undefined, maxDeficit: undefined, ejections: undefined }
+}
+
 export function createGame(name: string, teams: Team[], mode: GameMode = 'song'): Game {
   const now = new Date().toISOString()
   return {
@@ -323,7 +329,7 @@ export function duplicateGame(game: Game): Game {
     rounds: game.rounds.filter((r) => !r.tiebreaker).map((r) => ({ ...r, id: crypto.randomUUID() })),
     tiebreakerRounds: game.tiebreakerRounds?.map((r) => ({ ...r, id: crypto.randomUUID() })),
     catchUp: game.catchUp,
-    teams: game.teams.map((t) => ({ ...t, id: crypto.randomUUID(), score: 0, streak: 0, powerUpsUsed: undefined, powerUpsEarned: undefined, powerUpsGifted: undefined, catchUpGifted: undefined, bestStreak: undefined, maxDeficit: undefined, ejections: undefined })),
+    teams: game.teams.map((t) => ({ ...resetTeamTallies(t), id: crypto.randomUUID() })),
     powerUpAllowance: game.powerUpAllowance,
     earnedPowerUps: game.earnedPowerUps,
     createdAt: now,

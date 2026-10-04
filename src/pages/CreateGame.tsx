@@ -7,6 +7,8 @@ import { listTeamPresets, type TeamPreset } from '../lib/team-presets'
 import { findDuplicateTeamName } from '../lib/team-name-conflicts'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import TextInput from '../components/ui/TextInput'
+import ModeRulesCard from '../components/ModeRulesCard'
+import { rulesFor } from '../lib/mode-rules'
 import Button from '../components/ui/Button'
 
 const MIN_TEAMS = 2
@@ -74,14 +76,14 @@ export default function CreateGame() {
   }
 
   // Power-ups only exist for the buzz-race modes (Song/Lyric).
-  const showEarnedOption = powerUpsEnabled && (mode === 'song' || mode === 'lyric')
+  const showEarnedOption = powerUpsEnabled && rulesFor(mode).earnedPowerUps
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
     const finalTeams = teams.map((t, i) => createTeam(t.name.trim() || `Team ${i + 1}`, t.color, t.avatar))
     const game = createGame(name.trim() || 'Untitled Game', finalTeams, mode)
     if (earnedPowerUps && showEarnedOption) game.earnedPowerUps = true
-    if (catchUp && (mode === 'song' || mode === 'lyric')) game.catchUp = true
+    if (catchUp && rulesFor(mode).catchUp) game.catchUp = true
     saveGame(game)
     navigate(`/games/${game.id}/edit`)
   }
@@ -314,7 +316,7 @@ export default function CreateGame() {
           </label>
         )}
 
-        {(mode === 'song' || mode === 'lyric') && (
+        {rulesFor(mode).catchUp && (
           <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-arena-600 p-3">
             <input
               type="checkbox"
@@ -331,12 +333,7 @@ export default function CreateGame() {
             </span>
           </label>
         )}
-        {mode !== 'song' && mode !== 'lyric' && (
-          <p className="text-xs text-slate-500">
-            Power-ups and underdog catch-up are only available in Song and Lyric games — other modes can credit several teams per
-            possession, so there's no single winner for them to apply to.
-          </p>
-        )}
+        <ModeRulesCard mode={mode} />
 
         <Button type="submit" fullWidth size="lg">
           {mode === 'lyric' ? 'ADD LYRIC ROUNDS →' : mode === 'tierguess' ? 'PICK YOUR TIER LIST →' : 'ADD TRACKS →'}

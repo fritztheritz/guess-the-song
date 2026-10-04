@@ -16,6 +16,7 @@ import Scoreboard from '../components/Scoreboard'
 import Confetti from '../components/Confetti'
 import Button from '../components/ui/Button'
 import { SCORING } from '../lib/scoring'
+import { underdogBonusFor } from '../lib/awards'
 import TextInput from '../components/ui/TextInput'
 import { useStoredEntity } from '../lib/use-stored-entity'
 
@@ -45,6 +46,7 @@ export default function PopularityPresent() {
     title: string
     teamName: string
     bonus?: number
+    underdog?: number
     timedOut?: boolean
   } | null>(null)
   const [celebrating, setCelebrating] = useState(false)
@@ -145,12 +147,13 @@ export default function PopularityPresent() {
     if (isCorrect) {
       const count = prog.streak?.teamId === team.id ? prog.streak.count + 1 : 1
       const bonus = streakBonus(count)
+      const underdog = underdogBonusFor(g.teams, team, g.catchUp)
       const nextRank = prog.currentRank + 1
       const completed = nextRank > g.ranks.length
-      setLastResult({ correct: true, title: track.title, teamName: team.name, bonus })
+      setLastResult({ correct: true, title: track.title, teamName: team.name, bonus, underdog })
       const saved = savePopularityGame({
         ...g,
-        teams: g.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + POPULARITY_POINTS + bonus } : t)),
+        teams: g.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + POPULARITY_POINTS + bonus + underdog } : t)),
         progress: {
           ...prog,
           solved: { ...prog.solved, [prog.currentRank]: { track: rankEntry.track, teamId: team.id } },
@@ -438,7 +441,7 @@ export default function PopularityPresent() {
                     ? `${lastResult.teamName}: ⏱ out of time`
                     : `${lastResult.teamName}: "${lastResult.title}" — ${
                         lastResult.correct
-                          ? `✓ Correct! (+${POPULARITY_POINTS + (lastResult.bonus ?? 0)}${lastResult.bonus ? ` incl. 🔥 +${lastResult.bonus} streak` : ''})`
+                          ? `✓ Correct! (+${POPULARITY_POINTS + (lastResult.bonus ?? 0) + (lastResult.underdog ?? 0)}${lastResult.bonus ? ` incl. 🔥 +${lastResult.bonus} streak` : ''}${lastResult.underdog ? ` incl. 🐕 +${lastResult.underdog} underdog` : ''})`
                           : '✗ Wrong'
                       }`}
                 </div>

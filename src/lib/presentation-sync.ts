@@ -17,7 +17,7 @@ export interface PresentationSnapshot {
   yearGuessStage: YearGuessStage
   /** Set the instant a clip starts playing so the Public Display can run its own local
    *  countdown from `startedAt` — avoids broadcasting every 100ms shot-clock tick. */
-  playing: { duration: number; startedAt: number } | null
+  playing: { duration: number; startedAt: number; /** Set while the host has the timer held: show this fixed number of seconds instead of counting. */ pausedRemaining?: number } | null
   /** Song/lyric rounds only — set once the host locks in who's wagering and how much. */
   wager: { teamName: string; teamColor: string; amount: number } | null
   /** phase: "halftime" only — the random flavor line the host's screen picked, so Public

@@ -83,7 +83,9 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
       tickRef.current = null
     }
     if (!snapshot?.playing) return
-    const { duration, startedAt } = snapshot.playing
+    const { duration, startedAt, pausedRemaining } = snapshot.playing
+    // The host is holding the timer (a tray or dialog is open) — it's shown frozen, not counted.
+    if (pausedRemaining !== undefined) return
     const tick = () => setRemaining(Math.max(0, duration - (Date.now() - startedAt) / 1000))
     tick()
     tickRef.current = setInterval(tick, 100)
@@ -92,7 +94,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
     }
   }, [snapshot?.playing])
 
-  const remaining = snapshot?.playing ? tickedRemaining : 0
+  const remaining = snapshot?.playing ? (snapshot.playing.pausedRemaining ?? tickedRemaining) : 0
 
   if (!game) {
     return (

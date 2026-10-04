@@ -56,6 +56,7 @@ export default function CreateTimelineGame() {
   const [teams, setTeams] = useState<Team[]>([createTeam('Team 1', TEAM_COLORS[0]), createTeam('Team 2', TEAM_COLORS[1])])
   const duplicateTeamName = useMemo(() => findDuplicateTeamName(teams.map((t) => t.name)), [teams])
   const [turnTimer, setTurnTimer] = useState(0)
+  const [catchUp, setCatchUp] = useState(false)
 
   const pickedIds = new Set(picked.map((s) => s.spotifyTrackId))
 
@@ -133,6 +134,7 @@ export default function CreateTimelineGame() {
       songs: deck,
       teams,
       turnTimerSeconds: turnTimer > 0 ? turnTimer : undefined,
+      catchUp: catchUp || undefined,
       createdAt: now,
       updatedAt: now,
       progress: createInitialTimelineProgress(deck),
@@ -327,6 +329,19 @@ export default function CreateTimelineGame() {
                 </p>
               )}
             </div>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-arena-600 p-3">
+              <input
+                type="checkbox"
+                checked={catchUp}
+                onChange={(e) => setCatchUp(e.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
+              />
+              <span>
+                <span className="block text-sm font-semibold text-slate-200">🐕 Underdog catch-up</span>
+                <span className="block text-xs text-slate-500">A team trailing by 8+ scores a bonus point on a correct answer. Off by default.</span>
+              </span>
+            </label>
 
             <Button type="submit" fullWidth size="lg" disabled={picked.length < MIN_SONGS}>
               START GAME →

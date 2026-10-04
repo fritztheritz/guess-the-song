@@ -11,6 +11,7 @@ import Scoreboard from '../components/Scoreboard'
 import Confetti from '../components/Confetti'
 import Button from '../components/ui/Button'
 import { SCORING } from '../lib/scoring'
+import { underdogBonusFor } from '../lib/awards'
 import { useStoredEntity } from '../lib/use-stored-entity'
 
 // Fixed, not host-editable — same "fixed slots" convention as Guess the Popularity.
@@ -22,6 +23,7 @@ interface LastResult {
   year: number
   teamName: string
   bonus?: number
+  underdog?: number
   timedOut?: boolean
 }
 
@@ -69,13 +71,14 @@ export default function TimelinePresent() {
     if (correct) {
       const count = (prog.streaks?.[team.id] ?? 0) + 1
       const bonus = streakBonus(count)
+      const underdog = underdogBonusFor(g.teams, team, g.catchUp)
       const timeline = [...prog.timeline]
       timeline.splice(slot, 0, { song, teamId: team.id })
-      setLastResult({ correct: true, title: song.title, year: song.year, teamName: team.name, bonus })
+      setLastResult({ correct: true, title: song.title, year: song.year, teamName: team.name, bonus, underdog })
       commitGame(
         saveTimelineGame({
           ...g,
-          teams: g.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + TIMELINE_POINTS + bonus } : t)),
+          teams: g.teams.map((t) => (t.id === team.id ? { ...t, score: t.score + TIMELINE_POINTS + bonus + underdog } : t)),
           progress: {
             ...prog,
             deckIndex: nextDeckIndex,
@@ -313,7 +316,7 @@ export default function TimelinePresent() {
                     ? `${lastResult.teamName}: ⏱ out of time — next team's turn`
                     : `${lastResult.teamName}: "${lastResult.title}" was ${lastResult.year} — ${
                         lastResult.correct
-                          ? `✓ Correct! (+${TIMELINE_POINTS + (lastResult.bonus ?? 0)}${lastResult.bonus ? ` incl. 🔥 +${lastResult.bonus} streak` : ''})`
+                          ? `✓ Correct! (+${TIMELINE_POINTS + (lastResult.bonus ?? 0) + (lastResult.underdog ?? 0)}${lastResult.bonus ? ` incl. 🔥 +${lastResult.bonus} streak` : ''}${lastResult.underdog ? ` incl. 🐕 +${lastResult.underdog} underdog` : ''})`
                           : '✗ Wrong spot'
                       }`}
                 </div>

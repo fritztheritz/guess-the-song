@@ -133,32 +133,31 @@ export default function ImportSpotifyModal({
     }
   }
 
-  // TODO(human): implement openPlaylist(playlist: SpotifyPlaylistSummary).
-  //
-  // Called when the host clicks a playlist card. It should:
-  //   1. Set loading state, clear any previous error, and set activePlaylist(playlist).
-  //   2. Fetch this playlist's tracks via getPlaylistTracksPage(playlist.id, offset),
-  //      starting at offset 0.
-  //   3. Decide how many pages to eagerly auto-load before leaving the rest to the
-  //      "Load more results" button (which already works once `results`/`total` are set —
-  //      see handleLoadMore above). ImportSoundCloudModal's AUTO_LOAD_PAGE_CAP (10 pages,
-  //      ~500 tracks at SoundCloud's ~50-per-page) is the precedent, but this app's Spotify
-  //      quota caps out much lower per request (as low as 5) — a straight copy of "10 pages"
-  //      would mean 10x as many round trips for a fraction of the tracks. Pick a cap that
-  //      makes sense for that per-request size, or make the number of tracks (not pages)
-  //      the cap instead.
-  //   4. Call setResults(...) and setTotal(...) with what you've loaded, same as
-  //      performSearch/viewArtistTopTracks do.
-  //   5. Reset loading state in a finally, same pattern as the other handlers.
+  // Spotify's per-request page size varies with the app's quota (as low as 5 tracks), so the
+  // auto-load cap is a number of tracks, not pages — a page cap would mean many more round trips
+  // for far fewer tracks than SoundCloud's. Past this, "Load more results" takes over by hand.
+  const AUTO_LOAD_TRACK_CAP = 100
+  // Backstop so a tiny page size can't turn the eager load into a long run of requests.
+  const AUTO_LOAD_REQUEST_CAP = 12
+
   async function openPlaylist(playlist: SpotifyPlaylistSummary) {
     setLoading(true)
     setError(null)
     setActivePlaylist(playlist)
+    setResults([])
 
     try {
-      let tracks = await getPlaylistTracksPage(playlist.id, 0)
-      setResults(tracks["tracks"])
-      setTotal(tracks["total"])
+      let page = await getPlaylistTracksPage(playlist.id, 0)
+      let loaded = page.tracks
+      setResults(loaded)
+      setTotal(page.total)
+      let requests = 1
+      while (page.tracks.length > 0 && loaded.length < page.total && loaded.length < AUTO_LOAD_TRACK_CAP && requests < AUTO_LOAD_REQUEST_CAP) {
+        page = await getPlaylistTracksPage(playlist.id, loaded.length)
+        loaded = [...loaded, ...page.tracks]
+        setResults(loaded)
+        requests++
+      }
     } catch (err) {
       setError(errorMessage(err))
     } finally {
