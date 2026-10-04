@@ -1,5 +1,3 @@
-import { teamColorForIndex } from './index'
-
 // A tier list is deliberately its own top-level entity (own storage key, own id space)
 // rather than a mode on Game — a ranked list of songs isn't a round-based possession
 // game, and keeping it separate means the finished ranking can be handed off as the
@@ -43,18 +41,42 @@ export interface TierList {
 export const MIN_TIERS = 2
 export const MAX_TIERS = 8
 
-const DEFAULT_TIER_NAMES = ['S', 'A', 'B', 'C', 'D']
+/** Ready-made tier sets, best first — offered when creating a list and in the builder. */
+export const TIER_PRESETS: { id: string; label: string; names: string[] }[] = [
+  { id: 'classic', label: 'S – D', names: ['S', 'A', 'B', 'C', 'D'] },
+  { id: 'feelings', label: 'Love · Like · Meh · Nope', names: ['Love it', 'Like it', 'Meh', 'Nope'] },
+  { id: 'stars', label: '5 stars', names: ['★★★★★', '★★★★', '★★★', '★★', '★'] },
+  { id: 'numbers', label: '1 – 5', names: ['1', '2', '3', '4', '5'] },
+]
 
-export function createTierDef(name: string, index: number): TierDef {
-  return { id: crypto.randomUUID(), name, color: teamColorForIndex(index) }
+const DEFAULT_TIER_NAMES = TIER_PRESETS[0].names
+
+/** Best-to-worst colours for a preset's tiers — warm to cool, so the top tier reads as the "hot" one. */
+const TIER_COLOR_RAMP = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#64748b']
+
+export function tierColorForIndex(index: number): string {
+  return TIER_COLOR_RAMP[index % TIER_COLOR_RAMP.length]
 }
 
-export function createEmptyTierList(name: string): TierList {
+export function createTierDef(name: string, index: number): TierDef {
+  return { id: crypto.randomUUID(), name, color: tierColorForIndex(index) }
+}
+
+/** Swaps a list's tiers for a preset's. Tiers are matched by position so rankings carry over
+ *  where they can (and keep their colour choice); songs in tiers that no longer exist go back
+ *  to unranked. */
+export function applyTierPreset(list: TierList, names: string[]): TierList {
+  const tiers = names.map((name, i) => (list.tiers[i] ? { ...list.tiers[i], name } : createTierDef(name, i)))
+  const keep = new Set(tiers.map((t) => t.id))
+  return { ...list, tiers, songs: list.songs.map((s) => (s.tierId && !keep.has(s.tierId) ? { ...s, tierId: null, order: 0 } : s)) }
+}
+
+export function createEmptyTierList(name: string, tierNames: string[] = DEFAULT_TIER_NAMES): TierList {
   const now = new Date().toISOString()
   return {
     id: crypto.randomUUID(),
     name,
-    tiers: DEFAULT_TIER_NAMES.map((n, i) => createTierDef(n, i)),
+    tiers: tierNames.map((n, i) => createTierDef(n, i)),
     songs: [],
     createdAt: now,
     updatedAt: now,

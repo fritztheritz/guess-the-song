@@ -1,14 +1,17 @@
-import { useEffect, useState, type DragEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { TierList, TierListSong } from '../types/tierlist'
 import { getTierList, saveTierList } from '../lib/storage/tierlist-repository'
-import { moveSong, songsInGroup } from '../lib/tierlist-ranking'
-import { useConfirm } from '../state/confirm-context'
+import { moveSong, rankedCount, songsInGroup, tierListResultsText } from '../lib/tierlist-ranking'
 import { useToast } from '../state/toast-context'
 import { playCorrect, playFanfare } from '../lib/sound-effects'
 import SoundControl from '../components/SoundControl'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
+import ProgressRing from '../components/ProgressRing'
+import Button from '../components/ui/Button'
+import Kbd from '../components/Kbd'
+import { downloadTierListImage } from '../lib/tierlist-image'
 import { useStoredEntity } from '../lib/use-stored-entity'
 
 // Sentinel for "currently dragging over the Unranked pool" — distinct from tier ids
@@ -124,26 +127,28 @@ function SongTile({
         }}
         aria-label={`Move "${song.title}"`}
         aria-expanded={menuOpen}
-        className="absolute right-1 top-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-[10px] text-white hover:bg-black/80"
+        className="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/80 md:h-5 md:w-5 md:text-[10px]"
       >
         ⠿
       </button>
 
       {menuOpen && (
+        <>
+        <div aria-hidden className="fixed inset-0 z-30 bg-black/60 md:hidden" />
         <div
           data-tier-move-menu
           onClick={(e) => e.stopPropagation()}
-          className="absolute right-0 top-7 z-20 w-40 space-y-2 rounded-lg border border-arena-600 bg-arena-900 p-2 text-left shadow-2xl"
+          className="fixed inset-x-0 bottom-0 z-40 space-y-3 rounded-t-2xl border border-arena-600 bg-arena-900 p-4 pb-6 text-left shadow-2xl md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-7 md:z-20 md:w-44 md:space-y-2 md:rounded-lg md:p-2"
         >
-          <div className="truncate text-[10px] uppercase tracking-widest text-slate-500" title={song.title}>
-            {song.title}
+          <div className="truncate text-xs uppercase tracking-widest text-slate-500 md:text-[10px]" title={song.title}>
+            Move “{song.title}” to…
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-2 md:gap-1">
             {chips.map((chip) => (
               <button
                 key={chip.id ?? '__unranked__'}
                 onClick={() => onPlace(chip.id)}
-                className="rounded-full px-2 py-1 text-[11px] font-semibold"
+                className="min-w-12 rounded-full px-4 py-2.5 text-base font-semibold md:min-w-0 md:px-2 md:py-1 md:text-[11px]"
                 style={{ background: chip.color ? `${chip.color}33` : '#ffffff1a', color: chip.color ?? '#cbd5e1' }}
               >
                 {chip.name}
@@ -154,19 +159,20 @@ function SongTile({
             <button
               disabled={!canEarlier}
               onClick={onEarlier}
-              className="flex-1 rounded-lg border border-arena-600 py-1 text-xs text-slate-300 hover:border-hardwood-500 disabled:opacity-30 disabled:hover:border-arena-600"
+              className="flex-1 rounded-lg border border-arena-600 py-2 text-sm text-slate-300 md:py-1 md:text-xs hover:border-hardwood-500 disabled:opacity-30 disabled:hover:border-arena-600"
             >
               ◀ Earlier
             </button>
             <button
               disabled={!canLater}
               onClick={onLater}
-              className="flex-1 rounded-lg border border-arena-600 py-1 text-xs text-slate-300 hover:border-hardwood-500 disabled:opacity-30 disabled:hover:border-arena-600"
+              className="flex-1 rounded-lg border border-arena-600 py-2 text-sm text-slate-300 md:py-1 md:text-xs hover:border-hardwood-500 disabled:opacity-30 disabled:hover:border-arena-600"
             >
               Later ▶
             </button>
           </div>
         </div>
+        </>
       )}
     </div>
   )
@@ -205,9 +211,25 @@ function DropZone({
   )
 }
 
+const HISTORY_LIMIT = 30
+
+/** True when the keypress is going into a text field (or a modifier combo), so shortcuts stay out of the way. */
+function isTypingTarget(e: KeyboardEvent): boolean {
+  const el = e.target as HTMLElement | null
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
+}
+
+/** The tier a keypress names: its 1-based digit, or its first letter when that's unique among the tiers. */
+function tierForKey(tiers: TierList['tiers'], key: string): string | null {
+  if (/^[1-9]$/.test(key)) return tiers[Number(key) - 1]?.id ?? null
+  const k = key.toLowerCase()
+  if (k.length !== 1) return null
+  const matches = tiers.filter((t) => t.name.trim().toLowerCase().startsWith(k))
+  return matches.length === 1 ? matches[0].id : null
+}
+
 export default function TierListPresent() {
   const { tierListId } = useParams()
-  const confirm = useConfirm()
   const showToast = useToast()
   const [list, setList] = useStoredEntity(tierListId, getTierList)
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -216,6 +238,12 @@ export default function TierListPresent() {
   // Non-drag ranking path (see SongTile's comment) — which tile's move popover is open,
   // if any. Only one at a time, so a single id is enough.
   const [openMoveId, setOpenMoveId] = useState<string | null>(null)
+  // Snapshots from before each change, newest last — what Undo steps back through.
+  const [history, setHistory] = useState<TierList[]>([])
+  const listRef = useRef(list)
+  useEffect(() => {
+    listRef.current = list
+  }, [list])
 
   useEffect(() => {
     if (!openMoveId) return
@@ -234,8 +262,18 @@ export default function TierListPresent() {
   }, [openMoveId])
 
   function persist(next: TierList) {
+    if (list) setHistory((h) => [...h.slice(-(HISTORY_LIMIT - 1)), list])
     setList(saveTierList(next))
   }
+
+  const undo = useCallback(() => {
+    setHistory((h) => {
+      const prev = h[h.length - 1]
+      if (!prev) return h
+      setList(saveTierList(prev))
+      return h.slice(0, -1)
+    })
+  }, [setList])
 
   function handleDragStart(e: DragEvent, songId: string) {
     e.dataTransfer.setData('text/plain', songId)
@@ -251,8 +289,8 @@ export default function TierListPresent() {
     setDragOverZone(null)
   }
 
-  // Shared by the drag path (drop, below) and the tap-to-move popover's buttons — same
-  // move, same sound/celebration rules, just two different ways of naming the song and
+  // Shared by the drag path (drop, below), the tap-to-move popover and the Up next card —
+  // same move, same sound/celebration rules, just different ways of naming the song and
   // the target.
   function applyMove(songId: string, targetTierId: string | null, beforeSongId: string | null) {
     if (!list) return
@@ -309,12 +347,60 @@ export default function TierListPresent() {
     setOpenMoveId(null)
   }
 
-  async function resetRankings() {
+  // Sends the current "up next" song to the back of the pool, so a song you can't place yet
+  // doesn't block the rest.
+  function skipUpNext() {
     if (!list) return
-    if (!(await confirm('Move every song back to Unranked?', { danger: true, confirmLabel: 'Reset' }))) return
-    persist({ ...list, songs: list.songs.map((s, i) => ({ ...s, tierId: null, order: i })) })
-    showToast('All songs moved to Unranked')
+    const pool = songsInGroup(list, null)
+    if (pool.length < 2) return
+    persist(moveSong(list, pool[0].id, null, null))
   }
+
+  // No confirm dialog — a reset is one Undo away, which is easier on a mis-tap than a prompt.
+  function resetRankings() {
+    if (!list || rankedCount(list) === 0) return
+    persist({ ...list, songs: list.songs.map((s, i) => ({ ...s, tierId: null, order: i })) })
+    showToast('All songs moved to Unranked', { action: { label: 'Undo', onAction: undo } })
+  }
+
+  async function copyResults() {
+    if (!list) return
+    try {
+      await navigator.clipboard.writeText(tierListResultsText(list))
+      showToast('Tier list copied to clipboard!')
+    } catch {
+      showToast('Could not copy the tier list.')
+    }
+  }
+
+  // Keyboard path: a tier's number (or unique first letter) files the Up next song, → skips,
+  // ⌘/Ctrl+Z undoes. Reads the list through a ref so the listener doesn't re-bind every move.
+  const shortcutRef = useRef<(e: KeyboardEvent) => void>(() => {})
+  useEffect(() => {
+    shortcutRef.current = (e: KeyboardEvent) => {
+      const current = listRef.current
+      if (!current || isTypingTarget(e)) return
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        undo()
+        return
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      const next = songsInGroup(current, null)[0]
+      if (!next) return
+      if (e.key === 'ArrowRight') {
+        skipUpNext()
+        return
+      }
+      const tierId = tierForKey(current.tiers, e.key)
+      if (tierId) applyMove(next.id, tierId, null)
+    }
+  })
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => shortcutRef.current(e)
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
 
   if (!list) {
     return (
@@ -332,29 +418,110 @@ export default function TierListPresent() {
   }
 
   const unranked = songsInGroup(list, null)
+  const ranked = rankedCount(list)
+  const upNext = unranked[0]
+  const allRanked = list.songs.length > 0 && unranked.length === 0
   // Every tier plus a synthetic "Unranked" entry — the popover's "move to" chip set, before
   // each tile filters out whichever one it's currently sitting in.
   const allChips: TierChip[] = [...list.tiers.map((t) => ({ id: t.id, name: t.name, color: t.color })), { id: null, name: 'Unranked' }]
+  const topTier = list.tiers.find((t) => songsInGroup(list, t.id).length > 0)
 
   return (
     <div className="min-h-svh court-lines">
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <Link to={`/tierlists/${list.id}/edit`} className="text-sm text-slate-400 hover:text-hardwood-400">
-              ← Edit
-            </Link>
-            <h1 className="font-display text-3xl tracking-wide text-white">{list.name}</h1>
+      <div className="sticky top-0 z-20 border-b border-arena-700 bg-arena-950/90 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <ProgressRing value={ranked} max={list.songs.length} size={48} label="songs ranked" />
+            <div className="min-w-0">
+              <Link to={`/tierlists/${list.id}/edit`} className="text-xs text-slate-400 hover:text-hardwood-400">
+                ← Edit
+              </Link>
+              <h1 className="truncate font-display text-2xl leading-tight tracking-wide text-white">{list.name}</h1>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <SoundControl />
-            <button onClick={resetRankings} className="text-xs text-slate-500 underline hover:text-slate-300">
-              ↺ Reset rankings
-            </button>
+            <Button variant="outline" size="sm" onClick={undo} disabled={history.length === 0} title="Undo the last move (⌘/Ctrl+Z)">
+              ↶ Undo
+            </Button>
+            <Button variant="outline" size="sm" onClick={resetRankings} disabled={ranked === 0}>
+              Reset
+            </Button>
           </div>
         </div>
+      </div>
 
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
         {celebrating && <Confetti />}
+
+        {list.songs.length === 0 ? (
+          <div className="mb-6 rounded-xl border border-dashed border-arena-600 p-8 text-center text-slate-400">
+            This tier list has no songs yet.{' '}
+            <Link to={`/tierlists/${list.id}/edit`} className="text-hardwood-400 underline">
+              Add some
+            </Link>
+          </div>
+        ) : allRanked ? (
+          <div className="mb-6 rounded-2xl border border-hardwood-500/40 bg-hardwood-500/10 p-5 text-center">
+            <div className="font-display text-3xl tracking-wide text-hardwood-400">🏆 ALL RANKED</div>
+            {topTier && (
+              <p className="mt-1 text-sm text-slate-300">
+                Top tier ({topTier.name}): {songsInGroup(list, topTier.id).map((s) => s.title).join(' · ')}
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              <Button onClick={copyResults}>📋 Copy results</Button>
+              <Button variant="outline" onClick={() => downloadTierListImage(list)}>
+                🖼 Save image
+              </Button>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">Still tweaking? Keep dragging below — everything is saved as you go.</p>
+          </div>
+        ) : (
+          upNext && (
+            <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-arena-600 bg-arena-800/70 p-4 sm:flex-row sm:items-center">
+              <div className="flex items-center gap-4">
+                <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-arena-700 shadow-lg">
+                  {upNext.artworkUrl ? (
+                    <img src={upNext.artworkUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-3xl text-arena-500">♪</div>
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-[11px] uppercase tracking-[0.25em] text-slate-500">Up next · {unranked.length} to go</div>
+                  <div className="truncate font-display text-2xl text-white" title={upNext.title}>
+                    {upNext.title}
+                  </div>
+                  <div className="truncate text-sm text-slate-400">{upNext.artist}</div>
+                  {upNext.soundcloudUrl && (
+                    <a href={upNext.soundcloudUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-hardwood-400 hover:underline">
+                      ▶ Listen on SoundCloud
+                    </a>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-1 flex-wrap items-center gap-2 sm:justify-end">
+                {list.tiers.map((tier, i) => (
+                  <button
+                    key={tier.id}
+                    onClick={() => applyMove(upNext.id, tier.id, null)}
+                    className="rounded-full px-4 py-2.5 text-base font-semibold text-arena-950 transition-transform hover:scale-105 active:scale-95"
+                    style={{ background: tier.color }}
+                  >
+                    {tier.name}
+                    {i < 9 && <Kbd>{String(i + 1)}</Kbd>}
+                  </button>
+                ))}
+                {unranked.length > 1 && (
+                  <button onClick={skipUpNext} className="rounded-full border border-arena-500 px-4 py-2.5 text-sm text-slate-300 hover:border-hardwood-500">
+                    Skip →
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        )}
 
         <div className="space-y-3">
           {list.tiers.map((tier) => {

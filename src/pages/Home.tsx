@@ -634,15 +634,29 @@ export default function Home() {
               {visibleTierLists.map((list) => {
                 const ranked = list.songs.filter((s) => s.tierId !== null).length
                 return (
-                  <Panel key={list.id} className="flex items-center justify-between">
-                    <div>
+                  <Panel key={list.id} className="flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs">🏆</span>
                         <div className="font-semibold text-slate-100">{list.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">
-                        {list.songs.length} song{list.songs.length === 1 ? '' : 's'} · {ranked} ranked · {list.tiers.length} tiers
+                        {list.songs.length} song{list.songs.length === 1 ? '' : 's'} · {list.tiers.length} tiers ·{' '}
+                        {list.songs.length === 0
+                          ? 'no songs yet'
+                          : ranked === list.songs.length
+                            ? '✓ fully ranked'
+                            : `${ranked} of ${list.songs.length} ranked`}{' '}
+                        · {timeAgo(list.updatedAt)}
                       </div>
+                      {list.songs.length > 0 && (
+                        <div className="mt-1.5 flex h-1.5 max-w-56 overflow-hidden rounded-full bg-arena-700" aria-hidden>
+                          {list.tiers.map((tier) => {
+                            const n = list.songs.filter((s) => s.tierId === tier.id).length
+                            return n > 0 ? <span key={tier.id} style={{ width: `${(n / list.songs.length) * 100}%`, background: tier.color }} /> : null
+                          })}
+                        </div>
+                      )}
                       {list.tags && list.tags.length > 0 && (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {list.tags.map((tag) => (
@@ -664,7 +678,7 @@ export default function Home() {
                         to={`/tierlists/${list.id}/present`}
                         className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
                       >
-                        Present
+                        {ranked === 0 ? 'Present' : ranked === list.songs.length ? 'View' : 'Continue'}
                       </Link>
                       <button
                         onClick={() => handleDuplicateTierList(list)}

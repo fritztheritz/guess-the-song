@@ -26,3 +26,30 @@ export function moveSong(list: TierList, songId: string, targetTierId: string | 
 export function songsInGroup(list: TierList, tierId: string | null) {
   return list.songs.filter((s) => s.tierId === tierId).sort((a, b) => a.order - b.order)
 }
+
+export function rankedCount(list: TierList): number {
+  return list.songs.filter((s) => s.tierId !== null).length
+}
+
+/** Randomises the order of the unranked pool, which is also the order songs come up next. */
+export function shuffleUnranked(list: TierList): TierList {
+  const pool = songsInGroup(list, null)
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[pool[i], pool[j]] = [pool[j], pool[i]]
+  }
+  const order = new Map(pool.map((s, i) => [s.id, i]))
+  return { ...list, songs: list.songs.map((s) => (order.has(s.id) ? { ...s, order: order.get(s.id)! } : s)) }
+}
+
+/** Plain-text version of the ranking, tier by tier — for pasting into a chat. */
+export function tierListResultsText(list: TierList): string {
+  const lines = [`${list.name} — tier list`]
+  for (const tier of list.tiers) {
+    const songs = songsInGroup(list, tier.id)
+    if (songs.length > 0) lines.push(`${tier.name}: ${songs.map((s) => s.title).join(' · ')}`)
+  }
+  const pool = songsInGroup(list, null)
+  if (pool.length > 0) lines.push(`Unranked: ${pool.map((s) => s.title).join(' · ')}`)
+  return lines.join('\n')
+}

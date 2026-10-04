@@ -1,12 +1,19 @@
 import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { createTierDef, MAX_TIERS, MIN_TIERS, type TierList, type TierListSong } from '../types/tierlist'
+import { applyTierPreset, createTierDef, MAX_TIERS, MIN_TIERS, TIER_PRESETS, type TierList, type TierListSong } from '../types/tierlist'
+import { rankedCount, shuffleUnranked } from '../lib/tierlist-ranking'
 import { getTierList, listTierLists, saveTierList } from '../lib/storage/tierlist-repository'
 import { generatePlaceholderArtwork } from '../lib/placeholder-artwork'
 import ImportSoundCloudModal from '../components/ImportSoundCloudModal'
 import TagInput from '../components/TagInput'
-import Spinner from '../components/Spinner'
 import TextInput from '../components/ui/TextInput'
+import Button from '../components/ui/Button'
+import ButtonLink from '../components/ui/ButtonLink'
+import EmptyState from '../components/ui/EmptyState'
+import ErrorState from '../components/ui/ErrorState'
+import BuilderSection from '../components/BuilderSection'
+import { useConfirm } from '../state/confirm-context'
+import { useToast } from '../state/toast-context'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import { useStoredEntity } from '../lib/use-stored-entity'
 
@@ -14,10 +21,17 @@ export default function TierListBuilder() {
   const { tierListId } = useParams()
   const [list, setList] = useStoredEntity(tierListId, getTierList)
   const [importOpen, setImportOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [sort, setSort] = useState<'added' | 'title' | 'artist'>('added')
+  const [savedAt, setSavedAt] = useState<string | null>(null)
+  const confirm = useConfirm()
+  const showToast = useToast()
   const tagSuggestions = useMemo(() => Array.from(new Set(listTierLists().flatMap((l) => l.tags ?? []))).sort(), [])
 
   function persist(next: TierList) {
-    setList(saveTierList(next))
+    const saved = saveTierList(next)
+    setList(saved)
+    setSavedAt(saved.updatedAt)
   }
 
   function handleImport(tracks: ImportableTrack[]) {
@@ -45,9 +59,39 @@ export default function TierListBuilder() {
     persist({ ...list, songs: [...list.songs, ...newSongs] })
   }
 
-  function removeSong(id: string) {
+  // Removing is instant but undoable — the toast restores the exact previous list.
+  function removeSongs(ids: Set<string>, message: string) {
     if (!list) return
-    persist({ ...list, songs: list.songs.filter((s) => s.id !== id) })
+    const before = list
+    persist({ ...list, songs: list.songs.filter((s) => !ids.has(s.id)) })
+    showToast(message, { action: { label: 'Undo', onAction: () => persist(before) } })
+  }
+
+  async function removeAllSongs() {
+    if (!list || list.songs.length === 0) return
+    if (!(await confirm(`Remove all ${list.songs.length} songs from this tier list?`, { danger: true, confirmLabel: 'Remove all' }))) return
+    removeSongs(new Set(list.songs.map((s) => s.id)), 'Removed every song')
+  }
+
+  function recolorTier(id: string, color: string) {
+    if (!list) return
+    persist({ ...list, tiers: list.tiers.map((t) => (t.id === id ? { ...t, color } : t)) })
+  }
+
+  function moveTier(id: string, delta: -1 | 1) {
+    if (!list) return
+    const i = list.tiers.findIndex((t) => t.id === id)
+    const j = i + delta
+    if (i === -1 || j < 0 || j >= list.tiers.length) return
+    const tiers = [...list.tiers]
+    ;[tiers[i], tiers[j]] = [tiers[j], tiers[i]]
+    persist({ ...list, tiers })
+  }
+
+  async function choosePreset(names: string[]) {
+    if (!list) return
+    if (rankedCount(list) > 0 && !(await confirm('Switching tiers moves any songs in tiers that no longer exist back to Unranked.', { confirmLabel: 'Switch tiers' }))) return
+    persist(applyTierPreset(list, names))
   }
 
   function renameTier(id: string, name: string) {
@@ -77,20 +121,21 @@ export default function TierListBuilder() {
 
   if (!list) {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-3 text-slate-400">
-        {tierListId ? (
-          <>
-            <Spinner />
-            <span>Loading…</span>
-          </>
-        ) : (
-          'Tier list not found.'
-        )}
+      <div className="mx-auto max-w-md px-6 py-16">
+        <ErrorState message="That tier list couldn't be found.">
+          <Link to="/" className="mt-2 inline-block text-xs text-slate-300 underline hover:text-white">
+            ← Back home
+          </Link>
+        </ErrorState>
       </div>
     )
   }
 
-  const rankedCount = list.songs.filter((s) => s.tierId !== null).length
+  const ranked = rankedCount(list)
+  const needle = query.trim().toLowerCase()
+  const visibleSongs = list.songs
+    .filter((s) => !needle || `${s.title} ${s.artist}`.toLowerCase().includes(needle))
+    .sort((a, b) => (sort === 'added' ? 0 : (sort === 'title' ? a.title : a.artist).localeCompare(sort === 'title' ? b.title : b.artist)))
 
   return (
     <div className="min-h-svh court-lines">
@@ -103,27 +148,57 @@ export default function TierListBuilder() {
             <input
               value={list.name}
               onChange={(e) => persist({ ...list, name: e.target.value })}
+              aria-label="Tier list name"
               className="mt-1 w-full bg-transparent font-display text-3xl tracking-wide text-white outline-none focus:border-b focus:border-hardwood-500"
             />
-            <div className="mt-2 max-w-sm">
-              <TagInput tags={list.tags ?? []} onChange={updateTags} suggestions={tagSuggestions} listId="tierlist-tag-suggestions" />
+            <div className="mt-1 text-xs text-slate-500">
+              ✓ {savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'All changes saved'}
             </div>
           </div>
-          <Link
-            to={`/tierlists/${list.id}/present`}
-            className="shrink-0 rounded-full bg-hardwood-500 px-6 py-2.5 font-semibold text-arena-950 hover:bg-hardwood-400"
-          >
-            PRESENT →
-          </Link>
+          <ButtonLink to={`/tierlists/${list.id}/present`} variant="primary" className="shrink-0">
+            {ranked > 0 ? 'KEEP RANKING →' : 'PRESENT →'}
+          </ButtonLink>
         </div>
 
-        <section className="mb-8">
-          <h2 className="mb-3 font-display text-xl tracking-wide text-slate-300">TIERS</h2>
+        <BuilderSection id="tl-tiers" title="Tiers" summary={list.tiers.map((t) => t.name).join(' · ')}>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {TIER_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => choosePreset(preset.names)}
+                className="rounded-full border border-arena-500 px-3 py-1 text-xs text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
           <div className="space-y-2">
-            {list.tiers.map((tier) => (
+            {list.tiers.map((tier, i) => (
               <div key={tier.id} className="flex items-center gap-2">
-                <span className="h-6 w-6 shrink-0 rounded-md" style={{ background: tier.color }} />
+                <input
+                  type="color"
+                  value={tier.color}
+                  onChange={(e) => recolorTier(tier.id, e.target.value)}
+                  aria-label={`${tier.name} colour`}
+                  className="h-8 w-8 shrink-0 cursor-pointer rounded-md border border-arena-600 bg-transparent p-0.5"
+                />
                 <TextInput value={tier.name} onChange={(e) => renameTier(tier.id, e.target.value)} className="w-full" />
+                <button
+                  onClick={() => moveTier(tier.id, -1)}
+                  disabled={i === 0}
+                  aria-label={`Move ${tier.name} up`}
+                  className="shrink-0 rounded-lg px-2 py-1 text-slate-400 hover:text-white disabled:opacity-20"
+                >
+                  ↑
+                </button>
+                <button
+                  onClick={() => moveTier(tier.id, 1)}
+                  disabled={i === list.tiers.length - 1}
+                  aria-label={`Move ${tier.name} down`}
+                  className="shrink-0 rounded-lg px-2 py-1 text-slate-400 hover:text-white disabled:opacity-20"
+                >
+                  ↓
+                </button>
                 {list.tiers.length > MIN_TIERS && (
                   <button
                     onClick={() => removeTier(tier.id)}
@@ -144,56 +219,96 @@ export default function TierListBuilder() {
               + Add Tier
             </button>
           )}
-        </section>
+        </BuilderSection>
 
-        <section>
-          <div className="mb-3 flex items-center justify-between">
+        <BuilderSection id="tl-tags" title="Tags" summary={(list.tags ?? []).join(', ') || 'none'}>
+          <div className="max-w-sm">
+            <TagInput tags={list.tags ?? []} onChange={updateTags} suggestions={tagSuggestions} listId="tierlist-tag-suggestions" />
+          </div>
+        </BuilderSection>
+
+        <section className="mt-6 border-t border-arena-700 pt-4">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="font-display text-xl tracking-wide text-slate-300">
               SONGS <span className="text-sm font-normal text-slate-500">({list.songs.length})</span>
             </h2>
-            <button
-              onClick={() => setImportOpen(true)}
-              className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-200 hover:border-hardwood-500"
-            >
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
               + Add Songs
-            </button>
+            </Button>
           </div>
 
           {list.songs.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-arena-600 bg-arena-800/40 p-6 text-center text-sm text-slate-400">
+            <EmptyState
+              icon="🎵"
+              action={
+                <Button size="sm" onClick={() => setImportOpen(true)}>
+                  + Add songs from SoundCloud
+                </Button>
+              }
+            >
               No songs yet — add some from SoundCloud to build your list.
-            </div>
+            </EmptyState>
           ) : (
             <>
-              {rankedCount > 0 && (
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <TextInput
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search songs…"
+                  aria-label="Search songs"
+                  inputSize="sm"
+                  className="min-w-40 flex-1"
+                />
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as typeof sort)}
+                  aria-label="Sort songs"
+                  className="rounded-lg border border-arena-500 bg-arena-800 px-2 py-1.5 text-sm text-slate-200"
+                >
+                  <option value="added">Order added</option>
+                  <option value="title">Title A–Z</option>
+                  <option value="artist">Artist A–Z</option>
+                </select>
+                <Button variant="outline" size="sm" onClick={() => persist(shuffleUnranked(list))} title="Randomise the order unranked songs come up in">
+                  🔀 Shuffle
+                </Button>
+                <Button variant="outline" size="sm" onClick={removeAllSongs} className="text-slate-400 hover:text-scoreboard-500">
+                  Remove all
+                </Button>
+              </div>
+              {ranked > 0 && (
                 <p className="mb-3 text-xs text-slate-500">
-                  {rankedCount} of {list.songs.length} already ranked — open Present to keep going, rankings are saved as you drag.
+                  {ranked} of {list.songs.length} already ranked — open Present to keep going, rankings are saved as you drag.
                 </p>
               )}
-              <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
-                {list.songs.map((song) => (
-                  <div key={song.id} className="group relative overflow-hidden rounded-xl border border-arena-600 bg-arena-800">
-                    <button
-                      onClick={() => removeSong(song.id)}
-                      aria-label={`Remove ${song.title}`}
-                      className="absolute right-1 top-1 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-xs text-white opacity-0 hover:bg-scoreboard-500 group-hover:opacity-100"
-                    >
-                      ✕
-                    </button>
-                    <div className="aspect-square w-full bg-arena-700">
-                      {song.artworkUrl && <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" />}
-                    </div>
-                    <div className="p-2">
-                      <div className="truncate text-xs font-medium text-slate-100" title={song.title}>
-                        {song.title}
+              {visibleSongs.length === 0 ? (
+                <EmptyState icon="🔎">No songs match “{query}”.</EmptyState>
+              ) : (
+                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+                  {visibleSongs.map((song) => (
+                    <div key={song.id} className="group relative overflow-hidden rounded-xl border border-arena-600 bg-arena-800">
+                      <button
+                        onClick={() => removeSongs(new Set([song.id]), `Removed “${song.title}”`)}
+                        aria-label={`Remove ${song.title}`}
+                        className="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-xs text-white hover:bg-scoreboard-500 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                      >
+                        ✕
+                      </button>
+                      <div className="aspect-square w-full bg-arena-700">
+                        {song.artworkUrl && <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" />}
                       </div>
-                      <div className="truncate text-[11px] text-slate-500" title={song.artist}>
-                        {song.artist}
+                      <div className="p-2">
+                        <div className="truncate text-xs font-medium text-slate-100" title={song.title}>
+                          {song.title}
+                        </div>
+                        <div className="truncate text-[11px] text-slate-500" title={song.artist}>
+                          {song.artist}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </section>
