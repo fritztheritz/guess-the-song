@@ -17,95 +17,12 @@ import DialogShell from '../components/ui/DialogShell'
 import TextInput from '../components/ui/TextInput'
 import Button from '../components/ui/Button'
 import Panel from '../components/ui/Panel'
-
-function DrafterRoster({
-  drafter,
-  songs,
-  highlight,
-  onCreatePlaylist,
-  createDisabledReason,
-  onResetPlaylist,
-  onPreviewSong,
-  previewingSongId,
-}: {
-  drafter: Drafter
-  songs: DraftPoolSong[]
-  highlight?: boolean
-  /** Opens the naming modal. Only passed on the listening screen, and only when the drafter
-   *  has an eligible song. */
-  onCreatePlaylist?: () => void
-  /** When set, the Create button shows but is disabled, with this as the reason (instead of silently vanishing). */
-  createDisabledReason?: string
-  /** Clears a stale/broken playlist link so "Create" reappears. Only passed on the listening
-   *  screen, alongside onCreatePlaylist — covers links made before the secret_token fix, or a
-   *  playlist deleted on SoundCloud's side. */
-  onResetPlaylist?: () => void
-  /** Plays/pauses a song via this app's own authenticated SoundCloud connection — works for
-   *  private tracks (unlike embedding SoundCloud's public widget, which cannot play private
-   *  content at all, full stop). Only passed on the listening screen. */
-  onPreviewSong?: (song: DraftPoolSong) => void
-  previewingSongId?: string | null
-}) {
-  return (
-    <Panel padding="sm" highlight={highlight}>
-      <div className="mb-1.5 flex items-center justify-between gap-1.5">
-        <div className="flex items-center gap-1.5 truncate text-sm font-semibold" style={{ color: drafter.color }}>
-          {drafter.avatar ? `${drafter.avatar} ` : ''}
-          {drafter.name}
-        </div>
-        {drafter.soundcloudPlaylistUrl ? (
-          <div className="flex shrink-0 items-center gap-1.5">
-            <a href={drafter.soundcloudPlaylistUrl} target="_blank" rel="noreferrer" className="text-xs text-[#ff7733] hover:text-[#ff5500]">
-              🎵 Playlist ↗
-            </a>
-            {onResetPlaylist && (
-              <button onClick={onResetPlaylist} aria-label="Reset playlist link" title="Reset playlist link" className="text-xs text-slate-500 hover:text-slate-300">
-                ↻
-              </button>
-            )}
-          </div>
-        ) : (
-          onCreatePlaylist && (
-            <button
-              onClick={onCreatePlaylist}
-              disabled={!!createDisabledReason}
-              title={createDisabledReason}
-              className="shrink-0 text-xs text-slate-400 enabled:hover:text-[#ff7733] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              🎵 Create
-            </button>
-          )
-        )}
-      </div>
-      {songs.length === 0 ? (
-        <p className="text-xs text-slate-500">No picks yet</p>
-      ) : (
-        <ul className="space-y-1 text-xs text-slate-300">
-          {songs.map((song) => {
-            const canPreview = onPreviewSong && song.source === 'soundcloud' && song.soundcloudTrackId
-            const isPreviewing = previewingSongId === song.id
-            return (
-              <li key={song.id} className="flex items-center gap-1.5 truncate">
-                {canPreview && (
-                  <button
-                    onClick={() => onPreviewSong(song)}
-                    aria-label={isPreviewing ? `Stop ${song.title}` : `Play ${song.title}`}
-                    className={`shrink-0 ${isPreviewing ? 'text-hardwood-400' : 'text-slate-500 hover:text-hardwood-400'}`}
-                  >
-                    {isPreviewing ? '■' : '▶'}
-                  </button>
-                )}
-                <span className="truncate">
-                  {song.title} <span className="text-slate-500">— {song.artist}</span>
-                </span>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </Panel>
-  )
-}
+import DrafterRoster from '../components/DrafterRoster'
+import DraftTurnBanner from '../components/DraftTurnBanner'
+import RosterStrip from '../components/RosterStrip'
+import DraftPickPool from '../components/DraftPickPool'
+import FinalPodium from '../components/FinalPodium'
+import NowPlayingBar from '../components/NowPlayingBar'
 
 function CreatePlaylistModal({
   defaultTitle,
@@ -175,7 +92,6 @@ export default function DraftSessionRoom() {
   // isn't confirmed working yet, so this stays off by default until that's sorted out.
   const soundcloudPlaylistsEnabled = useFeatureFlag('draft-soundcloud-playlists') && isSoundCloudConfigured()
   const [board, setBoard] = useState<DraftBoard | null>(null)
-  const [filterQuery, setFilterQuery] = useState('')
   const [ballotOrder, setBallotOrder] = useState<string[]>([])
   const [playlistModalDrafterId, setPlaylistModalDrafterId] = useState<string | null>(null)
   const [creatingPlaylistId, setCreatingPlaylistId] = useState<string | null>(null)
@@ -215,11 +131,6 @@ export default function DraftSessionRoom() {
   )
 
   const availableSongs = useMemo(() => board?.songPool.filter((s) => !s.takenBySessionId) ?? [], [board])
-  const filteredSongs = useMemo(() => {
-    const q = filterQuery.trim().toLowerCase()
-    if (!q) return availableSongs
-    return availableSongs.filter((s) => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q))
-  }, [availableSongs, filterQuery])
 
   function rosterFor(drafterId: string): DraftPoolSong[] {
     if (!board || !session) return []
@@ -261,6 +172,14 @@ export default function DraftSessionRoom() {
     })
   }
 
+  // The whole draft in pick order — what "Play all" and the now-playing bar step through.
+  const listenQueue = useMemo(() => {
+    if (!board || !session) return []
+    return session.picks
+      .map((p) => board.songPool.find((s) => s.id === p.songId))
+      .filter((s): s is DraftPoolSong => !!s && s.source === 'soundcloud' && !!s.soundcloudTrackId)
+  }, [board, session])
+
   function soundcloudSongsFor(drafterId: string): DraftPoolSong[] {
     return rosterFor(drafterId).filter((s) => s.source === 'soundcloud' && s.soundcloudTrackId)
   }
@@ -278,6 +197,12 @@ export default function DraftSessionRoom() {
   function togglePreviewSong(queue: DraftPoolSong[], song: DraftPoolSong) {
     togglePreviewTrack(toPreviewableTrack(song), queue.map(toPreviewableTrack))
   }
+
+  const nowPlayingIndex = previewingSongId ? listenQueue.findIndex((s) => s.id === previewingSongId) : -1
+  const nowPlaying = nowPlayingIndex >= 0 ? listenQueue[nowPlayingIndex] : undefined
+  const nowPlayingDrafter = nowPlaying
+    ? session?.drafters.find((d) => d.id === session.picks.find((p) => p.songId === nowPlaying.id)?.drafterId)
+    : undefined
 
   async function handleCreatePlaylistFor(drafterId: string, title: string, sharing: 'public' | 'private') {
     if (!board || !session) return
@@ -319,6 +244,25 @@ export default function DraftSessionRoom() {
           : s,
       ),
     })
+  }
+
+  // Standings are only meaningful (and only computed) once the draft is done.
+  const standings = useMemo(() => (session?.phase === 'complete' ? computeDraftStandings(session) : []), [session])
+
+  // A plain-text recap for pasting into a chat: final standings, then each drafter's picks.
+  async function copyResultsText() {
+    if (!session) return
+    const medals = ['🥇', '🥈', '🥉']
+    const text = [
+      `${session.name} — final standings`,
+      ...standings.map((st, i) => `${medals[i] ?? `${i + 1}.`} ${st.name} — ${st.points} pts\n   ${rosterFor(st.drafterId).map((s) => s.title).join(' · ')}`),
+    ].join('\n')
+    try {
+      await navigator.clipboard.writeText(text)
+      showToast('Results copied to clipboard!')
+    } catch {
+      showToast('Could not copy results.')
+    }
   }
 
   async function handleShareResults() {
@@ -371,6 +315,18 @@ export default function DraftSessionRoom() {
     setBallotOrder(otherDrafterIds)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nextRanker?.id])
+
+  const [dragIndex, setDragIndex] = useState<number | null>(null)
+
+  function moveBallotTo(from: number, to: number) {
+    setBallotOrder((prev) => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(to, 0, moved)
+      return next
+    })
+  }
 
   function moveBallotEntry(index: number, direction: -1 | 1) {
     setBallotOrder((prev) => {
@@ -441,92 +397,24 @@ export default function DraftSessionRoom() {
 
         {session.phase === 'drafting' && currentDrafter && (
           <>
-            <div className="relative rounded-xl border border-hardwood-500 bg-hardwood-500/10 px-5 py-3 text-center">
-              <div className="text-xs uppercase tracking-[0.3em] text-slate-400">
-                Round {currentRound} of {session.picksPerDrafter} · Pick {currentPickNumber + 1} of {totalPicks}
-              </div>
-              <div className="font-display text-2xl tracking-wide" style={{ color: currentDrafter.color }}>
-                {currentDrafter.avatar ? `${currentDrafter.avatar} ` : ''}
-                {currentDrafter.name.toUpperCase()}'S PICK
-              </div>
-              {canUndoPick && (
-                <button
-                  onClick={undoLastPick}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-arena-500 px-3 py-1 text-xs text-slate-300 hover:border-hardwood-400 hover:text-hardwood-300"
-                >
-                  ↩ Undo Last Pick
-                </button>
-              )}
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-arena-700">
-                <div
-                  className="h-full rounded-full bg-hardwood-500 transition-[width]"
-                  style={{ width: `${(currentPickNumber / totalPicks) * 100}%` }}
-                />
-              </div>
-              {onDeck.length > 0 && (
-                <div className="mt-2 flex items-center justify-center gap-1.5 text-xs text-slate-500">
-                  <span className="uppercase tracking-widest">On deck</span>
-                  {onDeck.map((drafter, i) => (
-                    <span key={i} className="flex items-center gap-1.5">
-                      {i > 0 && <span className="text-arena-600">→</span>}
-                      <span style={{ color: drafter.color }}>
-                        {drafter.avatar ? `${drafter.avatar} ` : ''}
-                        {drafter.name}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
+            <DraftTurnBanner
+              round={currentRound}
+              rounds={session.picksPerDrafter}
+              pickNumber={currentPickNumber}
+              totalPicks={totalPicks}
+              drafter={currentDrafter}
+              onDeck={onDeck}
+              onUndo={canUndoPick ? undoLastPick : undefined}
+            />
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-              {session.drafters.map((drafter) => (
-                <DrafterRoster key={drafter.id} drafter={drafter} songs={rosterFor(drafter.id)} highlight={drafter.id === currentDrafter.id} />
-              ))}
-            </div>
+            <RosterStrip
+              drafters={session.drafters}
+              rosterFor={rosterFor}
+              picksPerDrafter={session.picksPerDrafter}
+              currentDrafterId={currentDrafter.id}
+            />
 
-            <div>
-              <input
-                value={filterQuery}
-                onChange={(e) => setFilterQuery(e.target.value)}
-                placeholder="Filter by title or artist…"
-                className="mb-3 w-full rounded-lg border border-arena-600 bg-arena-800 px-3 py-2 text-slate-100 outline-none focus:border-hardwood-500"
-              />
-              {filteredSongs.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-500">No songs left matching "{filterQuery}".</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
-                  {filteredSongs.map((song) => (
-                    <button
-                      key={song.id}
-                      onClick={() => pickSong(song)}
-                      className="flex flex-col overflow-hidden rounded-xl border border-arena-600 bg-arena-800 text-left hover:border-hardwood-500"
-                    >
-                      <div className="aspect-square w-full bg-arena-700">
-                        {song.artworkUrl ? <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" /> : (
-                          <div className="flex h-full w-full items-center justify-center text-3xl text-arena-500">♪</div>
-                        )}
-                      </div>
-                      <div className="p-2.5">
-                        <div className="truncate text-sm font-semibold text-slate-100">{song.title}</div>
-                        <div className="truncate text-xs text-slate-400">{song.artist}</div>
-                        {(song.soundcloudUrl || song.spotifyUrl) && (
-                          <a
-                            href={song.soundcloudUrl || song.spotifyUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="mt-1 inline-block text-xs text-hardwood-400 hover:text-hardwood-300"
-                          >
-                            Listen ↗
-                          </a>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            <DraftPickPool songs={availableSongs} totalAvailable={availableSongs.length} drafter={currentDrafter} onPick={pickSong} />
           </>
         )}
 
@@ -535,14 +423,21 @@ export default function DraftSessionRoom() {
             <div className="relative rounded-xl border border-hardwood-500 bg-hardwood-500/10 px-5 py-4 text-center">
               <div className="font-display text-3xl tracking-widest text-hardwood-400">🎧 LISTENING TIME!</div>
               <p className="mt-1 text-sm text-slate-400">Everyone's picks are in. Give the whole draft a listen before ranking.</p>
-              {canUndoPick && (
-                <button
-                  onClick={undoLastPick}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full border border-arena-500 px-3 py-1 text-xs text-slate-300 hover:border-hardwood-400 hover:text-hardwood-300"
-                >
-                  ↩ Undo Last Pick
-                </button>
-              )}
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
+                {soundcloudPlaylistsEnabled && soundcloud.connection && listenQueue.length > 0 && (
+                  <Button size="sm" variant="outline" onClick={() => togglePreviewSong(listenQueue, listenQueue[0])}>
+                    ▶ Play all in pick order
+                  </Button>
+                )}
+                {canUndoPick && (
+                  <button
+                    onClick={undoLastPick}
+                    className="rounded-full border border-arena-500 px-3 py-1 text-xs text-slate-300 hover:border-hardwood-400 hover:text-hardwood-300"
+                  >
+                    ↩ Undo Last Pick
+                  </button>
+                )}
+              </div>
             </div>
 
             {soundcloudPlaylistsEnabled && !soundcloud.connection && (
@@ -574,13 +469,23 @@ export default function DraftSessionRoom() {
                     }
                     onResetPlaylist={soundcloudPlaylistsEnabled && soundcloud.connection ? () => resetPlaylistFor(drafter.id) : undefined}
                     onPreviewSong={
-                      soundcloudPlaylistsEnabled && soundcloud.connection ? (song) => togglePreviewSong(songs, song) : undefined
+                      soundcloudPlaylistsEnabled && soundcloud.connection ? (song) => togglePreviewSong(listenQueue.length > 0 ? listenQueue : songs, song) : undefined
                     }
                     previewingSongId={previewingSongId}
                   />
                 )
               })}
             </div>
+
+            <NowPlayingBar
+              song={nowPlaying}
+              drafter={nowPlayingDrafter}
+              index={nowPlayingIndex + 1}
+              total={listenQueue.length}
+              onPrev={() => nowPlayingIndex > 0 && togglePreviewSong(listenQueue, listenQueue[nowPlayingIndex - 1])}
+              onNext={() => nowPlayingIndex < listenQueue.length - 1 && togglePreviewSong(listenQueue, listenQueue[nowPlayingIndex + 1])}
+              onStop={() => nowPlaying && togglePreviewSong(listenQueue, nowPlaying)}
+            />
 
             <Button
               onClick={() => persist({ ...board, sessions: board.sessions.map((s) => (s.id === session.id ? { ...s, phase: 'ranking' } : s)) })}
@@ -601,7 +506,21 @@ export default function DraftSessionRoom() {
                 {nextRanker.avatar ? `${nextRanker.avatar} ` : ''}
                 {nextRanker.name.toUpperCase()}, RANK EVERYONE ELSE
               </div>
-              <p className="mt-1 text-sm text-slate-400">Best roster at the top, worst at the bottom.</p>
+              <p className="mt-1 text-sm text-slate-400">Best roster at the top, worst at the bottom — drag to reorder, or use the arrows.</p>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5" aria-label="Ballots submitted">
+                {session.drafters.map((d) => {
+                  const done = session.rankings.some((r) => r.drafterId === d.id)
+                  return (
+                    <span
+                      key={d.id}
+                      className={`rounded-full px-2.5 py-0.5 text-xs ${done ? 'bg-scoreboard-green/15 text-scoreboard-green' : d.id === nextRanker.id ? 'bg-hardwood-500/20 text-hardwood-300' : 'bg-arena-800 text-slate-500'}`}
+                    >
+                      {done ? '✓ ' : d.id === nextRanker.id ? '✎ ' : ''}
+                      {d.name}
+                    </span>
+                  )
+                })}
+              </div>
               {canUndoPick && (
                 <button
                   onClick={undoLastPick}
@@ -617,7 +536,22 @@ export default function DraftSessionRoom() {
                 const drafter = session.drafters.find((d) => d.id === drafterId)
                 if (!drafter) return null
                 return (
-                  <Panel key={drafterId} padding="sm" className="flex items-center gap-3">
+                  <Panel
+                    key={drafterId}
+                    padding="sm"
+                    draggable
+                    onDragStart={() => setDragIndex(i)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      if (dragIndex !== null) moveBallotTo(dragIndex, i)
+                      setDragIndex(null)
+                    }}
+                    onDragEnd={() => setDragIndex(null)}
+                    className={`flex items-center gap-3 ${dragIndex === i ? 'opacity-40' : ''}`}
+                  >
+                    <span className="shrink-0 cursor-grab text-slate-600 active:cursor-grabbing" aria-hidden title="Drag to reorder">
+                      ⠿
+                    </span>
                     <div className="flex shrink-0 flex-col">
                       <button
                         onClick={() => moveBallotEntry(i, -1)}
@@ -664,9 +598,14 @@ export default function DraftSessionRoom() {
             </div>
 
             <div className="flex flex-col items-center gap-2">
-              <Button variant="outline" onClick={handleShareResults} disabled={sharing}>
-                {sharing ? 'Generating link…' : '🔗 Share Results'}
-              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button variant="outline" onClick={handleShareResults} disabled={sharing}>
+                  {sharing ? 'Generating link…' : '🔗 Share Results'}
+                </Button>
+                <Button variant="outline" onClick={copyResultsText}>
+                  📋 Copy results
+                </Button>
+              </div>
               {shareUrl && (
                 <TextInput
                   readOnly
@@ -677,15 +616,11 @@ export default function DraftSessionRoom() {
                 />
               )}
             </div>
-            <div className="space-y-2">
-              {computeDraftStandings(session).map((standing, i) => (
-                <div key={standing.drafterId} className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/70 p-4">
-                  <div className="flex items-center gap-2 font-display text-lg" style={{ color: standing.color }}>
-                    {i === 0 ? '🏆 ' : ''}
-                    {standing.avatar ? `${standing.avatar} ` : ''}
-                    {standing.name}
-                  </div>
-                  <div className="scoreboard-digit font-display text-2xl text-slate-100">{standing.points} pts</div>
+            <FinalPodium teams={standings.map((st) => ({ id: st.drafterId, name: st.name, color: st.color, avatar: st.avatar, score: st.points }))} />
+            <div className="mx-auto max-w-xl space-y-1 text-center text-xs text-slate-500">
+              {standings.map((st, i) => (
+                <div key={st.drafterId}>
+                  {i + 1}. <span style={{ color: st.color }}>{st.name}</span> — {st.points} pts
                 </div>
               ))}
             </div>

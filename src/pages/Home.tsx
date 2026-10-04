@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import ButtonLink from '../components/ui/ButtonLink'
+import { summarizeDraftBoard } from '../lib/draft-summary'
 import HomeSection from '../components/HomeSection'
 import EmptyState from '../components/ui/EmptyState'
 import { Link, useNavigate } from 'react-router-dom'
@@ -810,6 +811,15 @@ export default function Home() {
                         <div className="text-sm text-slate-500">
                           {available} song{available === 1 ? '' : 's'} available · {board.sessions.length} session{board.sessions.length === 1 ? '' : 's'}
                         </div>
+                        {(() => {
+                          const sum = summarizeDraftBoard(board)
+                          return sum.sessions > 0 ? (
+                            <div className="text-xs text-slate-500">
+                              {sum.inProgress > 0 ? <span className="text-hardwood-400">{sum.inProgress} in progress · </span> : null}
+                              {sum.completed} finished{sum.lastPlayed ? ` · last played ${timeAgo(sum.lastPlayed)}` : ''}
+                            </div>
+                          ) : null
+                        })()}
                         {board.tags && board.tags.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {board.tags.map((tag) => (

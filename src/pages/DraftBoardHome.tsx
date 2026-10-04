@@ -17,6 +17,7 @@ import Panel from '../components/ui/Panel'
 import Button from '../components/ui/Button'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
+import { summarizeDraftBoard } from '../lib/draft-summary'
 import { useStoredEntity } from '../lib/use-stored-entity'
 
 const PHASE_LABEL: Record<DraftSession['phase'], string> = {
@@ -168,6 +169,8 @@ export default function DraftBoardHome() {
     )
   }
 
+  const summary = summarizeDraftBoard(board)
+
   return (
     <div className="min-h-svh court-lines px-6 py-10">
       <div className="mx-auto max-w-3xl space-y-8">
@@ -180,6 +183,18 @@ export default function DraftBoardHome() {
             onChange={(e) => renameBoard(e.target.value)}
             className="w-full bg-transparent font-display text-3xl tracking-wide text-white outline-none focus:border-b focus:border-hardwood-500"
           />
+        </div>
+
+        <div className="-mt-4 flex flex-wrap gap-2 text-xs text-slate-300">
+          <span className="rounded-full border border-arena-600 px-3 py-1">{summary.sessions} session{summary.sessions === 1 ? '' : 's'}</span>
+          {summary.inProgress > 0 && <span className="rounded-full border border-hardwood-500/60 px-3 py-1 text-hardwood-300">{summary.inProgress} in progress</span>}
+          <span className="rounded-full border border-arena-600 px-3 py-1">{summary.completed} finished</span>
+          <span className="rounded-full border border-arena-600 px-3 py-1">
+            {summary.songsUsed} of {summary.songsTotal} songs used
+          </span>
+          {summary.lastPlayed && (
+            <span className="rounded-full border border-arena-600 px-3 py-1">last played {new Date(summary.lastPlayed).toLocaleDateString()}</span>
+          )}
         </div>
 
         {/* Sessions come first — they're what you open the draft to get to. The song pool is

@@ -7,6 +7,9 @@ import { playCorrect, playFanfare } from '../lib/sound-effects'
 import SoundControl from '../components/SoundControl'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
+import FinalPodium from '../components/FinalPodium'
+import ProgressRing from '../components/ProgressRing'
+import { PopReveal } from '../components/Reveal'
 
 const DRAFT_STORAGE_KEY = 'gts.draftboards.v1'
 
@@ -140,7 +143,9 @@ export default function DraftPresentation() {
               )}
             </div>
             <div>
-              <div className="font-display text-3xl text-white">{lastPick.song.title}</div>
+              <div className="font-display text-3xl text-white">
+                <PopReveal>{lastPick.song.title}</PopReveal>
+              </div>
               <div className="text-slate-400">{lastPick.song.artist}</div>
             </div>
             <div className="font-display text-xl" style={{ color: lastPick.drafter.color }}>
@@ -153,16 +158,13 @@ export default function DraftPresentation() {
             <div className="text-sm uppercase tracking-[0.3em] text-slate-500">
               Round {currentRound} of {session.picksPerDrafter} · Pick {currentPickNumber + 1} of {totalPicks}
             </div>
-            <div className="font-display text-6xl tracking-wide" style={{ color: currentDrafter.color }}>
-              {currentDrafter.avatar ? `${currentDrafter.avatar} ` : ''}
-              {currentDrafter.name.toUpperCase()}'S PICK
+            <div key={currentPickNumber} className="font-display text-6xl tracking-wide" style={{ color: currentDrafter.color }}>
+              <PopReveal>
+                {currentDrafter.avatar ? `${currentDrafter.avatar} ` : ''}
+                {currentDrafter.name.toUpperCase()}'S PICK
+              </PopReveal>
             </div>
-            <div className="h-2 w-full max-w-md overflow-hidden rounded-full bg-arena-700">
-              <div
-                className="h-full rounded-full bg-hardwood-500 transition-[width]"
-                style={{ width: `${(currentPickNumber / totalPicks) * 100}%` }}
-              />
-            </div>
+            <ProgressRing value={currentPickNumber} max={totalPicks} size={72} />
             {onDeck.length > 0 && (
               <div className="flex items-center justify-center gap-2 text-sm text-slate-500">
                 <span className="uppercase tracking-widest">On deck</span>
@@ -189,24 +191,24 @@ export default function DraftPresentation() {
             <p className="mt-2 text-slate-400">
               {session.rankings.length} of {session.drafters.length} ballots submitted
             </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              {session.drafters.map((d) => {
+                const done = session.rankings.some((r) => r.drafterId === d.id)
+                return (
+                  <span key={d.id} className={`rounded-full px-4 py-1.5 text-lg ${done ? 'bg-scoreboard-green/15 text-scoreboard-green' : 'bg-arena-800 text-slate-500'}`}>
+                    {done ? '✓ ' : ''}
+                    {d.avatar ? `${d.avatar} ` : ''}
+                    {d.name}
+                  </span>
+                )
+              })}
+            </div>
           </div>
         ) : (
           <div className="text-center">
             <div className="font-display text-6xl tracking-widest text-hardwood-400">FINAL STANDINGS</div>
-            <div className="mt-6 space-y-2">
-              {computeDraftStandings(session).map((standing, i) => (
-                <div
-                  key={standing.drafterId}
-                  className="flex w-96 items-center justify-between rounded-xl border border-arena-600 bg-arena-800/70 px-5 py-3"
-                >
-                  <span className="font-display text-xl" style={{ color: standing.color }}>
-                    {i === 0 ? '🏆 ' : ''}
-                    {standing.avatar ? `${standing.avatar} ` : ''}
-                    {standing.name}
-                  </span>
-                  <span className="scoreboard-digit font-display text-2xl text-slate-100">{standing.points} pts</span>
-                </div>
-              ))}
+            <div className="mt-6 flex justify-center">
+              <FinalPodium teams={computeDraftStandings(session).map((st) => ({ id: st.drafterId, name: st.name, color: st.color, avatar: st.avatar, score: st.points }))} />
             </div>
           </div>
         )}
@@ -214,12 +216,22 @@ export default function DraftPresentation() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
         {session.drafters.map((drafter) => (
-          <div key={drafter.id} className="rounded-xl border border-arena-600 bg-arena-800/60 p-3">
+          <div
+            key={drafter.id}
+            className={`rounded-xl border p-3 ${
+              session.phase === 'drafting' && currentDrafter?.id === drafter.id ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 bg-arena-800/60'
+            }`}
+          >
             <div className="truncate text-sm font-semibold" style={{ color: drafter.color }}>
               {drafter.avatar ? `${drafter.avatar} ` : ''}
               {drafter.name}
             </div>
-            <div className="text-xs text-slate-500">{rosterFor(drafter.id).length} songs</div>
+            <div className="text-xs text-slate-500">
+              {rosterFor(drafter.id).length}/{session.picksPerDrafter} songs
+            </div>
+            {rosterFor(drafter.id).length > 0 && (
+              <div className="mt-0.5 truncate text-[11px] text-slate-500">Last: {rosterFor(drafter.id).slice(-1)[0].title}</div>
+            )}
           </div>
         ))}
       </div>

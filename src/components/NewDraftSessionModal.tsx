@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { teamColorForIndex } from '../types'
+import { teamColorForIndex, TEAM_AVATARS, TEAM_COLORS } from '../types'
+import { randomTeams } from '../lib/team-names'
 import { listTeamPresets, type TeamPreset } from '../lib/team-presets'
 import type { Drafter } from '../types/draft'
 import DraftOrderWheel from './DraftOrderWheel'
@@ -35,6 +36,7 @@ export default function NewDraftSessionModal({
   const [drafters, setDrafters] = useState<DrafterDraft[]>([drafterDraft(0), drafterDraft(1)])
   const [picksPerDrafter, setPicksPerDrafter] = useState(5)
   const [presetPickerIndex, setPresetPickerIndex] = useState<number | null>(null)
+  const [stylePickerIndex, setStylePickerIndex] = useState<number | null>(null)
   const [wheelOpen, setWheelOpen] = useState(false)
   const presets = useMemo(() => listTeamPresets(), [])
 
@@ -44,6 +46,22 @@ export default function NewDraftSessionModal({
   function addDrafter() {
     if (drafters.length >= MAX_DRAFTERS) return
     setDrafters((prev) => [...prev, drafterDraft(prev.length)])
+  }
+
+  // Jump straight to N drafters, keeping the ones already filled in.
+  function setDrafterCount(count: number) {
+    setDrafters((prev) => (count <= prev.length ? prev.slice(0, count) : [...prev, ...Array.from({ length: count - prev.length }, (_, k) => drafterDraft(prev.length + k))]))
+    setStylePickerIndex(null)
+  }
+
+  // Fun names and mascots for everyone (the 🎡 wheel is for the pick ORDER, this is for identity).
+  function randomizeNames() {
+    setDrafters(randomTeams(drafters.length))
+    setStylePickerIndex(null)
+  }
+
+  function styleDrafter(i: number, patch: Partial<DrafterDraft>) {
+    setDrafters((prev) => prev.map((d, idx) => (idx === i ? { ...d, ...patch } : d)))
   }
 
   function removeDrafter(i: number) {
@@ -98,20 +116,40 @@ export default function NewDraftSessionModal({
           <div>
             <div className="mb-2 flex items-center justify-between">
               <label className="text-sm text-slate-400">Drafters</label>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">
-                  {drafters.length}/{MAX_DRAFTERS}
-                </span>
+              <div className="flex flex-wrap items-center justify-end gap-1.5">
+                {[2, 3, 4, 5, 6].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setDrafterCount(n)}
+                    aria-pressed={drafters.length === n}
+                    aria-label={`${n} drafters`}
+                    className={`h-7 w-7 rounded-full text-xs font-semibold ${
+                      drafters.length === n ? 'bg-hardwood-500 text-arena-950' : 'border border-arena-600 text-slate-400 hover:border-hardwood-500'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={randomizeNames}
+                  className="rounded-full border border-arena-600 px-2.5 py-1 text-xs text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
+                  title="Give everyone a random name and mascot"
+                >
+                  🎲 Names
+                </button>
                 <button
                   type="button"
                   onClick={() => setWheelOpen(true)}
                   className="rounded-full border border-arena-600 px-2.5 py-1 text-xs text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
+                  title="Spin the wheel for pick order"
                 >
-                  🎡 Randomize
+                  🎡 Order
                 </button>
               </div>
             </div>
-            <p className="mb-2 text-xs text-slate-500">Top of the list picks first. Reorder with the arrows, or spin the wheel.</p>
+            <p className="mb-2 text-xs text-slate-500">Top of the list picks first. Reorder with the arrows, or spin the wheel for the order.</p>
             <div className="space-y-2">
               {drafters.map((drafter, i) => (
                 <div key={i} className="relative flex items-center gap-2">
@@ -135,12 +173,16 @@ export default function NewDraftSessionModal({
                       ▼
                     </button>
                   </div>
-                  <span
-                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs"
-                    style={{ background: `${drafter.color}33`, color: drafter.color }}
+                  <button
+                    type="button"
+                    onClick={() => setStylePickerIndex(stylePickerIndex === i ? null : i)}
+                    aria-label={`Change ${drafter.name}'s colour and mascot`}
+                    aria-expanded={stylePickerIndex === i}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs ring-2 ring-offset-2 ring-offset-arena-900 hover:brightness-125"
+                    style={{ background: `${drafter.color}33`, color: drafter.color, '--tw-ring-color': drafter.color } as React.CSSProperties}
                   >
-                    {drafter.avatar ?? ''}
-                  </span>
+                    {drafter.avatar ?? '＋'}
+                  </button>
                   <TextInput value={drafter.name} onChange={(e) => renameDrafter(i, e.target.value)} inputSize="sm" className="w-full" />
                   {presets.length > 0 && (
                     <button
@@ -161,6 +203,48 @@ export default function NewDraftSessionModal({
                     >
                       ✕
                     </button>
+                  )}
+                  {stylePickerIndex === i && (
+                    <>
+                      <div className="fixed inset-0 z-0" onClick={() => setStylePickerIndex(null)} />
+                      <div
+                        onClick={(e) => e.stopPropagation()}
+                        className="absolute left-8 top-11 z-10 w-60 space-y-3 rounded-lg border border-arena-600 bg-arena-900 p-3 shadow-xl"
+                      >
+                        <div>
+                          <div className="mb-1.5 text-[11px] uppercase tracking-widest text-slate-500">Colour</div>
+                          <div className="flex flex-wrap gap-2">
+                            {TEAM_COLORS.map((c) => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => styleDrafter(i, { color: c })}
+                                aria-label={`Colour ${c}`}
+                                aria-pressed={drafter.color === c}
+                                className={`h-6 w-6 rounded-full ${drafter.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-arena-900' : ''}`}
+                                style={{ background: c }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="mb-1.5 text-[11px] uppercase tracking-widest text-slate-500">Mascot</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {TEAM_AVATARS.map((a) => (
+                              <button
+                                key={a}
+                                type="button"
+                                onClick={() => styleDrafter(i, { avatar: drafter.avatar === a ? undefined : a })}
+                                aria-pressed={drafter.avatar === a}
+                                className={`flex h-8 w-8 items-center justify-center rounded-lg text-base ${drafter.avatar === a ? 'bg-hardwood-500/30 ring-1 ring-hardwood-500' : 'hover:bg-arena-700'}`}
+                              >
+                                {a}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </>
                   )}
                   {presetPickerIndex === i && (
                     <>
