@@ -31,9 +31,9 @@ export default function Admin() {
   return (
     <div className="min-h-svh court-lines">
       <div className="mx-auto max-w-3xl px-6 py-16">
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-col-reverse items-start gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
-            <h1 className="font-display text-3xl tracking-wide text-white">FEATURE FLAGS</h1>
+            <h1 className="title-page">FEATURE FLAGS</h1>
             <p className="mt-1 text-sm text-slate-400">
               Stored in this browser only — toggling a flag here doesn't affect anyone else, so you can try something on the
               live site before it's on for everyone.
@@ -113,7 +113,7 @@ export default function Admin() {
                             />
                           </button>
                           {flag.overridden && (
-                            <button onClick={() => resetOverride(flag.key)} className="text-xs text-slate-500 underline hover:text-slate-300">
+                            <button onClick={() => resetOverride(flag.key)} className="px-1 py-2 text-xs text-slate-500 underline hover:text-slate-300">
                               Reset
                             </button>
                           )}
@@ -150,7 +150,7 @@ export default function Admin() {
           </div>
         )}
         <section className="mt-8">
-          <h2 className="mb-2 font-display text-xl tracking-wide text-slate-300">MODE RULES</h2>
+          <h2 className="mb-2 title-section">MODE RULES</h2>
           <ModeComparison />
         </section>
       </div>

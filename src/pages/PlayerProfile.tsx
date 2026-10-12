@@ -7,6 +7,7 @@ import type { Game } from '../types'
 import EmptyState from '../components/ui/EmptyState'
 import ButtonLink from '../components/ui/ButtonLink'
 import Panel from '../components/ui/Panel'
+import { PlayerTrend } from '../components/StatsCharts'
 
 function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -59,9 +60,11 @@ export default function PlayerProfile() {
               <Tile label="Fastest buzz" value={profile.fastestMs === undefined ? '—' : `${(profile.fastestMs / 1000).toFixed(2)}s`} hint={`${profile.buzzes} buzzes`} />
             </div>
 
+            <PlayerTrend lines={profile.lines} />
+
             {profile.bestGame && (
               <section>
-                <h2 className="mb-2 font-display text-xl tracking-wide text-slate-300">BEST GAME</h2>
+                <h2 className="mb-2 title-section">BEST GAME</h2>
                 <Panel padding="sm" className="flex items-center justify-between gap-3">
                   <span className="min-w-0 truncate text-slate-100">
                     {profile.bestGame.gameName}
@@ -73,7 +76,7 @@ export default function PlayerProfile() {
             )}
 
             <section>
-              <h2 className="mb-2 font-display text-xl tracking-wide text-slate-300">HISTORY</h2>
+              <h2 className="mb-2 title-section">HISTORY</h2>
               <div className="space-y-2">
                 {profile.lines.map((l) => (
                   <Panel key={l.gameId} padding="sm" className="flex items-center justify-between gap-3">

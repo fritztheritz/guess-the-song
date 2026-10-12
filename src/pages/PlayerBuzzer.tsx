@@ -403,14 +403,19 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             <p className="text-sm text-slate-400">Connecting…</p>
           ) : (
             <div className="space-y-4">
-              <input
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                placeholder="Your name"
-                autoFocus
-                maxLength={40}
-                className="w-full rounded-xl border border-arena-600 bg-arena-800 px-4 py-3 text-center text-lg text-white outline-none focus:border-hardwood-500"
-              />
+              <label className="block text-left">
+                <span className="mb-1 block text-xs uppercase tracking-widest text-slate-500">Your name</span>
+                <input
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  placeholder="e.g. Sam"
+                  autoFocus
+                  maxLength={40}
+                  autoComplete="nickname"
+                  enterKeyHint="done"
+                  className="w-full rounded-xl border border-arena-600 bg-arena-800 px-4 py-3 text-center text-lg text-white outline-none focus:border-hardwood-500"
+                />
+              </label>
               <div>
                 {teams.length !== 1 && <div className="mb-2 text-sm text-slate-400">Pick your team</div>}
                 <div className="grid grid-cols-2 gap-2">
@@ -418,11 +423,13 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                     <button
                       key={team.id}
                       onClick={() => setSelectedTeamId(team.id)}
-                      className={`rounded-xl border-2 px-3 py-3 font-semibold ${
+                      aria-pressed={chosenTeamId === team.id}
+                      className={`min-h-14 rounded-xl border-2 px-3 py-3 font-semibold ${
                         chosenTeamId === team.id ? 'border-white' : 'border-transparent'
                       }`}
                       style={{ background: `${team.color}22`, color: team.color, borderColor: chosenTeamId === team.id ? team.color : 'transparent' }}
                     >
+                      {chosenTeamId === team.id ? '✓ ' : ''}
                       {team.avatar ? `${team.avatar} ` : ''}
                       {team.name}
                     </button>
@@ -432,7 +439,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
               {spectatorModeEnabled && (
                 <button
                   onClick={() => setSelectedTeamId(SPECTATOR_CHOICE)}
-                  className={`w-full rounded-xl border-2 px-3 py-2.5 text-sm font-semibold text-slate-300 ${
+                  className={`min-h-12 w-full rounded-xl border-2 px-3 py-2.5 text-sm font-semibold text-slate-300 ${
                     selectedTeamId === SPECTATOR_CHOICE ? 'border-slate-300' : 'border-transparent bg-arena-800'
                   }`}
                 >
@@ -442,9 +449,9 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
               <button
                 onClick={handleJoin}
                 disabled={!nameInput.trim() || !chosenTeamId}
-                className="w-full rounded-full bg-hardwood-500 py-3 font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
+                className="min-h-12 w-full rounded-full bg-hardwood-500 py-3 font-semibold text-arena-950 disabled:opacity-30 hover:bg-hardwood-400"
               >
-                READY
+                {nameInput.trim() ? (chosenTeamId ? "I'M READY" : 'PICK A TEAM TO JOIN') : 'ENTER YOUR NAME'}
               </button>
             </div>
           )}
@@ -747,9 +754,13 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             <button
               onClick={handleBuzz}
               disabled={buzzState !== 'open' || socketStatus !== 'open'}
-              className="flex h-56 w-56 flex-col items-center justify-center rounded-full bg-scoreboard-500 text-3xl font-display tracking-wide text-white shadow-2xl transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-arena-700 disabled:text-slate-500"
+              aria-label={buzzState === 'open' ? 'Buzz in' : 'Waiting for the buzzer to open'}
+              className={`flex size-[min(16rem,68vw)] flex-col items-center justify-center rounded-full bg-scoreboard-500 font-display text-5xl tracking-wide text-white shadow-2xl transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-arena-700 disabled:text-slate-500 disabled:shadow-none ${
+                buzzState === 'open' && socketStatus === 'open' ? 'ring-8 ring-scoreboard-500/30' : ''
+              }`}
             >
               {buzzState === 'open' ? 'BUZZ!' : 'WAIT…'}
+              {buzzState !== 'open' && <span className="mt-1 font-sans text-xs tracking-normal">the host will open it</span>}
             </button>
           )}
         </div>

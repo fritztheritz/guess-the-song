@@ -229,7 +229,7 @@ export default function BlindRanking() {
       <div className="mx-auto max-w-4xl px-6 py-8">
         <div className="mb-6 flex items-center justify-between gap-3">
           <BackLink to={`/tierlists/${list.id}/present`}>Tier list</BackLink>
-          <h1 className="font-display text-3xl tracking-wide text-white">🙈 BLIND RANKING</h1>
+          <h1 className="title-page">🙈 BLIND RANKING</h1>
           <SoundControl />
         </div>
 
@@ -351,7 +351,7 @@ export default function BlindRanking() {
             </div>
 
             <section>
-              <h2 className="mb-2 font-display text-xl tracking-wide text-slate-300">EVERYONE'S LIST</h2>
+              <h2 className="mb-2 title-section">EVERYONE'S LIST</h2>
               <div className="overflow-x-auto rounded-xl border border-arena-600">
                 <table className="w-full min-w-[28rem] text-left text-sm">
                   <thead className="bg-arena-800 text-slate-400">

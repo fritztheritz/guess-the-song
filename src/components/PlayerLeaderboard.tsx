@@ -8,7 +8,7 @@ export default function PlayerLeaderboard({ players }: { players: PlayerRow[] })
   if (players.length === 0) return null
   return (
     <section>
-      <h2 className="mb-1 font-display text-xl tracking-wide text-slate-300">PLAYER LEADERBOARD</h2>
+      <h2 className="mb-1 title-section">PLAYER LEADERBOARD</h2>
       <p className="mb-3 text-xs text-slate-500">Phone players, matched by name across every completed game.</p>
       <div className="space-y-2">
         {players.slice(0, 10).map((p, i) => (

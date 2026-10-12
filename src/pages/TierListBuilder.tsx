@@ -239,7 +239,7 @@ export default function TierListBuilder() {
 
         <section className="mt-6 border-t border-arena-700 pt-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-display text-xl tracking-wide text-slate-300">
+            <h2 className="title-section">
               SONGS <span className="text-sm font-normal text-slate-500">({list.songs.length})</span>
             </h2>
             <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>

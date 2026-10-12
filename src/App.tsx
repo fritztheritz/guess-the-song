@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import { lazyPage } from './lib/lazy-page'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
+import CommandPalette from './components/CommandPalette'
 import { PageSkeleton } from './components/skeletons'
 import Home from './pages/Home'
 import RequireFlag from './components/RequireFlag'
@@ -16,6 +17,7 @@ const Stats = lazyPage(() => import('./pages/Stats'))
 const PlayerProfile = lazyPage(() => import('./pages/PlayerProfile'))
 const GameReplay = lazyPage(() => import('./pages/GameReplay'))
 const QuickGame = lazyPage(() => import('./pages/QuickGame'))
+const Settings = lazyPage(() => import('./pages/Settings'))
 const BlindRanking = lazyPage(() => import('./pages/BlindRanking'))
 const BlindRankingGroup = lazyPage(() => import('./pages/BlindRankingGroup'))
 const Admin = lazyPage(() => import('./pages/Admin'))
@@ -41,7 +43,9 @@ export default function App() {
   const { pathname } = useLocation()
   return (
     <RouteErrorBoundary key={pathname}>
+    <CommandPalette />
     <Suspense fallback={<PageSkeleton />}>
+    <div key={pathname} className="animate-page-in">
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/new" element={<CreateGame />} />
@@ -55,6 +59,7 @@ export default function App() {
       <Route path="/players/:name" element={<PlayerProfile />} />
       <Route path="/games/:gameId/replay" element={<GameReplay />} />
       <Route path="/admin" element={<Admin />} />
+      <Route path="/settings" element={<Settings />} />
       <Route path="/buzz" element={<PlayerBuzzer />} />
       <Route path="/buzz/:code" element={<PlayerBuzzer />} />
       <Route
@@ -202,6 +207,7 @@ export default function App() {
         }
       />
     </Routes>
+    </div>
     </Suspense>
     </RouteErrorBoundary>
   )

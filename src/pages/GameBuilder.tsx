@@ -390,13 +390,14 @@ export default function GameBuilder() {
 
   return (
     <div className="flex h-svh flex-col bg-arena-950">
-      <header className="flex items-center justify-between border-b border-arena-700 px-6 py-3">
-        <div className="flex items-center gap-3">
-          <Link to="/" className="text-slate-500 hover:text-slate-300">←</Link>
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-arena-700 px-4 py-3 sm:px-6">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <Link to="/" aria-label="Back to home" className="inline-flex h-9 w-9 items-center justify-center text-slate-500 hover:text-slate-300">←</Link>
           <input
             value={game.name}
             onChange={(e) => persist({ ...game, name: e.target.value })}
-            className="bg-transparent font-display text-2xl tracking-wide text-white outline-none focus:border-b focus:border-hardwood-500"
+            aria-label="Game name"
+            className="min-w-0 flex-1 bg-transparent font-display text-2xl tracking-wide text-white outline-none focus:border-b focus:border-hardwood-500 sm:flex-none"
           />
           <span className="hidden text-xs text-slate-500 sm:inline" role="status">
             {game.rounds.length} {game.rounds.length === 1 ? 'possession' : 'possessions'} · {game.teams.length} teams ·{' '}
@@ -405,7 +406,7 @@ export default function GameBuilder() {
             </span>
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             disabled={game.rounds.length === 0}
             onClick={() => setAnswerKeyOpen(true)}
@@ -446,8 +447,8 @@ export default function GameBuilder() {
         </div>
       )}
 
-      <div className="flex flex-1 overflow-hidden">
-        <aside className="flex w-64 shrink-0 flex-col overflow-y-auto border-r border-arena-700 bg-arena-900/60 p-3">
+      <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
+        <aside className="flex max-h-[38svh] w-full shrink-0 flex-col overflow-y-auto border-b border-arena-700 bg-arena-900/60 p-3 md:max-h-none md:w-64 md:border-b-0 md:border-r">
           {game.rounds.map((round, i) => (
             <div
               key={round.id}
@@ -498,7 +499,7 @@ export default function GameBuilder() {
                   <button
                     disabled={i === 0}
                     onClick={(e) => { e.stopPropagation(); reorder(i, i - 1) }}
-                    className="text-xs text-slate-500 hover:text-slate-200 disabled:opacity-20 disabled:hover:text-slate-500"
+                    className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-slate-200 disabled:opacity-20 disabled:hover:text-slate-500"
                     title="Move up"
                     aria-label={`Move "${round.title || 'this round'}" up`}
                   >
@@ -507,7 +508,7 @@ export default function GameBuilder() {
                   <button
                     disabled={i === game.rounds.length - 1}
                     onClick={(e) => { e.stopPropagation(); reorder(i, i + 1) }}
-                    className="text-xs text-slate-500 hover:text-slate-200 disabled:opacity-20 disabled:hover:text-slate-500"
+                    className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-slate-200 disabled:opacity-20 disabled:hover:text-slate-500"
                     title="Move down"
                     aria-label={`Move "${round.title || 'this round'}" down`}
                   >
@@ -515,11 +516,11 @@ export default function GameBuilder() {
                   </button>
                 </div>
                 <div className="flex gap-0.5">
-                  <button onClick={(e) => { e.stopPropagation(); duplicateRound(round) }} className="text-xs text-slate-500 hover:text-slate-200" title="Duplicate">⧉</button>
+                  <button onClick={(e) => { e.stopPropagation(); duplicateRound(round) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-slate-200" title="Duplicate">⧉</button>
                   {suddenDeathEnabled && (
-                    <button onClick={(e) => { e.stopPropagation(); reserveRound(round) }} className="text-xs text-slate-500 hover:text-hardwood-400" title="Hold in reserve for a sudden-death tiebreaker" aria-label={`Hold "${round.title || 'this round'}" in reserve for a tiebreaker`}>🥇</button>
+                    <button onClick={(e) => { e.stopPropagation(); reserveRound(round) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-hardwood-400" title="Hold in reserve for a sudden-death tiebreaker" aria-label={`Hold "${round.title || 'this round'}" in reserve for a tiebreaker`}>🥇</button>
                   )}
-                  <button onClick={(e) => { e.stopPropagation(); removeRound(round.id) }} className="text-xs text-slate-500 hover:text-scoreboard-500" title="Delete">✕</button>
+                  <button onClick={(e) => { e.stopPropagation(); removeRound(round.id) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-scoreboard-500" title="Delete">✕</button>
                 </div>
               </div>
             </div>
@@ -784,7 +785,7 @@ export default function GameBuilder() {
           </BuilderSection>
         </aside>
 
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
           {!selectedRound ? (
             isTierGuess ? (
               <div className="flex h-full items-center justify-center">
@@ -811,8 +812,8 @@ export default function GameBuilder() {
             )
           ) : (
             <div className="mx-auto max-w-2xl space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-arena-700 shadow-lg">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="h-20 w-20 shrink-0 sm:h-28 sm:w-28 overflow-hidden rounded-xl bg-arena-700 shadow-lg">
                   {selectedRound.artworkUrl && <img src={selectedRound.artworkUrl} alt="" className="h-full w-full object-cover" />}
                 </div>
                 <div className="min-w-0 flex-1">

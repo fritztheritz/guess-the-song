@@ -12,6 +12,8 @@ import ButtonLink from '../components/ui/ButtonLink'
 import EmptyState from '../components/ui/EmptyState'
 import Panel from '../components/ui/Panel'
 import ScoreTrend from '../components/ScoreTrend'
+import { ActivityStrip, WinRateChart } from '../components/StatsCharts'
+import { teamWinRates, weeklyActivity } from '../lib/stats-charts'
 import AwardsPanel from '../components/AwardsPanel'
 import { aggregatePlayers, computeAwards } from '../lib/achievements'
 import PlayerLeaderboard from '../components/PlayerLeaderboard'
@@ -44,6 +46,11 @@ export default function Stats() {
   )
   const accuracy = useMemo(() => computeAccuracy(tallySources(popularityGames, timelineGames)), [popularityGames, timelineGames])
   const longestStreak = useMemo(() => findLongestStreak(tallySources(popularityGames, timelineGames)), [popularityGames, timelineGames])
+  const winRates = useMemo(() => teamWinRates([...games, ...popularityGames, ...timelineGames]), [games, popularityGames, timelineGames])
+  const activity = useMemo(
+    () => weeklyActivity([...completed, ...completedPopularity, ...completedTimeline].map((g) => g.updatedAt), 12, new Date()),
+    [completed, completedPopularity, completedTimeline],
+  )
   const totalPossessions = useMemo(() => completed.reduce((sum, g) => sum + g.rounds.length, 0), [completed])
 
   const achievementsEnabled = useFeatureFlag('achievements')
@@ -79,9 +86,9 @@ export default function Stats() {
   return (
     <div className="min-h-svh court-lines">
       <div className="mx-auto max-w-3xl px-6 py-16">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col-reverse items-start gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div>
-            <h1 className="font-display text-3xl tracking-wide text-white">STATS</h1>
+            <h1 className="title-page">STATS</h1>
             <p className="mt-1 text-sm text-slate-400">Aggregated across every completed game — quiz rounds, Guess the Popularity and Guess the Timeline — in this browser.</p>
           </div>
           <BackLink to="/">Home</BackLink>
@@ -105,7 +112,7 @@ export default function Stats() {
             </div>
 
             <section>
-              <h2 className="mb-1 font-display text-xl tracking-wide text-slate-300">TEAM LEADERBOARD</h2>
+              <h2 className="mb-1 title-section">TEAM LEADERBOARD</h2>
               <p className="mb-3 text-xs text-slate-500">Teams matched by name across every completed game.</p>
               <div className="space-y-2">
                 {standings.map((s, i) => (
@@ -129,13 +136,15 @@ export default function Stats() {
             </section>
 
             <ScoreTrend games={recentGames} />
+            <WinRateChart rows={winRates} />
+            <ActivityStrip weeks={activity} />
 
             {achievementsEnabled && <AwardsPanel awards={awards} title="ALL-TIME AWARDS" />}
             {achievementsEnabled && <PlayerLeaderboard players={players} />}
 
             {(biggestScore || fastestBuzz || longestStreak) && (
               <section>
-                <h2 className="mb-3 font-display text-xl tracking-wide text-slate-300">ALL-TIME BESTS</h2>
+                <h2 className="mb-3 title-section">ALL-TIME BESTS</h2>
                 <div className="space-y-2">
                   {biggestScore && (
                     <Panel padding="sm" className="flex items-center justify-between gap-3">
@@ -167,7 +176,7 @@ export default function Stats() {
 
             {accuracy.length > 0 && (
               <section>
-                <h2 className="mb-1 font-display text-xl tracking-wide text-slate-300">GUESSING ACCURACY</h2>
+                <h2 className="mb-1 title-section">GUESSING ACCURACY</h2>
                 <p className="mb-3 text-xs text-slate-500">Right vs. wrong picks in Guess the Popularity and Guess the Timeline.</p>
                 <div className="space-y-2">
                   {accuracy.map((a) => {
@@ -192,7 +201,7 @@ export default function Stats() {
 
             {topTags.length > 0 && (
               <section>
-                <h2 className="mb-3 font-display text-xl tracking-wide text-slate-300">TOP TAGS</h2>
+                <h2 className="mb-3 title-section">TOP TAGS</h2>
                 <div className="flex flex-wrap gap-2">
                   {topTags.map(([tag, count]) => (
                     <span key={tag} className="rounded-full border border-arena-600 px-3 py-1 text-xs text-slate-300">

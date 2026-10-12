@@ -39,7 +39,7 @@ export default function GameReplay() {
         ) : (
           <div className="mt-2 space-y-8">
             <div>
-              <h1 className="font-display text-4xl tracking-wide text-white">{game.name}</h1>
+              <h1 className="title-page">{game.name}</h1>
               <p className="text-sm text-slate-400">
                 Replay · {history.length} possession{history.length === 1 ? '' : 's'}
               </p>
@@ -86,7 +86,7 @@ export default function GameReplay() {
 
             {game.playerStats && game.playerStats.length > 0 && (
               <section>
-                <h2 className="mb-2 font-display text-xl tracking-wide text-slate-300">MVP</h2>
+                <h2 className="mb-2 title-section">MVP</h2>
                 {(() => {
                   const mvp = [...game.playerStats].sort((a, b) => b.points - a.points || b.correct - a.correct)[0]
                   return (
@@ -104,7 +104,7 @@ export default function GameReplay() {
             )}
 
             <section>
-              <h2 className="mb-2 font-display text-xl tracking-wide text-slate-300">POSSESSION BY POSSESSION</h2>
+              <h2 className="mb-2 title-section">POSSESSION BY POSSESSION</h2>
               <ol className="space-y-2">
                 {history.map((h) => (
                   <li key={h.index}>

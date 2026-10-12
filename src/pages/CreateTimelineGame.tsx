@@ -148,7 +148,7 @@ export default function CreateTimelineGame() {
       <div className="mx-auto max-w-2xl space-y-8">
         <div className="text-center">
           <div className="mb-2 text-4xl">🕰️</div>
-          <h1 className="font-display text-4xl tracking-wide text-white">GUESS THE TIMELINE</h1>
+          <h1 className="title-page">GUESS THE TIMELINE</h1>
           <p className="mt-2 text-sm text-slate-400">
             Build a deck of songs, then teams take turns slotting each mystery song into the right place by release year.
           </p>

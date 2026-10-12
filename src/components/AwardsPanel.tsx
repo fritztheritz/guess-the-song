@@ -6,7 +6,7 @@ export default function AwardsPanel({ awards, title = 'AWARDS' }: { awards: Awar
   if (awards.length === 0) return null
   return (
     <section>
-      <h2 className="mb-3 font-display text-xl tracking-wide text-slate-300">{title}</h2>
+      <h2 className="mb-3 title-section">{title}</h2>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         {awards.map((a) => (
           <Panel

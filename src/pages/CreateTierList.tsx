@@ -21,7 +21,7 @@ export default function CreateTierList() {
       <form onSubmit={handleSubmit} className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="mb-2 text-4xl">🏆</div>
-          <h1 className="font-display text-4xl tracking-wide text-white">NAME YOUR TIER LIST</h1>
+          <h1 className="title-page">NAME YOUR TIER LIST</h1>
           <p className="mt-2 text-sm text-slate-400">Pick songs, set your tiers, then rank them live.</p>
         </div>
 

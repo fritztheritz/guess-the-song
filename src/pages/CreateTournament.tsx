@@ -20,7 +20,7 @@ export default function CreateTournament() {
       <form onSubmit={handleSubmit} className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="mb-2 text-4xl">🏆</div>
-          <h1 className="font-display text-4xl tracking-wide text-white">NAME YOUR TOURNAMENT</h1>
+          <h1 className="title-page">NAME YOUR TOURNAMENT</h1>
           <p className="mt-2 text-sm text-slate-400">Chain a few existing games together with one running leaderboard.</p>
         </div>
 

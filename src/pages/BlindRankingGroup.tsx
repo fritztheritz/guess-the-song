@@ -307,7 +307,7 @@ export default function BlindRankingGroup() {
       <div className="mx-auto max-w-4xl px-4 pb-10 sm:px-6">
         <div className="flex items-center justify-between gap-3 py-5">
           <BackLink to={`/tierlists/${list.id}/present`}>Tier list</BackLink>
-          <h1 className="font-display text-3xl tracking-wide text-white">🙈 BLIND RANKING</h1>
+          <h1 className="title-page">🙈 BLIND RANKING</h1>
           <SoundControl />
         </div>
 

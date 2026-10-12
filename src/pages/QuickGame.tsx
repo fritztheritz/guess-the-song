@@ -55,7 +55,7 @@ export default function QuickGame() {
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="mb-2 text-4xl">⚡</div>
-          <h1 className="font-display text-4xl tracking-wide text-white">QUICK GAME</h1>
+          <h1 className="title-page">QUICK GAME</h1>
           <p className="mt-2 text-sm text-slate-400">Pick some tracks and we'll set up the rest — random songs, clip starts and team names.</p>
         </div>
 

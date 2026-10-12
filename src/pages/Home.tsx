@@ -614,7 +614,7 @@ export default function Home() {
               <button
                 key={tag}
                 onClick={() => toggleTag(tag)}
-                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
                   activeTags.includes(tag)
                     ? 'bg-hardwood-500 text-arena-950'
                     : 'border border-arena-600 text-slate-300 hover:border-hardwood-500'
@@ -1118,6 +1118,9 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <Link to="/stats" className="text-xs text-slate-600 hover:text-slate-400">
               Stats
+            </Link>
+            <Link to="/settings" className="text-xs text-slate-600 hover:text-slate-400">
+              Settings
             </Link>
             <Link to="/admin" className="text-xs text-slate-600 hover:text-slate-400">
               Feature flags

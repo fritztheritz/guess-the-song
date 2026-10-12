@@ -186,3 +186,34 @@ test('one-screen blind ranking: slots lock in and the result saves as a tier lis
   await expect(page).toHaveURL(/tierlists\/.+\/present/)
   await expect(page.getByText('L — group ranking').first()).toBeVisible()
 })
+
+test('creating a game walks through three steps', async ({ page }) => {
+  await page.goto('new')
+  await expect(page.getByRole('heading', { name: 'NEW GAME' })).toBeVisible()
+  await page.getByLabel('Game name').fill('Wizard Night')
+  await page.getByRole('button', { name: /NEXT/ }).click()
+  await expect(page.getByText('Choose teams')).toBeVisible()
+  await page.getByRole('button', { name: /NEXT/ }).click()
+  await expect(page.getByText(/How Guess the Song scores/)).toBeVisible()
+  // Back keeps what was typed.
+  await page.getByRole('button', { name: /Back/ }).click()
+  await page.getByRole('button', { name: /Back/ }).click()
+  await expect(page.getByLabel('Game name')).toHaveValue('Wizard Night')
+})
+
+test('⌘K jumps to a saved game by name', async ({ page }) => {
+  await seed(page)
+  await page.goto('./')
+  await page.keyboard.press('Control+k')
+  await expect(page.getByRole('dialog', { name: 'Jump to' })).toBeVisible()
+  await page.keyboard.type('smoke tiers')
+  await page.keyboard.press('Enter')
+  await expect(page).toHaveURL(/tierlists\/tl1\/present/)
+})
+
+test('settings are remembered', async ({ page }) => {
+  await page.goto('settings')
+  await page.getByRole('switch', { name: 'Keep the screen awake' }).click()
+  await page.reload()
+  await expect(page.getByRole('switch', { name: 'Keep the screen awake' })).toHaveAttribute('aria-checked', 'false')
+})

@@ -10,7 +10,9 @@ import TextInput from '../components/ui/TextInput'
 import ModeRulesCard from '../components/ModeRulesCard'
 import { rulesFor } from '../lib/mode-rules'
 import Button from '../components/ui/Button'
+import Stepper from '../components/Stepper'
 
+const STEPS = ['Game', 'Teams', 'Rules']
 const MIN_TEAMS = 2
 const MAX_TEAMS = 8
 
@@ -28,6 +30,7 @@ export default function CreateGame() {
   const navigate = useNavigate()
   const tierListsEnabled = useFeatureFlag('tier-lists')
   const powerUpsEnabled = useFeatureFlag('power-ups')
+  const [step, setStep] = useState(0)
   const [name, setName] = useState('Friday Night Music Game')
   const [mode, setMode] = useState<GameMode>('song')
   // Opt-in, never on by default — see Game.earnedPowerUps.
@@ -80,6 +83,11 @@ export default function CreateGame() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    // Enter in a field moves to the next step; only the last step creates the game.
+    if (step < STEPS.length - 1) {
+      setStep(step + 1)
+      return
+    }
     const finalTeams = teams.map((t, i) => createTeam(t.name.trim() || `Team ${i + 1}`, t.color, t.avatar))
     const game = createGame(name.trim() || 'Untitled Game', finalTeams, mode)
     if (earnedPowerUps && showEarnedOption) game.earnedPowerUps = true
@@ -92,9 +100,13 @@ export default function CreateGame() {
     <div className="min-h-svh court-lines flex items-center justify-center px-6 py-16">
       <form onSubmit={handleSubmit} className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <h1 className="font-display text-4xl tracking-wide text-white">NAME YOUR GAME</h1>
+          <h1 className="title-page">NEW GAME</h1>
         </div>
 
+        <Stepper steps={STEPS} current={step} onGo={setStep} />
+
+        {step === 0 && (
+          <>
         <div>
           <label className="mb-2 block text-sm text-slate-400">Game type</label>
           <div className="grid grid-cols-2 gap-2">
@@ -156,10 +168,16 @@ export default function CreateGame() {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm text-slate-400">Game name</label>
-          <TextInput value={name} onChange={(e) => setName(e.target.value)} inputSize="lg" className="w-full" autoFocus />
+          <label htmlFor="game-name" className="mb-1 block text-sm text-slate-400">
+            Game name
+          </label>
+          <TextInput id="game-name" value={name} onChange={(e) => setName(e.target.value)} inputSize="lg" className="w-full" autoFocus />
         </div>
 
+          </>
+        )}
+
+        {step === 1 && (
         <div>
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <label className="text-sm text-slate-400">Choose teams</label>
@@ -171,7 +189,7 @@ export default function CreateGame() {
                   onClick={() => setTeamCount(n)}
                   aria-pressed={teams.length === n}
                   aria-label={`${n} teams`}
-                  className={`h-7 w-7 rounded-full text-xs font-semibold ${
+                  className={`h-9 w-9 rounded-full text-xs font-semibold sm:h-7 sm:w-7 ${
                     teams.length === n ? 'bg-hardwood-500 text-arena-950' : 'border border-arena-600 text-slate-400 hover:border-hardwood-500'
                   }`}
                 >
@@ -181,7 +199,7 @@ export default function CreateGame() {
               <button
                 type="button"
                 onClick={randomizeTeams}
-                className="ml-1 rounded-full border border-arena-600 px-3 py-1 text-xs text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
+                className="ml-1 rounded-full border border-arena-600 px-3 py-2 text-xs sm:py-1 text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
                 title="Give every team a random name and mascot"
               >
                 🎲 Randomize
@@ -310,6 +328,10 @@ export default function CreateGame() {
           )}
         </div>
 
+        )}
+
+        {step === 2 && (
+          <>
         {showEarnedOption && (
           <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-arena-600 p-3">
             <input
@@ -346,10 +368,25 @@ export default function CreateGame() {
           </label>
         )}
         <ModeRulesCard mode={mode} />
+          </>
+        )}
 
-        <Button type="submit" fullWidth size="lg">
-          {mode === 'lyric' ? 'ADD LYRIC ROUNDS →' : mode === 'tierguess' || mode === 'higherlower' ? 'PICK YOUR TIER LIST →' : 'ADD TRACKS →'}
-        </Button>
+        <div className="flex gap-3">
+          {step > 0 && (
+            <Button type="button" variant="outline" size="lg" onClick={() => setStep(step - 1)}>
+              ← Back
+            </Button>
+          )}
+          <Button type="submit" fullWidth size="lg">
+            {step < STEPS.length - 1
+              ? 'NEXT →'
+              : mode === 'lyric'
+                ? 'ADD LYRIC ROUNDS →'
+                : mode === 'tierguess' || mode === 'higherlower'
+                  ? 'PICK YOUR TIER LIST →'
+                  : 'ADD TRACKS →'}
+          </Button>
+        </div>
       </form>
     </div>
   )

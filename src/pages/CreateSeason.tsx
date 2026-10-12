@@ -34,7 +34,7 @@ export default function CreateSeason() {
       <form onSubmit={handleSubmit} className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="mb-2 text-4xl">📅</div>
-          <h1 className="font-display text-4xl tracking-wide text-white">NAME YOUR SEASON</h1>
+          <h1 className="title-page">NAME YOUR SEASON</h1>
           <p className="mt-2 text-sm text-slate-400">
             Pick a tag — any completed game carrying it counts toward this season's standings, automatically.
           </p>

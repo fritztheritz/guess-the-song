@@ -1678,7 +1678,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       {buzzerEnabled && game.buzzerRoomCode && socketStatus !== 'open' && (
         <ConnectionBanner status={socketStatus} className="absolute left-1/2 top-14 z-30 -translate-x-1/2 shadow-lg" />
       )}
-      <div className="absolute right-4 top-4 z-20 flex flex-wrap justify-end gap-2">
+      <div className="absolute right-3 top-3 z-20 flex flex-wrap justify-end gap-1.5 sm:right-4 sm:top-4 sm:gap-2">
         {buzzerEnabled && game.buzzerRoomCode && (
           <button
             onClick={() => setBuzzerPanelOpen(true)}
@@ -1698,8 +1698,9 @@ export default function HostController({ gameId }: { gameId: string }) {
             {peekMode ? '🔓 Peek: ON' : '🔒 Peek: OFF'}
           </button>
         )}
-        <button onClick={openPublicDisplay} className="rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
-          🖥️ Public Display{publicConnected ? ' ✓' : ''}
+        <button onClick={openPublicDisplay} aria-label="Open the public display" className="rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
+          🖥️<span className="hidden sm:inline"> Public Display</span>
+          {publicConnected ? ' ✓' : ''}
         </button>
         {soundboardEnabled && trayVisible && (
           <button
@@ -1720,7 +1721,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           ?
         </button>
         <button onClick={exitPresentation} className="rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
-          ESC · Exit
+          <span className="hidden sm:inline">ESC · </span>Exit
         </button>
       </div>
 
@@ -1793,8 +1794,8 @@ export default function HostController({ gameId }: { gameId: string }) {
       )}
 
       {phase === 'clue' && round && (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-between px-6 pb-8 pt-16">
-          <div className="flex w-full items-center justify-between font-display text-lg tracking-widest text-slate-400">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-4 px-4 pb-6 pt-16 sm:px-6 sm:pb-8">
+          <div className="flex w-full items-center justify-between gap-2 font-display text-base tracking-widest text-slate-400 sm:text-lg">
             <span>{game.name.toUpperCase()}</span>
             <span>{game.suddenDeath ? '💀 SUDDEN DEATH' : `POSSESSION ${possessionIndex + 1} OF ${game.rounds.length}`}</span>
           </div>
@@ -2378,9 +2379,9 @@ export default function HostController({ gameId }: { gameId: string }) {
               {undoAwardButton()}
             </div>
           ) : (
-            <div className="relative z-10 w-full max-w-lg space-y-2">
+            <div className="relative z-10 w-full max-w-xl space-y-2">
               <div className="text-sm uppercase tracking-widest text-slate-400">Who got the bucket?</div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(7.5rem,1fr))]">
                 {game.teams.map((team) => (
                   <button
                     key={team.id}

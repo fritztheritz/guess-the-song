@@ -126,7 +126,7 @@ export default function TierListDisplay() {
         <BackLink to={`/tierlists/${list.id}/present`}>Control screen</BackLink>
         <div className="flex items-center gap-4 text-center">
           <ProgressRing value={ranked} max={list.songs.length} size={64} label="songs ranked" />
-          <h1 className="font-display text-4xl tracking-wide text-white">{list.name}</h1>
+          <h1 className="title-page">{list.name}</h1>
         </div>
         <SoundControl />
       </div>

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { getKeepAwake } from './settings'
 
 // Keeps the screen on while `active` — a phone that locks mid-game drops its connection (and a TV
 // that sleeps mid-song ruins the show). The browser releases the lock whenever the tab is hidden,
@@ -6,7 +7,7 @@ import { useEffect } from 'react'
 // isn't available or the request is refused (low battery, no user gesture yet).
 export function useWakeLock(active: boolean): void {
   useEffect(() => {
-    if (!active || typeof navigator === 'undefined' || !('wakeLock' in navigator)) return
+    if (!active || !getKeepAwake() || typeof navigator === 'undefined' || !('wakeLock' in navigator)) return
     let lock: WakeLockSentinel | null = null
     let cancelled = false
 

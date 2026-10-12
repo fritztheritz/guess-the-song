@@ -143,7 +143,7 @@ export default function CreatePopularityGame() {
       <div className="mx-auto max-w-2xl space-y-8">
         <div className="text-center">
           <div className="mb-2 text-4xl">📈</div>
-          <h1 className="font-display text-4xl tracking-wide text-white">GUESS THE POPULARITY</h1>
+          <h1 className="title-page">GUESS THE POPULARITY</h1>
           <p className="mt-2 text-sm text-slate-400">Pick an artist, then guess which song holds each of their top 10 spots.</p>
         </div>
 

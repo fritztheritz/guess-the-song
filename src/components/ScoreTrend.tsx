@@ -8,7 +8,7 @@ export default function ScoreTrend({ games }: { games: Game[] }) {
   const max = Math.max(1, ...games.flatMap((g) => g.teams.map((t) => t.score)))
   return (
     <section>
-      <h2 className="mb-1 font-display text-xl tracking-wide text-slate-300">RECENT SCORES</h2>
+      <h2 className="mb-1 title-section">RECENT SCORES</h2>
       <p className="mb-3 text-xs text-slate-500">The last {games.length} finished games, oldest to newest.</p>
       <div className="flex items-end gap-3 overflow-x-auto rounded-xl border border-arena-700 bg-arena-900/50 px-4 pb-3 pt-6">
         {games.map((g) => (

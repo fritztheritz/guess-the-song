@@ -20,7 +20,7 @@ export default function CreateDraftBoard() {
       <form onSubmit={handleSubmit} className="w-full max-w-md space-y-8">
         <div className="text-center">
           <div className="mb-2 text-4xl">🎧</div>
-          <h1 className="font-display text-4xl tracking-wide text-white">NAME YOUR DRAFT</h1>
+          <h1 className="title-page">NAME YOUR DRAFT</h1>
           <p className="mt-2 text-sm text-slate-400">
             Build a shared song pool, then run one or more snake drafts against it — a song picked in any of them is
             off the board for the rest.
