@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useWakeLock } from '../lib/use-wake-lock'
 import { Link, useParams } from 'react-router-dom'
 import type { TierList } from '../types/tierlist'
 import { getTierList } from '../lib/storage/tierlist-repository'
@@ -36,6 +37,7 @@ function readGroupVote(listId: string): GroupVote | null {
 // re-reads storage on the cross-tab `storage` event, so no sync channel of its own is needed.
 export default function TierListDisplay() {
   const { tierListId } = useParams()
+  useWakeLock(true)
   const [list, setList] = useState<TierList | null>(null)
   const [vote, setVote] = useState<GroupVote | null>(null)
   const [justPlacedId, setJustPlacedId] = useState<string | null>(null)

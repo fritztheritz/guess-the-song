@@ -14,6 +14,23 @@ export type SoundCloudAccess = 'playable' | 'preview' | 'blocked'
 // clue-duration slots.
 export const LYRIC_HINT_LABELS = ['Who sang the verse?', 'What playlist is it on?', "What's the song called?"] as const
 
+/** One side of a Higher or Lower comparison. `rank` is 1 = best across the whole tier list. */
+export interface HigherLowerRef {
+  title: string
+  artist: string
+  artworkUrl?: string
+  rank: number
+  tierName?: string
+}
+
+export interface HigherLowerCard {
+  /** This round's own rank (1 = best) out of `size` ranked songs. */
+  rank: number
+  size: number
+  tierName?: string
+  ref: HigherLowerRef
+}
+
 export interface SongRound {
   id: string
   source: TrackSource
@@ -81,6 +98,12 @@ export interface SongRound {
   /** How many songs were in that tier at import time, for a "#N of M" display. */
   tierSize?: number
 
+  /** mode: "higherlower" only — this round's song, where it sits in the source tier list, and the
+   *  card it's compared against. Everyone guesses whether `title` is ranked higher (nearer #1) or
+   *  lower than `ref`; the ref's rank is shown, this song's is revealed. Built from a tier list (see
+   *  lib/higher-lower.ts) and re-chained whenever rounds are reordered. */
+  higherLower?: HigherLowerCard
+
   /** Set only on the copy of a reserve round that sudden death appends to Game.rounds — marks it
    *  so a restart/rematch can strip it back out. Never set on a round in the normal list. */
   tiebreaker?: boolean
@@ -136,12 +159,23 @@ export interface PlayerStat {
   fastestMs?: number
 }
 
+/** One possession's place in a game's replay log (see lib/history.ts). */
+export interface PossessionRecord {
+  index: number
+  title: string
+  artist: string
+  /** Every team's score once the possession was done. */
+  scores: Record<string, number>
+  /** What each team gained (or lost) during it; teams that didn't move are left out. */
+  gains: Record<string, number>
+}
+
 export interface GameProgress {
   possessionIndex: number
   completed: boolean
 }
 
-export type GameMode = 'song' | 'lyric' | 'tierguess' | 'year'
+export type GameMode = 'song' | 'lyric' | 'tierguess' | 'year' | 'higherlower'
 
 // Song/Lyric modes only (the single-winner award() path) — Tier Guess/Year's multi-team
 // credit-toggle scoring is structurally different (several teams can get partial credit on
@@ -187,6 +221,9 @@ export interface Game {
    *  recent completed playthrough rather than a stale one. Absent until a game has actually
    *  been played through to the end at least once. */
   recap?: RecapCardStats
+  /** Possession-by-possession log for the replay page. Absent on games played before it existed;
+   *  cleared on restart. */
+  history?: PossessionRecord[]
   /** Starting power-ups per team, per kind — absent kinds default to DEFAULT_POWER_UPS_PER_TEAM. */
   powerUpAllowance?: Partial<Record<PowerUpKind, number>>
   /** Opt-in at game creation: teams start with no power-ups and earn them by scoring streaks
@@ -226,6 +263,15 @@ export function isTierGuessMode(game: Pick<Game, 'mode'>): boolean {
 
 export function isYearMode(game: Pick<Game, 'mode'>): boolean {
   return game.mode === 'year'
+}
+
+export function isHigherLowerMode(game: Pick<Game, 'mode'>): boolean {
+  return game.mode === 'higherlower'
+}
+
+/** Modes built from a tier list, and so hidden when the tier-lists flag is off. */
+export function usesTierList(game: Pick<Game, 'mode'>): boolean {
+  return game.mode === 'tierguess' || game.mode === 'higherlower'
 }
 
 export const DEFAULT_CLIP_DURATIONS = [2, 4, 7, 10]

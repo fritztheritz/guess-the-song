@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
+    "e2e": "playwright test",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
@@ -16,6 +17,7 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^24.13.3",
     "@types/qrcode": "^1.5.6",

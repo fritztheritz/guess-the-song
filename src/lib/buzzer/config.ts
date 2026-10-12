@@ -7,6 +7,11 @@ export function isBuzzerConfigured(): boolean {
   return BUZZER_WORKER_URL.length > 0
 }
 
+/** https://.../vault/<CODE> — cloud backup route on the same Worker. */
+export function vaultUrl(code: string): string {
+  return `${BUZZER_WORKER_URL}/vault/${encodeURIComponent(code)}`
+}
+
 /** wss://.../buzzer/<CODE>?role=host|player — the Worker upgrades this to a WebSocket. */
 export function buzzerSocketUrl(code: string, role: 'host' | 'player'): string {
   const wsUrl = BUZZER_WORKER_URL.replace(/^http/, 'ws')

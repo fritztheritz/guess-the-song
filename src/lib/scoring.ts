@@ -17,6 +17,8 @@ export const SCORING = {
   month: 2,
   /** Year Guess: naming the exact month — on top of `month`. */
   monthExact: 3,
+  /** Higher or Lower: a correct call (plus a streak bonus for consecutive correct calls, capped by `maxStreakBonus`). */
+  higherLower: 2,
   /** Underdog catch-up (Game.catchUp): trailing the leader by this much earns a bonus point... */
   underdogDeficit: 8,
   underdogBonus: 1,

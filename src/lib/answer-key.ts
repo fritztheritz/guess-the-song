@@ -1,4 +1,5 @@
-import { isLyricMode, isTierGuessMode, isYearMode, type Game } from '../types'
+import { isHigherLowerMode, isLyricMode, isTierGuessMode, isYearMode, type Game } from '../types'
+import { correctAnswer } from './higher-lower'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -16,6 +17,10 @@ export function buildAnswerKeyText(game: Game): string {
       lines.push(`${i + 1}. "${round.lyricPrompt || '—'}" → "${round.lyricAnswer || '—'}"`)
       lines.push(`   ${round.title} — ${round.artist}`)
       if (round.wager) lines.push('   ⭐ Wager round')
+    } else if (isHigherLowerMode(game) && round.higherLower) {
+      const card = round.higherLower
+      lines.push(`${i + 1}. ${round.title} — ${round.artist}`)
+      lines.push(`   #${card.rank} of ${card.size} vs "${card.ref.title}" (#${card.ref.rank}) → ${correctAnswer(card) === 'higher' ? 'HIGHER' : 'LOWER'}`)
     } else if (isTierGuessMode(game)) {
       const tier = game.tierListTiers?.find((t) => t.id === round.tierId)
       lines.push(`${i + 1}. ${round.title} — ${round.artist}`)

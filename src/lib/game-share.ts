@@ -1,4 +1,4 @@
-import { isLyricMode, isTierGuessMode, type Game, type GameMode } from '../types'
+import { usesTierList, type Game, type GameMode } from '../types'
 import { decodeSharePayload, encodeSharePayload, shareBaseUrl, ShareDecodeError } from './share-encoding'
 
 interface ShareablePayload {
@@ -17,8 +17,8 @@ export async function buildShareUrl(game: Game): Promise<string> {
     name: game.name,
     rounds: game.rounds,
     teams: game.teams.map((t) => ({ name: t.name, color: t.color })),
-    mode: isLyricMode(game) ? 'lyric' : isTierGuessMode(game) ? 'tierguess' : 'song',
-    tierListTiers: isTierGuessMode(game) ? game.tierListTiers : undefined,
+    mode: game.mode ?? 'song',
+    tierListTiers: usesTierList(game) ? game.tierListTiers : undefined,
   }
   return `${shareBaseUrl()}/import?data=${await encodeSharePayload(payload)}`
 }

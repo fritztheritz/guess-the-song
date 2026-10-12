@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
+import { rulesFor } from '../lib/mode-rules'
 import type { Game } from '../types'
-import { isLyricMode, isTierGuessMode } from '../types'
 import ModalShell from './ui/ModalShell'
 
 export default function GamePickerModal({
@@ -33,7 +33,7 @@ export default function GamePickerModal({
               >
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs">{isLyricMode(game) ? '📝' : isTierGuessMode(game) ? '🎯' : '🎵'}</span>
+                    <span className="text-xs">{rulesFor(game.mode).icon}</span>
                     <div className="font-semibold text-slate-100">{game.name}</div>
                   </div>
                   <div className="text-xs text-slate-500">

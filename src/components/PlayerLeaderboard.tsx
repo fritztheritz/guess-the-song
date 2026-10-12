@@ -1,4 +1,5 @@
 import type { PlayerRow } from '../lib/achievements'
+import { Link } from 'react-router-dom'
 import Panel from './ui/Panel'
 
 // Phone players ranked by points — only present once games have been played with Phone
@@ -14,7 +15,9 @@ export default function PlayerLeaderboard({ players }: { players: PlayerRow[] })
           <Panel key={p.name} padding="sm" className="flex items-center justify-between gap-3">
             <span className="min-w-0 truncate font-medium" style={{ color: p.color }}>
               {i === 0 ? '⭐ ' : ''}
-              {p.name}
+              <Link to={`/players/${encodeURIComponent(p.name)}`} className="hover:underline" title={`${p.name}'s profile`}>
+                {p.name}
+              </Link>
               <span className="ml-2 text-xs text-slate-500">
                 {p.teamName} · {p.games} game{p.games === 1 ? '' : 's'}
               </span>

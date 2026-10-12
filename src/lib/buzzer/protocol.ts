@@ -30,7 +30,7 @@ export interface BuzzerWinner {
 }
 
 export type PhonePhase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime' | 'suddendeath' | 'ranking'
-export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year' | 'popularity' | 'draft' | 'tierlist'
+export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year' | 'higherlower' | 'blindrank' | 'popularity' | 'draft' | 'tierlist'
 
 // A deliberately reduced view of the game, computed host-side and pushed down through the
 // same room every buzz already flows through — Phone Buzz-In's players are on their own
@@ -57,6 +57,22 @@ export interface PhoneRoundState {
    *  are the drafters; `rosters` maps each drafter id to the titles they picked (so a voter can
    *  tell whose roster is whose), and `submitted` lists who has already voted. */
   draft?: { rosters: Record<string, string[]>; submitted: string[] }
+  /** mode: "higherlower" only — the card to compare against (its rank is public) and how many songs are
+   *  ranked, so phones can offer Higher / Lower. The round's own rank is never sent until revealed. */
+  higherLower?: { refTitle: string; refArtist: string; refArtworkUrl?: string; refRank: number; refTier?: string; size: number; title: string; artist: string; artworkUrl?: string
+    /** Only once revealed: this song's rank and the right call. */
+    rank?: number
+    answer?: 'higher' | 'lower'
+  }
+  /** mode: "blindrank" only — Blind Ranking: the song to place right now (null in the lobby/results),
+   *  where we are, and — only once it's over — how everyone's lists compare. A phone locks a song into a
+   *  slot with a `guess` whose text is "<songIndex>:<slot>" and keeps its own picks. */
+  blind?: {
+    index: number
+    total: number
+    song: { title: string; artist: string; artworkUrl?: string } | null
+    results?: { songs: string[]; matches: Array<{ name: string; closest: string | null; pct: number | null }> }
+  }
   /** mode: "tierlist" only — Group ranking: everyone on a phone files every song into a tier. `songs`
    *  is the order the ballot's digits follow; `submitted` lists the connIds that have voted. A
    *  voter's ballot rides the `ballot` message (see lib/tierlist-ballot.ts for the packing). */
@@ -67,6 +83,8 @@ export interface PhoneRoundState {
   }
   /** Year/Tier Guess, while a guess window is open: how many teams have a guess in. */
   guessProgress?: { teamsIn: number; of: number }
+  /** The host has crowd reactions on — phones show the reaction bar. */
+  reactions?: boolean
   /** Sudden death is in progress — teams not tied for the lead are sitting it out. */
   suddenDeath?: boolean
   /** mode: "tierguess" only — the tier list's own defined tiers (e.g. S/A/B/C/D), so a
@@ -103,6 +121,9 @@ export interface PhoneRoundState {
   }
 }
 
+/** Crowd reactions a phone can send — mirrored by REACTIONS in worker/src/buzzer-room.js, which drops anything else. */
+export const REACTION_EMOJIS = ['🔥', '👏', '😂', '😱', '❤️', '🤯'] as const
+
 export type HostOutMessage =
   | { type: 'sync-teams'; teams: BuzzerTeam[] }
   | { type: 'sync-round'; state: PhoneRoundState }
@@ -128,6 +149,8 @@ export type PlayerOutMessage =
    *  never relayed to other players. Whose ballot it is comes from the Worker's own record of
    *  the sender's team, not from the message. */
   | { type: 'ballot'; rankedTeamIds: string[] }
+  /** A crowd reaction — any joined player, spectators too. Rate-limited and host-only. */
+  | { type: 'react'; emoji: string }
 
 export type ServerMessage =
   | { type: 'state'; buzzState: BuzzState; winner: BuzzerWinner | null; order: BuzzerWinner[]; iced: string[] }
@@ -139,3 +162,5 @@ export type ServerMessage =
   | { type: 'guess'; connId: string; text: string }
   /** Host-only — a drafter's ranking ballot. teamId is the sender's own drafter id. */
   | { type: 'ballot'; connId: string; teamId: string; rankedTeamIds: string[] }
+  /** Host-only — a phone's crowd reaction, to float across the screens. */
+  | { type: 'react'; emoji: string; name: string; teamId: string | null }

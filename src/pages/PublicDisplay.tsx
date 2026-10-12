@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { isLyricMode, isTierGuessMode, isYearMode, LYRIC_HINT_LABELS, type SongRound } from '../types'
+import { useWakeLock } from '../lib/use-wake-lock'
+import { useReactions } from '../lib/use-reactions'
+import ReactionLayer from '../components/ReactionLayer'
+import { isHigherLowerMode, isLyricMode, isTierGuessMode, isYearMode, LYRIC_HINT_LABELS, type SongRound } from '../types'
+import { correctAnswer } from '../lib/higher-lower'
 import { getGame } from '../lib/storage/game-repository'
 import { useStoredEntity } from '../lib/use-stored-entity'
 import { presentationChannelName, type PresentationMessage, type PresentationSnapshot } from '../lib/presentation-sync'
@@ -36,6 +40,8 @@ function readStoredBigScreen(): boolean {
 }
 
 export default function PublicDisplay({ gameId }: { gameId: string }) {
+  useWakeLock(true)
+  const { reactions, push: pushReaction } = useReactions()
   const [game, setGame] = useStoredEntity(gameId, getGame)
   const [snapshot, setSnapshot] = useState<PresentationSnapshot | null>(null)
   const [tickedRemaining, setRemaining] = useState(0)
@@ -69,11 +75,12 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
     const channel = new BroadcastChannel(presentationChannelName(gameId))
     channel.onmessage = (e: MessageEvent<PresentationMessage>) => {
       if (e.data?.type === 'state') setSnapshot(e.data.snapshot)
+      else if (e.data?.type === 'reaction') pushReaction(e.data.emoji, e.data.name)
     }
     const message: PresentationMessage = { type: 'request-sync' }
     channel.postMessage(message)
     return () => channel.close()
-  }, [gameId])
+  }, [gameId, pushReaction])
 
   // Local shot-clock countdown derived from the controller's play-start broadcast, rather
   // than syncing every 100ms tick over the wire.
@@ -119,12 +126,14 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
   const isLyric = isLyricMode(game)
   const isTierGuess = isTierGuessMode(game)
   const isYear = isYearMode(game)
+  const isHL = isHigherLowerMode(game)
   const { phase, clueIndex, tierGuessStage, yearGuessStage, wager } = snapshot
-  const modeLabel = isLyric ? '📝 Guess the Lyric' : isTierGuess ? '🎯 Guess the Ranking' : isYear ? '📅 Guess the Year' : '🎵 Guess the Song'
+  const modeLabel = isLyric ? '📝 Guess the Lyric' : isTierGuess ? '🎯 Guess the Ranking' : isYear ? '📅 Guess the Year' : isHL ? '↕️ Higher or Lower' : '🎵 Guess the Song'
   const toGo = Math.max(0, game.rounds.length - snapshot.possessionIndex)
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-arena-950">
+      <ReactionLayer reactions={reactions} />
       <div
         className="flex h-screen w-screen flex-col court-lines text-white"
         style={bigScreen ? { transform: `scale(${BIG_SCREEN_FACTOR})` } : undefined}
@@ -220,6 +229,36 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                     <div className="font-display text-2xl text-white">{round.title}</div>
                     <div className="text-slate-400">{round.artist}</div>
                   </div>
+                </>
+              ) : isHL && round.higherLower ? (
+                <>
+                  {snapshot.playing && (
+                    <>
+                      <ShotClockDigit seconds={remaining} />
+                      <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
+                    </>
+                  )}
+                  <div className="font-display text-4xl tracking-wide text-white">HIGHER OR LOWER?</div>
+                  <div className="flex flex-wrap items-center justify-center gap-8">
+                    <div className="w-52 space-y-1">
+                      <div className="mx-auto h-36 w-36 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
+                        <ArtworkFill url={round.higherLower.ref.artworkUrl} />
+                      </div>
+                      <div className="truncate font-display text-xl text-white">{round.higherLower.ref.title}</div>
+                      <div className="truncate text-sm text-slate-500">{round.higherLower.ref.artist}</div>
+                      <div className="font-display text-5xl text-hardwood-400">#{round.higherLower.ref.rank}</div>
+                    </div>
+                    <div className="font-display text-4xl text-slate-600">VS</div>
+                    <div className="w-52 space-y-1">
+                      <div className="mx-auto h-36 w-36 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
+                        <ArtworkFill url={round.artworkUrl} />
+                      </div>
+                      <div className="truncate font-display text-xl text-white">{round.title}</div>
+                      <div className="truncate text-sm text-slate-500">{round.artist}</div>
+                      <div className="font-display text-5xl text-slate-600">#?</div>
+                    </div>
+                  </div>
+                  <p className="text-lg text-slate-300">Is it ranked higher or lower than {round.higherLower.ref.title}?</p>
                 </>
               ) : isYear ? (
                 <>
@@ -335,6 +374,35 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                     </div>
                   )
                 })()}
+              </>
+            ) : isHL && round.higherLower ? (
+              <>
+                <div className="relative z-10 flex flex-wrap items-center justify-center gap-8">
+                  <div className="w-44 space-y-1 opacity-80">
+                    <div className="mx-auto h-28 w-28 overflow-hidden rounded-2xl bg-arena-800">
+                      <ArtworkFill url={round.higherLower.ref.artworkUrl} />
+                    </div>
+                    <div className="truncate text-lg text-slate-300">{round.higherLower.ref.title}</div>
+                    <div className="font-display text-3xl text-slate-300">#{round.higherLower.ref.rank}</div>
+                  </div>
+                  <div className="font-display text-5xl text-hardwood-400">{correctAnswer(round.higherLower) === 'higher' ? '⬆️' : '⬇️'}</div>
+                  <div className="w-52 space-y-1 animate-pop-in">
+                    <div className="mx-auto h-36 w-36 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
+                      <ArtworkFill url={round.artworkUrl} />
+                    </div>
+                    <div className="truncate font-display text-xl text-white">{round.title}</div>
+                    <div className="font-display text-6xl text-hardwood-400">
+                      #<RollReveal value={String(round.higherLower.rank)} />
+                    </div>
+                    <div className="text-xs uppercase tracking-widest text-slate-500">
+                      of {round.higherLower.size}
+                      {round.higherLower.tierName ? ` · Tier ${round.higherLower.tierName}` : ''}
+                    </div>
+                  </div>
+                </div>
+                <div className="relative z-10 font-display text-4xl tracking-widest text-hardwood-400">
+                  {correctAnswer(round.higherLower) === 'higher' ? 'HIGHER' : 'LOWER'}
+                </div>
               </>
             ) : isYear ? (
               <>

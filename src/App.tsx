@@ -12,6 +12,10 @@ const Callback = lazyPage(() => import('./pages/Callback'))
 const ImportGame = lazyPage(() => import('./pages/ImportGame'))
 const SharedDraftResults = lazyPage(() => import('./pages/SharedDraftResults'))
 const Stats = lazyPage(() => import('./pages/Stats'))
+const PlayerProfile = lazyPage(() => import('./pages/PlayerProfile'))
+const GameReplay = lazyPage(() => import('./pages/GameReplay'))
+const QuickGame = lazyPage(() => import('./pages/QuickGame'))
+const BlindRanking = lazyPage(() => import('./pages/BlindRanking'))
 const Admin = lazyPage(() => import('./pages/Admin'))
 const CreateTierList = lazyPage(() => import('./pages/CreateTierList'))
 const TierListBuilder = lazyPage(() => import('./pages/TierListBuilder'))
@@ -37,12 +41,15 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/new" element={<CreateGame />} />
+      <Route path="/quick" element={<QuickGame />} />
       <Route path="/games/:gameId/edit" element={<GameBuilder />} />
       <Route path="/games/:gameId/present" element={<Presentation />} />
       <Route path="/callback" element={<Callback />} />
       <Route path="/import" element={<ImportGame />} />
       <Route path="/share/results" element={<SharedDraftResults />} />
       <Route path="/stats" element={<Stats />} />
+      <Route path="/players/:name" element={<PlayerProfile />} />
+      <Route path="/games/:gameId/replay" element={<GameReplay />} />
       <Route path="/admin" element={<Admin />} />
       <Route path="/buzz" element={<PlayerBuzzer />} />
       <Route path="/buzz/:code" element={<PlayerBuzzer />} />
@@ -75,6 +82,14 @@ export default function App() {
         element={
           <RequireFlag flag="tier-lists">
             <TierListDisplay />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/tierlists/:tierListId/blind"
+        element={
+          <RequireFlag flag="tier-lists">
+            <BlindRanking />
           </RequireFlag>
         }
       />

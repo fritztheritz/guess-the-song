@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useWakeLock } from '../lib/use-wake-lock'
 import { Link, useParams } from 'react-router-dom'
 import type { DraftBoard, DraftPoolSong, Drafter } from '../types/draft'
 import { snakeOrder, computeDraftStandings } from '../types/draft'
@@ -22,6 +23,7 @@ const DRAFT_STORAGE_KEY = 'gts.draftboards.v1'
 // BroadcastChannel sync protocol).
 export default function DraftPresentation() {
   const { boardId, sessionId } = useParams()
+  useWakeLock(true)
   const [board, setBoard] = useState<DraftBoard | null>(null)
   const [lastPick, setLastPick] = useState<{ song: DraftPoolSong; drafter: Drafter } | null>(null)
   const [celebrating, setCelebrating] = useState(false)

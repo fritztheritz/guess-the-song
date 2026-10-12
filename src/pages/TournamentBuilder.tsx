@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
+import { rulesFor } from '../lib/mode-rules'
 import { Link, useParams } from 'react-router-dom'
 import type { Game } from '../types'
-import { isLyricMode, isTierGuessMode } from '../types'
 import { getTournament, saveTournament } from '../lib/storage/tournament-repository'
 import { getGame, listGames } from '../lib/storage/game-repository'
 import { computeStandings } from '../lib/tournament-standings'
@@ -158,7 +158,7 @@ export default function TournamentBuilder() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs">{isLyricMode(game) ? '📝' : isTierGuessMode(game) ? '🎯' : '🎵'}</span>
+                      <span className="text-xs">{rulesFor(game.mode).icon}</span>
                       <div className="truncate font-semibold text-slate-100">{game.name}</div>
                     </div>
                     <div className="text-sm text-slate-500">

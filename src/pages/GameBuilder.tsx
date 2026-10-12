@@ -7,7 +7,9 @@ import {
   createTeam,
   createTierGuessRound,
   isLyricMode,
+  isHigherLowerMode,
   isTierGuessMode,
+  usesTierList,
   isYearMode,
   teamColorForIndex,
   TEAM_COLORS,
@@ -32,6 +34,8 @@ import { isSpotifyConfigured } from '../lib/spotify/config'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import Panel from '../components/ui/Panel'
 import EmptyState from '../components/ui/EmptyState'
+import { buildHigherLowerRounds, correctAnswer, rechainRounds } from '../lib/higher-lower'
+import { shuffled } from '../lib/quick-game'
 import BuilderSection from '../components/BuilderSection'
 import ModeRulesCard from '../components/ModeRulesCard'
 import Button from '../components/ui/Button'
@@ -88,7 +92,7 @@ export default function GameBuilder() {
     // received a shared link to a game built while it was on), treat the game as
     // inaccessible here rather than half-rendering a mode-specific editor for a feature
     // that's not switched on.
-    if (loaded && isTierGuessMode(loaded) && !tierListsEnabled) {
+    if (loaded && usesTierList(loaded) && !tierListsEnabled) {
       navigate('/', { replace: true })
       return
     }
@@ -103,7 +107,8 @@ export default function GameBuilder() {
   const selectedRound = useMemo(() => game?.rounds.find((r) => r.id === selectedRoundId) ?? null, [game, selectedRoundId])
 
   function persist(next: Game) {
-    const saved = saveGame(next)
+    // Higher or Lower compares each round with the one before it, so any reorder/removal re-links them.
+    const saved = saveGame(isHigherLowerMode(next) ? { ...next, rounds: rechainRounds(next.rounds) } : next)
     setGame(saved)
     setSavedAt(Date.now())
   }
@@ -244,6 +249,17 @@ export default function GameBuilder() {
 
   function handleImportTierGuessSongs(songs: TierListSong[]) {
     if (!game || !pickedTierList) return
+    if (isHigherLowerMode(game)) {
+      const added = buildHigherLowerRounds(shuffled(songs), pickedTierList, game.rounds[game.rounds.length - 1])
+      if (added.length === 0) {
+        showToast(game.rounds.length === 0 ? 'Pick at least two ranked songs — the first is the opening card.' : 'None of those songs are ranked in the tier list.')
+        return
+      }
+      persist({ ...game, rounds: [...game.rounds, ...added], sourceTierListId: pickedTierList.id, tierListTiers: pickedTierList.tiers })
+      setSelectedRoundId(added[0].id)
+      showToast(`Added ${added.length} round${added.length === 1 ? '' : 's'}`)
+      return
+    }
     const newRounds = songs.map((song) => {
       const tierSize = pickedTierList.songs.filter((s) => s.tierId === song.tierId).length
       return createTierGuessRound(song, tierSize)
@@ -365,7 +381,10 @@ export default function GameBuilder() {
   }
 
   const isLyric = isLyricMode(game)
-  const isTierGuess = isTierGuessMode(game)
+  const isHL = isHigherLowerMode(game)
+  // Higher or Lower is built from a tier list the same way, so the builder treats it like Tier Guess (no clips,
+  // add-from-tier-list) apart from the answer panel below.
+  const isTierGuess = isTierGuessMode(game) || isHL
   const isYear = isYearMode(game)
   const usedTrackIds = new Set(game.rounds.map((r) => r.soundcloudTrackId).filter((id): id is string => Boolean(id)))
 
@@ -808,7 +827,9 @@ export default function GameBuilder() {
                     className="w-full bg-transparent text-slate-400 outline-none focus:border-b focus:border-hardwood-500"
                   />
                   <div className="mt-1 flex items-center gap-2 text-xs">
-                    {isTierGuess ? (
+                    {isHL ? (
+                      <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">↕️ Higher or Lower</span>
+                    ) : isTierGuess ? (
                       <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">🎯 Tier Guess</span>
                     ) : isYear ? (
                       <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">📅 Guess the Year</span>
@@ -884,6 +905,25 @@ export default function GameBuilder() {
 
               {isLyric ? (
                 <LyricEditor round={selectedRound} onChange={updateRound} />
+              ) : isHL && selectedRound.higherLower ? (
+                <Panel>
+                  <div className="mb-2 text-sm text-slate-400">The answer for this round</div>
+                  <div className="space-y-1 text-slate-300">
+                    <div>
+                      <span className="text-slate-500">Compared with:</span> {selectedRound.higherLower.ref.title}{' '}
+                      <span className="text-slate-500">(#{selectedRound.higherLower.ref.rank})</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">This song:</span> #{selectedRound.higherLower.rank} of {selectedRound.higherLower.size}
+                      {selectedRound.higherLower.tierName ? ` · ${selectedRound.higherLower.tierName}` : ''} →{' '}
+                      <span className="font-semibold text-hardwood-400">{correctAnswer(selectedRound.higherLower) === 'higher' ? 'Higher' : 'Lower'}</span>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs text-slate-500">
+                    Each round is compared with the one before it, so shuffling or removing rounds re-links them automatically. Snapshotted from
+                    the tier list when added.
+                  </p>
+                </Panel>
               ) : isTierGuess ? (
                 <Panel>
                   <div className="mb-2 text-sm text-slate-400">The answer for this round</div>

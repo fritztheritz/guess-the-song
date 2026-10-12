@@ -29,7 +29,11 @@ export interface PresentationSnapshot {
   rankMoves?: Record<string, number>
 }
 
-export type PresentationMessage = { type: 'request-sync' } | { type: 'state'; snapshot: PresentationSnapshot }
+export type PresentationMessage =
+  | { type: 'request-sync' }
+  | { type: 'state'; snapshot: PresentationSnapshot }
+  /** A phone's crowd reaction, to float up the public display. */
+  | { type: 'reaction'; emoji: string; name: string }
 
 export function presentationChannelName(gameId: string): string {
   return `gts-presentation-${gameId}`

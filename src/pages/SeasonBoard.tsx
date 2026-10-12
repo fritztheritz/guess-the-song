@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
+import { rulesFor } from '../lib/mode-rules'
 import { Link, useParams } from 'react-router-dom'
-import { isLyricMode, isTierGuessMode } from '../types'
 import { getSeason, saveSeason } from '../lib/storage/season-repository'
 import { listGames } from '../lib/storage/game-repository'
 import { computeStandings } from '../lib/tournament-standings'
@@ -109,7 +109,7 @@ export default function SeasonBoard() {
                 <Panel key={game.id} padding="sm" className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs">{isLyricMode(game) ? '📝' : isTierGuessMode(game) ? '🎯' : '🎵'}</span>
+                      <span className="text-xs">{rulesFor(game.mode).icon}</span>
                       <div className="truncate font-semibold text-slate-100">{game.name}</div>
                     </div>
                     <div className="text-sm text-slate-500">

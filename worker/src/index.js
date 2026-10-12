@@ -12,8 +12,9 @@
 // secure.soundcloud.com.
 
 import { BuzzerRoom } from './buzzer-room.js'
+import { BackupVault } from './backup-vault.js'
 
-export { BuzzerRoom }
+export { BuzzerRoom, BackupVault }
 
 const SOUNDCLOUD_TOKEN_URL = 'https://secure.soundcloud.com/oauth/token'
 
@@ -22,6 +23,18 @@ const SOUNDCLOUD_TOKEN_URL = 'https://secure.soundcloud.com/oauth/token'
 // against it here — this just recognizes anything code-shaped so a stray request to some
 // other path doesn't get routed at a Durable Object by accident.
 const ROOM_CODE_PATTERN = /^[A-Za-z0-9]{4,8}$/
+
+// Backup codes are long and random (the code IS the credential), generated client-side from this
+// alphabet; anything else is rejected before it can reach a Durable Object.
+const VAULT_CODE_PATTERN = /^[A-Z2-9]{16,32}$/
+
+async function handleVault(request, env) {
+  const code = new URL(request.url).pathname.split('/')[2] || ''
+  if (!VAULT_CODE_PATTERN.test(code)) return jsonError(request, env, 400, 'invalid_code')
+  const vault = env.BACKUP_VAULT.get(env.BACKUP_VAULT.idFromName(code))
+  const response = await vault.fetch(request)
+  return withCors(request, env, response)
+}
 
 function handleBuzzer(request, env) {
   const url = new URL(request.url)
@@ -53,7 +66,7 @@ function withCors(request, env, response) {
   const origin = allowedOrigin(request, env)
   const headers = new Headers(response.headers)
   headers.set('Access-Control-Allow-Origin', origin)
-  headers.set('Access-Control-Allow-Methods', 'POST, OPTIONS')
+  headers.set('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS')
   headers.set('Access-Control-Allow-Headers', 'Content-Type')
   headers.set('Vary', 'Origin')
   return new Response(response.body, { status: response.status, headers })
@@ -116,6 +129,11 @@ export default {
     const url = new URL(request.url)
     if (url.pathname === '/token' && request.method === 'POST') {
       return handleToken(request, env)
+    }
+    if (url.pathname.startsWith('/vault/') && (request.method === 'GET' || request.method === 'PUT')) {
+      // Fails closed on origin, like the buzzer — a backup is private data.
+      if (!isOriginAllowed(request, env)) return jsonError(request, env, 403, 'origin_not_allowed')
+      return handleVault(request, env)
     }
     if (url.pathname.startsWith('/buzzer/')) {
       // WebSocket upgrades aren't subject to CORS preflight, so the Origin allowlist is

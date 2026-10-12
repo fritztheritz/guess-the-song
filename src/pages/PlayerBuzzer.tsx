@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useWakeLock } from '../lib/use-wake-lock'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BuzzerSocket, type SocketStatus } from '../lib/buzzer/buzzer-socket'
 import ConnectionBanner from '../components/ConnectionBanner'
@@ -6,6 +7,9 @@ import type { BuzzState, BuzzerTeam, BuzzerWinner, PhoneRoundState } from '../li
 import PopularityPicker from '../components/PopularityPicker'
 import DraftBallot from '../components/DraftBallot'
 import TierBallot from '../components/TierBallot'
+import ReactionBar from '../components/ReactionBar'
+import HigherLowerPicker from '../components/HigherLowerPicker'
+import BlindRankPicker from '../components/BlindRankPicker'
 import { encodeTierBallot } from '../lib/tierlist-ballot'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import { applyThemeVars } from '../lib/themes'
@@ -15,6 +19,8 @@ const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   song: '🎧 Listen up!',
   year: '📅 What year is it from?',
   tierguess: '🎯 Guess the ranking!',
+  higherlower: '↕️ Higher or lower?',
+  blindrank: '🙈 Blind ranking',
   lyric: '📝 Finish the lyric',
   popularity: '📈 Guess the popularity rank',
   draft: '🏀 Draft night',
@@ -95,6 +101,8 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
   const [socketStatus, setSocketStatus] = useState<SocketStatus>('connecting')
   const [teams, setTeams] = useState<BuzzerTeam[]>([])
   const [identity, setIdentity] = useState<SavedIdentity | null>(saved)
+  // Once joined, keep the phone awake so it doesn't drop out of the room mid-game.
+  useWakeLock(!!identity)
   const [nameInput, setNameInput] = useState(saved?.name ?? '')
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(
     saved && saved.teamId === null ? SPECTATOR_CHOICE : (saved?.teamId ?? null),
@@ -158,7 +166,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
   const iAmIced = !!identity?.teamId && iced.includes(identity.teamId)
   const iWon = buzzState === 'locked' && !!winner && winner.connId === myConnId
   const cue = iWon ? 'won' : iAmIced ? 'iced' : buzzState === 'open' && identity?.teamId ? 'open' : 'idle'
-  const guessMode = roundState?.mode === 'year' || roundState?.mode === 'tierguess'
+  const guessMode = roundState?.mode === 'year' || roundState?.mode === 'tierguess' || roundState?.mode === 'higherlower'
   useEffect(() => {
     if (cue === 'won') {
       navigator.vibrate?.([60, 40, 60])
@@ -268,6 +276,11 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
   // One plain-language line for "what is my phone waiting on right now".
   const status: { text: string; tone: keyof typeof STATUS_TONE } = (() => {
     if (socketStatus === 'reconnecting') return { text: '⚠️ Reconnecting — hang tight', tone: 'stop' }
+    if (roundState?.mode === 'blindrank') {
+      if (roundState.phase === 'final') return { text: '🏁 All songs placed — check the screen', tone: 'wait' }
+      if (identity?.teamId === null) return { text: '👀 Watching the ranking', tone: 'wait' }
+      return roundState.blind?.song ? { text: '🙈 Place this song — no take-backs', tone: 'go' } : { text: '⏳ Waiting for the host', tone: 'wait' }
+    }
     if (roundState?.mode === 'tierlist') {
       if (roundState.phase === 'final') return { text: '🏁 Voting closed — check the screen', tone: 'wait' }
       if (identity?.teamId === null) return { text: '👀 Watching the vote', tone: 'wait' }
@@ -456,7 +469,20 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             {status.text}
           </div>
 
-          {roundState?.mode === 'tierlist' ? (
+          {roundState?.reactions && <ReactionBar onReact={(emoji) => socketRef.current?.send({ type: 'react', emoji })} />}
+
+          {roundState?.mode === 'blindrank' ? (
+            !roundState.blind ? null : identity?.teamId === null ? (
+              <p className="text-sm text-slate-400">Just watching — everyone else is placing the songs.</p>
+            ) : (
+              <BlindRankPicker
+                blind={roundState.blind}
+                code={activeCode}
+                myName={identity?.name ?? ''}
+                onPick={(songIndex, slot) => socketRef.current?.send({ type: 'guess', text: `${songIndex}:${slot}` })}
+              />
+            )
+          ) : roundState?.mode === 'tierlist' ? (
             roundState.phase === 'final' || !roundState.tierlist ? (
               <p className="text-sm text-slate-400">Voting's closed — check the screen for the group's tier list. 🏆</p>
             ) : identity?.teamId === null ? (
@@ -509,7 +535,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                 onPick={(id) => socketRef.current?.send({ type: 'guess', text: id })}
               />
             )
-          ) : roundState?.mode === 'year' || roundState?.mode === 'tierguess' ? (
+          ) : roundState?.mode === 'year' || roundState?.mode === 'tierguess' || roundState?.mode === 'higherlower' ? (
             <div className="w-full max-w-xs space-y-3">
               {identity?.teamId && iced.includes(identity.teamId) && (roundState.phase === 'clue' || roundState.guessStage) ? (
                 <div className="flex flex-col items-center gap-2 rounded-2xl border-4 border-scoreboard-500/60 bg-arena-800 px-6 py-8 text-slate-300">
@@ -519,6 +545,8 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                     {roundState.suddenDeath ? "You're not in the tiebreaker — cheer on the finalists." : 'The ref has seen enough — sit this one out.'}
                   </div>
                 </div>
+              ) : roundState.mode === 'higherlower' && roundState.higherLower ? (
+                <HigherLowerPicker card={roundState.higherLower} phase={roundState.phase} picked={modeGuessSubmitted} onPick={submitModeGuess} />
               ) : roundState.phase === 'clue' ? (
                 <>
                   {/* Tap-to-guess: the tier list's own tier names (not which song is in

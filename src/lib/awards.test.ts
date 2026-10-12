@@ -121,3 +121,29 @@ describe('settleGuessPossession (Tier/Year)', () => {
     expect(game.teams[0].powerUpsEarned).toEqual({ double: 1 })
   })
 })
+
+describe('settleGuessPossession with a streak bonus (Higher or Lower)', () => {
+  it('adds +1 on a second consecutive right call, nothing on the first, and caps it', () => {
+    const g = gameWith([4, 2])
+    g.teams[0].streak = 2 // already settled for this possession: second in a row
+    g.teams[1].streak = 1 // first in a row
+    const { game } = settleGuessPossession(g, { t1: 2, t2: 2 }, { powerUps: false, streakBonus: true })
+    expect(score(game)).toEqual([5, 2])
+
+    const long = gameWith([9, 0])
+    long.teams[0].streak = 10
+    expect(score(settleGuessPossession(long, { t1: 2 }, { powerUps: false, streakBonus: true }).game)).toEqual([9 + SCORING.maxStreakBonus, 0])
+  })
+
+  it('gives nothing to a team that did not score this possession', () => {
+    const g = gameWith([4, 2])
+    g.teams[0].streak = 0 // settleStreaks reset it
+    expect(score(settleGuessPossession(g, {}, { powerUps: false, streakBonus: true }).game)).toEqual([4, 2])
+  })
+
+  it('does nothing extra when the option is off', () => {
+    const g = gameWith([4, 2])
+    g.teams[0].streak = 3
+    expect(score(settleGuessPossession(g, { t1: 2 }, { powerUps: false }).game)).toEqual([4, 2])
+  })
+})

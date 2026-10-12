@@ -24,6 +24,7 @@ export const FLAG_GROUPS: Record<string, (typeof FLAG_GROUP_ORDER)[number]> = {
   seasons: 'Game modes',
   'phone-buzzer': 'Phones & room',
   'spectator-mode': 'Phones & room',
+  reactions: 'Phones & room',
   'power-ups': 'Host tools',
   eject: 'Host tools',
   'sudden-death': 'Host tools',
@@ -125,6 +126,13 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     label: 'Sudden-Death Tiebreaker',
     description:
       "If a game ends tied for the lead, play a reserve tiebreaker round among just the tied teams (set reserve rounds aside in the builder with 🥇) — or, with none left, the host picks the winner. Everyone else sits it out.",
+    default: false,
+  },
+  {
+    key: 'reactions',
+    label: 'Crowd Reactions',
+    description:
+      'Phones get a row of emoji (🔥 👏 😂 😱 ❤️ 🤯) to tap during the game; they float up the host and public-display screens. Spectators can cheer too. Needs the Worker version with reactions deployed.',
     default: false,
   },
   {

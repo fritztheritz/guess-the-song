@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useWakeLock } from '../lib/use-wake-lock'
 import { useNavigate } from 'react-router-dom'
 import {
   DEFAULT_ANSWER_TIMER_SECONDS,
   isLyricMode,
+  isHigherLowerMode,
   isTierGuessMode,
+  usesTierList,
   isYearMode,
   LYRIC_HINT_LABELS,
   type Game,
@@ -32,6 +35,10 @@ import StageStepper from '../components/StageStepper'
 import CreditGrid from '../components/CreditGrid'
 import SoundControl from '../components/SoundControl'
 import { isHalftime, tiedLeaders } from '../lib/possession'
+import { recordPossession } from '../lib/history'
+import { correctAnswer, isCorrectGuess } from '../lib/higher-lower'
+import { useReactions } from '../lib/use-reactions'
+import ReactionLayer from '../components/ReactionLayer'
 import { computeAward, creditMultiplier, settleGuessPossession } from '../lib/awards'
 import { closestMatcher as closestMatcherFor, gradeGuesses, isExactMonth as isExactMonthGuess, isExactPosition as isExactPositionGuess, monthNumber } from '../lib/guess-grading'
 import { SCORING, TIMING, applyScoreDeltas, parseGuessNumber, rankMoves, ranksOf, settleStreaks } from '../lib/scoring'
@@ -77,6 +84,8 @@ function frozenTargetIds(game: Game | null): string[] {
 
 export default function HostController({ gameId }: { gameId: string }) {
   const navigate = useNavigate()
+  // The host's screen is the show — don't let it sleep between clues.
+  useWakeLock(true)
   const confirm = useConfirm()
   const tierListsEnabled = useFeatureFlag('tier-lists')
   const buzzerEnabled = useFeatureFlag('phone-buzzer') && isBuzzerConfigured()
@@ -84,6 +93,8 @@ export default function HostController({ gameId }: { gameId: string }) {
   const ejectEnabled = useFeatureFlag('eject')
   const suddenDeathEnabled = useFeatureFlag('sudden-death')
   const soundboardEnabled = useFeatureFlag('soundboard')
+  const reactionsEnabled = useFeatureFlag('reactions')
+  const { reactions, push: pushReaction } = useReactions()
   const [toolsOpen, setToolsOpen] = useState(readToolsOpen)
   const toggleTools = () => {
     const next = !toolsOpen
@@ -204,6 +215,9 @@ export default function HostController({ gameId }: { gameId: string }) {
   const buzzerSocketRef = useRef<BuzzerSocket | null>(null)
   // While this clue's buzz/guess window should be open: the teams to seed as iced. Null when closed.
   const wantOpenRef = useRef<string[] | null>(null)
+  const reactionsEnabledRef = useRef(false)
+  reactionsEnabledRef.current = reactionsEnabled
+  const startScoresRef = useRef<Record<string, number>>({})
   // Teams the keyboard buzz-in path has marked wrong for the current clue — a client-side
   // mirror of BuzzerRoom's `iced` set (see buzzer-room.js) for when there's no phone
   // connection to enforce it server-side. A ref, not state: it only ever gates a keydown
@@ -337,7 +351,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   useEffect(() => {
     const loaded = getGame(gameId)
     // Tier Guess rides on the tier-lists flag — see the matching check in GameBuilder.
-    if (loaded && isTierGuessMode(loaded) && !tierListsEnabled) {
+    if (loaded && usesTierList(loaded) && !tierListsEnabled) {
       navigate('/', { replace: true })
       return
     }
@@ -357,6 +371,10 @@ export default function HostController({ gameId }: { gameId: string }) {
   const isTierGuess = game ? isTierGuessMode(game) : false
   const isLyric = game ? isLyricMode(game) : false
   const isYear = game ? isYearMode(game) : false
+  const isHL = game ? isHigherLowerMode(game) : false
+  // Tier Guess, Year and Higher or Lower all collect every team's guess in one open window and credit
+  // several teams per possession, instead of a buzz race with one winner.
+  const isGuess = isTierGuess || isYear || isHL
   const answerTimerSeconds = game?.answerTimerSeconds ?? DEFAULT_ANSWER_TIMER_SECONDS
 
   // Phone Buzz-In setup — generates (once) and persists a room code on the game itself so
@@ -386,8 +404,12 @@ export default function HostController({ gameId }: { gameId: string }) {
         setBuzzWinner(msg.winner)
         setBuzzIced(msg.iced)
         if (msg.winner && recordBuzzReaction(msg.winner)) playBuzzIn()
+      } else if (msg.type === 'react') {
+        if (!reactionsEnabledRef.current) return
+        pushReaction(msg.emoji, msg.name)
+        channelRef.current?.postMessage({ type: 'reaction', emoji: msg.emoji, name: msg.name } satisfies PresentationMessage)
       } else if (msg.type === 'guess') {
-        if (isYear || isTierGuess) {
+        if (isGuess) {
           // No buzzWinner exists for these modes' own guess — anyone connected can submit,
           // so every submission is collected (by connId, so a resubmit just overwrites) and
           // graded together the moment the guessing window closes. See autoScoreGuesses.
@@ -444,7 +466,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     // Power-Ups' Freeze (Song/Lyric only): seed the room's ice with the frozen team the
     // instant this clue's window actually opens, then clear it so it doesn't carry into the
     // clue after — same one-shot consume as the keyboard path below.
-    const frozen = guessChannelOpen && !isTierGuess && !isYear ? frozenTargetIds(game) : []
+    const frozen = guessChannelOpen && !isGuess ? frozenTargetIds(game) : []
     // Ejected teams are re-iced on every open for the rest of their possession (see `ejected`).
     const seeded = guessChannelOpen ? Array.from(new Set([...frozen, ...blockedIdsRef.current])) : []
     wantOpenRef.current = guessChannelOpen ? seeded : null
@@ -458,7 +480,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   // cycle client-side, reusing the same buzzState/buzzWinner the phone path drives; steps
   // aside once a real phone connection is live so the two never fight over state.
   useEffect(() => {
-    if (buzzerConnected || isTierGuess || isYear) return
+    if (buzzerConnected || isGuess) return
     // Power-Ups' Freeze: same one-shot seed-then-clear as the phone path above.
     const frozen = phase === 'clue' ? frozenTargetIds(game) : []
     keyboardIcedRef.current = new Set([...frozen, ...blockedIds])
@@ -466,10 +488,10 @@ export default function HostController({ gameId }: { gameId: string }) {
     setBuzzState(phase === 'clue' ? 'open' : 'closed')
     if (frozen.length > 0 && game) setGame(saveGame({ ...game, freezes: [] }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, buzzerConnected, isTierGuess, isYear])
+  }, [phase, buzzerConnected, isGuess])
 
   useEffect(() => {
-    if (!game || !round || phase !== 'clue' || !(isTierGuess || isYear)) return
+    if (!game || !round || phase !== 'clue' || !isGuess) return
     try {
       sessionStorage.setItem(PENDING_GUESSES_KEY, JSON.stringify({ gameId: game.id, roundId: round.id, guesses: [...modeGuesses] }))
     } catch {
@@ -492,7 +514,10 @@ export default function HostController({ gameId }: { gameId: string }) {
       scoredStageRef.current = key
       run()
     }
-    if (isYear) {
+    if (isHL) {
+      const card = round.higherLower
+      once('hl', () => autoScoreGuesses(!!card, (text) => !!card && isCorrectGuess(text, card), [{ credited: yearCredits, setCredited: setYearCredits, points: SCORING.higherLower, label: 'right call' }]))
+    } else if (isYear) {
       if (yearGuessStage !== 'year') {
         once('year', () =>
           autoScoreGuesses(
@@ -541,7 +566,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, isYear, isTierGuess, yearGuessStage, tierGuessStage, round?.id])
+  }, [phase, isYear, isTierGuess, isHL, yearGuessStage, tierGuessStage, round?.id])
 
   // Phone-only mode: pushes a phone-safe summary of what's on screen (never the answer
   // before it's actually revealed) down to every connected player, so a group can follow
@@ -582,11 +607,27 @@ export default function HostController({ gameId }: { gameId: string }) {
         positionCount: guessStage === 'guessPosition' ? round?.tierSize : undefined,
         theme: currentThemeVarsForGuests(),
         suddenDeath: game.suddenDeath ? true : undefined,
-        guessProgress: (isTierGuess || isYear) && guessChannelOpen ? { teamsIn: teamsInCount, of: Math.max(0, game.teams.length - blockedIds.length) } : undefined,
+        reactions: reactionsEnabled || undefined,
+        higherLower:
+          isHL && round?.higherLower && (phase === 'clue' || phase === 'revealed')
+            ? {
+                refTitle: round.higherLower.ref.title,
+                refArtist: round.higherLower.ref.artist,
+                refArtworkUrl: round.higherLower.ref.artworkUrl,
+                refRank: round.higherLower.ref.rank,
+                refTier: round.higherLower.ref.tierName,
+                size: round.higherLower.size,
+                title: round.title,
+                artist: round.artist,
+                artworkUrl: round.artworkUrl,
+                ...(phase === 'revealed' ? { rank: round.higherLower.rank, answer: correctAnswer(round.higherLower) } : {}),
+              }
+            : undefined,
+        guessProgress: isGuess && guessChannelOpen ? { teamsIn: teamsInCount, of: Math.max(0, game.teams.length - blockedIds.length) } : undefined,
       },
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, possessionIndex, round?.id, teamsWithScoreKey, buzzerConnected, isTierGuess, isYear, tierGuessStage, yearGuessStage, teamsInCount])
+  }, [phase, possessionIndex, round?.id, teamsWithScoreKey, buzzerConnected, isGuess, tierGuessStage, yearGuessStage, teamsInCount])
 
   useEffect(() => {
     if (phase === 'final') playFanfare()
@@ -620,7 +661,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   useEffect(() => {
     audioSourceRef.current?.stop()
     stopShotClock()
-    audioSourceRef.current = round && !isLyric && !isTierGuess && !isYear ? createAudioSource(round) : null
+    audioSourceRef.current = round && !isLyric && !isGuess ? createAudioSource(round) : null
     setClueIndex(0)
     setIsPlaying(false)
     setShotClock(0)
@@ -637,6 +678,8 @@ export default function HostController({ gameId }: { gameId: string }) {
     setWagerTeamId(null)
     setWagerAmount(round?.points[0] ?? null)
     setAwardUndo(null)
+    // Where everyone stands as this possession begins, for the replay log.
+    startScoresRef.current = Object.fromEntries((game?.teams ?? []).map((t) => [t.id, t.score]))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [round?.id])
 
@@ -1113,7 +1156,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   const toggleTierCredit = (team: Team) => toggleCredit(tierCredits, setTierCredits, team, SCORING.tier)
   const togglePositionCredit = (team: Team) => toggleCredit(positionCredits, setPositionCredits, team, SCORING.position)
   const toggleExactCredit = (team: Team) => toggleCredit(exactCredits, setExactCredits, team, SCORING.positionExact)
-  const toggleYearCredit = (team: Team) => toggleCredit(yearCredits, setYearCredits, team, SCORING.year)
+  const toggleYearCredit = (team: Team) => toggleCredit(yearCredits, setYearCredits, team, isHL ? SCORING.higherLower : SCORING.year)
   const toggleExactMonthCredit = (team: Team) => toggleCredit(exactMonthCredits, setExactMonthCredits, team, SCORING.monthExact)
   const toggleMonthCredit = (team: Team) => toggleCredit(monthCredits, setMonthCredits, team, SCORING.month)
 
@@ -1287,16 +1330,20 @@ export default function HostController({ gameId }: { gameId: string }) {
       ? new Set([...tierCredits, ...positionCredits, ...exactCredits])
       : isYear
         ? new Set([...yearCredits, ...monthCredits, ...exactMonthCredits])
-        : null
+        : isHL
+          ? new Set(yearCredits) // Higher or Lower reuses the Year credit set — it only has the one credit
+          : null
     let current = credited ? { ...game, teams: settleStreaks(game.teams, credited) } : game
     // Tier/Year: what only a possession's total can decide — underdog bonus, Steal, earned and
     // gifted power-ups (see settleGuessPossession) — lands as it ends.
     if (credited && round) {
       const gains = Object.fromEntries(game.teams.map((t) => [t.id, recapRef.current.roundTotals.get(`${round.id}:${t.name}`) ?? 0]))
-      const settled = settleGuessPossession(current, gains, { powerUps: powerUpsEnabled })
+      const settled = settleGuessPossession(current, gains, { powerUps: powerUpsEnabled, streakBonus: isHL })
       current = settled.game
       if (settled.banners.length > 0) showEarnBanner(settled.banners.join('  ·  '))
     }
+    // Log this possession for the replay page.
+    if (round) current = recordPossession(current, possessionIndex, { title: round.title, artist: round.artist, startScores: startScoresRef.current })
     if (possessionIndex >= game.rounds.length - 1) {
       if (credited) setGame(saveGame(current))
       if (startSuddenDeath(current)) return
@@ -1307,7 +1354,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     const next = possessionIndex + 1
     // Tier/Year have no buzz race to freeze a team out of, so a Freeze sits that team out of the
     // next possession's guessing the same way a ref's ejection does (without counting as one).
-    if (isTierGuess || isYear) {
+    if (isGuess) {
       const frozen = frozenTargetIds(current)
       if (frozen.length > 0) {
         setEjected({ possession: next, ids: frozen })
@@ -1361,7 +1408,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
   function restartGame() {
     if (!game) return
-    const reset = saveGame({ ...game, teams: game.teams.map(resetTeamTallies), progress: undefined, recap: undefined, armedPowerUps: [], freezes: [], suddenDeath: null, playerStats: undefined, rounds: game.rounds.filter((r) => !r.tiebreaker) })
+    const reset = saveGame({ ...game, teams: game.teams.map(resetTeamTallies), progress: undefined, recap: undefined, history: undefined, armedPowerUps: [], freezes: [], suddenDeath: null, playerStats: undefined, rounds: game.rounds.filter((r) => !r.tiebreaker) })
     setGame(reset)
     setPossessionIndex(0)
     setLastAward(null)
@@ -1496,7 +1543,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       switch (e.code) {
         case 'Space':
           e.preventDefault()
-          if (phase === 'clue' && !isLyric && !isTierGuess && !isYear && !wagerPending) void playClue(clueIndex)
+          if (phase === 'clue' && !isLyric && !isGuess && !wagerPending) void playClue(clueIndex)
           break
         case 'Enter':
           e.preventDefault()
@@ -1513,7 +1560,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           if (phase === 'revealed') undoAward()
           break
         case 'KeyR':
-          if (phase === 'clue' && !isLyric && !isTierGuess && !isYear && !wagerPending) restartClue()
+          if (phase === 'clue' && !isLyric && !isGuess && !wagerPending) restartClue()
           break
         case 'Escape':
           exitPresentation()
@@ -1522,7 +1569,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           // Local (keyboard) buzz-in: digit N buzzes for game.teams[N-1]. Only meaningful
           // where Phone Buzz-In's own buzzWinner banner/judging already applies (see
           // markBuzzCorrect's comment) — same mode/wager restrictions, same buzzState gate.
-          if (phase !== 'clue' || isTierGuess || isYear || wagerPending) break
+          if (phase !== 'clue' || isGuess || wagerPending) break
           if (buzzState !== 'open' || buzzWinner) break
           const digitMatch = /^Digit([1-9])$/.exec(e.code)
           if (!digitMatch) break
@@ -1538,7 +1585,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, clueIndex, isPlaying, possessionIndex, showHelp, soundboardEnabled, isLyric, isTierGuess, isYear, tierGuessStage, yearGuessStage, round?.wager, wagerTeamId, buzzState, buzzWinner, awardUndo])
+  }, [phase, clueIndex, isPlaying, possessionIndex, showHelp, soundboardEnabled, isLyric, isGuess, tierGuessStage, yearGuessStage, round?.wager, wagerTeamId, buzzState, buzzWinner, awardUndo])
 
   const sortedFinal = useMemo(() => [...(game?.teams ?? [])].sort((a, b) => b.score - a.score), [game])
 
@@ -1576,6 +1623,10 @@ export default function HostController({ gameId }: { gameId: string }) {
         return `Position: #${(round.tierPosition ?? 0) + 1} of ${round.tierSize ?? '?'} (Tier ${tier?.name ?? '—'})`
       }
       return `Tier: ${tier?.name ?? '—'}`
+    }
+    if (isHL && round.higherLower) {
+      const card = round.higherLower
+      return `${round.title} is #${card.rank} of ${card.size} — ${correctAnswer(card) === 'higher' ? 'HIGHER' : 'LOWER'} than ${card.ref.title} (#${card.ref.rank})`
     }
     if (isYear) {
       if (yearGuessStage === 'guessMonth') {
@@ -1673,6 +1724,8 @@ export default function HostController({ gameId }: { gameId: string }) {
         </button>
       </div>
 
+      {reactionsEnabled && <ReactionLayer reactions={reactions} />}
+
       {timerPaused && (
         <div role="status" className="fixed left-1/2 top-3 z-30 -translate-x-1/2 rounded-full bg-scoreboard-amber px-4 py-1.5 text-xs font-semibold text-arena-950 shadow-lg">
           ⏸ Timer paused while a tool is open
@@ -1689,7 +1742,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       {showHelp && (
         <HostHelpModal
           teams={game.teams}
-          clipMode={!isTierGuess && !isYear}
+          clipMode={!isGuess}
           soundboard={soundboardEnabled ? SOUNDBOARD : []}
           onClose={() => setShowHelp(false)}
         />
@@ -1854,6 +1907,52 @@ export default function HostController({ gameId }: { gameId: string }) {
 
                 {submittedSoFarPanel()}
               </>
+            ) : isHL && round.higherLower ? (
+              <>
+                {isPlaying ? (
+                  <>
+                    <ShotClockDigit seconds={shotClock} />
+                    <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Answer Timer</div>
+                  </>
+                ) : (
+                  <button
+                    onClick={() => startTimer(answerTimerSeconds)}
+                    className="rounded-full border border-hardwood-500 px-5 py-2 text-sm font-semibold text-hardwood-400 hover:bg-hardwood-500/10"
+                  >
+                    ▶ START {answerTimerSeconds}s TIMER
+                  </button>
+                )}
+
+                <div className="font-display text-3xl tracking-wide text-white">HIGHER OR LOWER?</div>
+
+                <div className="flex flex-wrap items-center justify-center gap-5">
+                  <div className="w-40 space-y-1">
+                    <div className="h-28 w-28 mx-auto overflow-hidden rounded-xl bg-arena-800 shadow-lg">
+                      <ArtworkFill url={round.higherLower.ref.artworkUrl} />
+                    </div>
+                    <div className="truncate font-display text-lg text-white">{round.higherLower.ref.title}</div>
+                    <div className="truncate text-xs text-slate-500">{round.higherLower.ref.artist}</div>
+                    <div className="font-display text-3xl text-hardwood-400">#{round.higherLower.ref.rank}</div>
+                    {round.higherLower.ref.tierName && <div className="text-[11px] uppercase tracking-widest text-slate-500">Tier {round.higherLower.ref.tierName}</div>}
+                  </div>
+                  <div className="font-display text-3xl text-slate-600">VS</div>
+                  <div className="w-40 space-y-1">
+                    <div className="h-28 w-28 mx-auto overflow-hidden rounded-xl bg-arena-800 shadow-lg">
+                      <ArtworkFill url={round.artworkUrl} />
+                    </div>
+                    <div className="truncate font-display text-lg text-white">{round.title}</div>
+                    <div className="truncate text-xs text-slate-500">{round.artist}</div>
+                    <div className="font-display text-3xl text-slate-600">#?</div>
+                  </div>
+                </div>
+
+                <p className="max-w-md text-sm text-slate-400">
+                  Is <span className="text-slate-200">{round.title}</span> ranked higher (closer to #1) or lower than{' '}
+                  <span className="text-slate-200">{round.higherLower.ref.title}</span>?
+                </p>
+
+                {submittedSoFarPanel()}
+              </>
             ) : isYear ? (
               <>
                 {round.wager && wagerTeamId && (
@@ -1919,7 +2018,7 @@ export default function HostController({ gameId }: { gameId: string }) {
               </>
             )}
 
-            {!isTierGuess && !isYear && !round.wager && buzzWinner && (
+            {!isGuess && !round.wager && buzzWinner && (
               <div className="w-full max-w-sm space-y-2 rounded-xl border border-scoreboard-amber/40 bg-scoreboard-amber/10 p-4">
                 <div className="text-sm font-semibold text-scoreboard-amber">
                   🔔 {buzzWinner.name} ({game.teams.find((t) => t.id === buzzWinner.teamId)?.name ?? '—'}) buzzed in!
@@ -1954,13 +2053,13 @@ export default function HostController({ gameId }: { gameId: string }) {
 
             {!(round.wager && !wagerTeamId) && (
               <div className="flex gap-3">
-                {!isTierGuess && !isYear && clueIndex < round.points.length - 1 && (
+                {!isGuess && clueIndex < round.points.length - 1 && (
                   <button onClick={advanceClue} disabled={isPlaying} className="rounded-full border border-arena-500 px-5 py-2 text-sm text-slate-300 hover:border-hardwood-500 disabled:opacity-40">
                     {isLyric ? `NEXT HINT: ${LYRIC_HINT_LABELS[clueIndex]} (${round.points[clueIndex + 1]} pts)` : `NEXT CLUE (${round.clipDurations[clueIndex + 1]}s)`}
                   </button>
                 )}
                 <button onClick={reveal} className="rounded-full bg-scoreboard-500 px-5 py-2 text-sm font-semibold text-white hover:bg-scoreboard-500/80">
-                  {isTierGuess ? 'REVEAL TIER' : isYear ? 'REVEAL YEAR' : 'REVEAL ANSWER'}
+                  {isTierGuess ? 'REVEAL TIER' : isYear ? 'REVEAL YEAR' : isHL ? 'REVEAL RANK' : 'REVEAL ANSWER'}
                   <Kbd>Enter</Kbd>
                 </button>
               </div>
@@ -2082,6 +2181,35 @@ export default function HostController({ gameId }: { gameId: string }) {
                 )
               })()}
             </>
+          ) : isHL && round.higherLower ? (
+            <>
+              <div className="relative z-10 flex flex-wrap items-center justify-center gap-5">
+                <div className="w-36 space-y-1 opacity-80">
+                  <div className="mx-auto h-24 w-24 overflow-hidden rounded-xl bg-arena-800">
+                    <ArtworkFill url={round.higherLower.ref.artworkUrl} />
+                  </div>
+                  <div className="truncate text-sm text-slate-300">{round.higherLower.ref.title}</div>
+                  <div className="font-display text-2xl text-slate-300">#{round.higherLower.ref.rank}</div>
+                </div>
+                <div className="font-display text-3xl text-hardwood-400">{correctAnswer(round.higherLower) === 'higher' ? '⬆️' : '⬇️'}</div>
+                <div className="w-40 space-y-1 animate-pop-in">
+                  <div className="mx-auto h-28 w-28 overflow-hidden rounded-xl bg-arena-800 shadow-2xl">
+                    <ArtworkFill url={round.artworkUrl} />
+                  </div>
+                  <div className="truncate font-display text-lg text-white">{round.title}</div>
+                  <div className="font-display text-4xl text-hardwood-400">
+                    #<RollReveal value={String(round.higherLower.rank)} />
+                  </div>
+                  <div className="text-[11px] uppercase tracking-widest text-slate-500">
+                    of {round.higherLower.size}
+                    {round.higherLower.tierName ? ` · Tier ${round.higherLower.tierName}` : ''}
+                  </div>
+                </div>
+              </div>
+              <div className="relative z-10 font-display text-3xl tracking-widest text-hardwood-400">
+                {correctAnswer(round.higherLower) === 'higher' ? 'HIGHER' : 'LOWER'}
+              </div>
+            </>
           ) : isYear ? (
             <>
               <div className="relative z-10 h-32 w-32 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
@@ -2178,6 +2306,19 @@ export default function HostController({ gameId }: { gameId: string }) {
                 )}
               </div>
             )
+          ) : isHL ? (
+            <div className="relative z-10 w-full max-w-lg space-y-3">
+              <CreditGrid
+                title={`Called it right? (+${SCORING.higherLower}, auto-credited — tap to adjust)`}
+                teams={game.teams}
+                credited={yearCredits}
+                onToggle={toggleYearCredit}
+                isBlocked={(id) => blocked.has(id)}
+                blockedMark={blockedMark}
+                submittedIds={submittedTeamIds}
+              />
+              <p className="text-xs text-slate-500">Consecutive right calls earn a streak bonus when the possession ends.</p>
+            </div>
           ) : isYear ? (
             yearGuessStage === 'guessMonth' ? (
               <div className="relative z-10 w-full max-w-lg space-y-3">{submittedSoFarPanel()}</div>
@@ -2388,6 +2529,11 @@ export default function HostController({ gameId }: { gameId: string }) {
             <button onClick={handleDownloadRecap} className="rounded-full border border-arena-500 px-6 py-2.5 text-slate-200 hover:border-hardwood-500">
               📤 SAVE RECAP CARD
             </button>
+            {(game.history?.length ?? 0) > 0 && (
+              <button onClick={() => navigate(`/games/${gameId}/replay`)} className="rounded-full border border-arena-500 px-6 py-2.5 text-slate-200 hover:border-hardwood-500">
+                ⏪ REPLAY
+              </button>
+            )}
             <button onClick={() => navigate(`/games/${gameId}/edit`)} className="rounded-full border border-arena-500 px-6 py-2.5 text-slate-200 hover:border-hardwood-500">
               EDIT GAME
             </button>

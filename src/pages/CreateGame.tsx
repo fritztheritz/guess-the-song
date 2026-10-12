@@ -131,6 +131,18 @@ export default function CreateGame() {
             {tierListsEnabled && (
               <button
                 type="button"
+                onClick={() => setMode('higherlower')}
+                className={`col-span-2 rounded-lg border px-4 py-3 text-left ${
+                  mode === 'higherlower' ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 hover:border-arena-500'
+                }`}
+              >
+                <div className="font-display text-lg tracking-wide text-white">↕️ Higher or Lower</div>
+                <div className="text-xs text-slate-500">Is the next song ranked higher or lower than the last? Built from a tier list</div>
+              </button>
+            )}
+            {tierListsEnabled && (
+              <button
+                type="button"
                 onClick={() => setMode('tierguess')}
                 className={`col-span-2 rounded-lg border px-4 py-3 text-left ${
                   mode === 'tierguess' ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 hover:border-arena-500'
@@ -336,7 +348,7 @@ export default function CreateGame() {
         <ModeRulesCard mode={mode} />
 
         <Button type="submit" fullWidth size="lg">
-          {mode === 'lyric' ? 'ADD LYRIC ROUNDS →' : mode === 'tierguess' ? 'PICK YOUR TIER LIST →' : 'ADD TRACKS →'}
+          {mode === 'lyric' ? 'ADD LYRIC ROUNDS →' : mode === 'tierguess' || mode === 'higherlower' ? 'PICK YOUR TIER LIST →' : 'ADD TRACKS →'}
         </Button>
       </form>
     </div>

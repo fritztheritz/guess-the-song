@@ -1,6 +1,7 @@
 import { trackTeamStats } from './achievements'
 import { POWER_UP_LABELS } from './host-content'
 import { SCORING } from './scoring'
+import { streakBonus } from './streaks'
 import { POWER_UP_KINDS, type Game, type PowerUpKind, type Team } from '../types'
 
 // The rules for what a scored possession is worth, pulled out of the Host Controller so they can be
@@ -115,12 +116,25 @@ export function creditMultiplier(game: Game, teamId: string): number {
 export function settleGuessPossession(
   game: Game,
   gains: Record<string, number>,
-  opts: { powerUps: boolean; pickKind?: () => PowerUpKind },
+  opts: { powerUps: boolean; pickKind?: () => PowerUpKind; streakBonus?: boolean },
 ): { game: Game; banners: string[] } {
   const banners: string[] = []
   const pickKind = opts.pickKind ?? randomKind
   let teams = game.teams
   const gained = (id: string) => gains[id] ?? 0
+
+  // Higher or Lower: consecutive right calls earn extra, like Popularity/Timeline (a team's streak
+  // has already been settled for this possession by the caller).
+  if (opts.streakBonus) {
+    teams = teams.map((t) => {
+      const bonus = gained(t.id) > 0 ? streakBonus(t.streak ?? 0) : 0
+      if (bonus <= 0) return t
+      banners.push(`🔥 ${t.name} streak +${bonus}`)
+      return { ...t, score: t.score + bonus }
+    })
+    // The bonus is part of what the team banked this possession (Steal and Underdog read it).
+    gains = Object.fromEntries(Object.entries(gains).map(([id, g]) => [id, g > 0 ? g + streakBonus(game.teams.find((t) => t.id === id)?.streak ?? 0) : g]))
+  }
 
   // Underdog: measured against where everyone stood before this possession's points landed.
   if (game.catchUp) {

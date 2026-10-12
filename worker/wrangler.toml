@@ -20,6 +20,10 @@ SOUNDCLOUD_CLIENT_ID = "4RRAqFiWAlqK8OEswaRSzSgHHcZK6PrD"
 name = "BUZZER_ROOM"
 class_name = "BuzzerRoom"
 
+[[durable_objects.bindings]]
+name = "BACKUP_VAULT"
+class_name = "BackupVault"
+
 [[migrations]]
 tag = "v1"
 # Free-plan accounts require Durable Objects to be SQLite-backed (new_sqlite_classes)
@@ -27,3 +31,8 @@ tag = "v1"
 # in-memory fields (see the comment in buzzer-room.js), this is just what Cloudflare
 # requires to provision the class at all on this plan.
 new_sqlite_classes = ["BuzzerRoom"]
+
+# Cloud backup (see backup-vault.js): one SQLite-backed Durable Object per backup code.
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["BackupVault"]

@@ -9,6 +9,10 @@
 // persisting/rehydrating state for what's inherently disposable, session-scoped data.
 
 const MAX_ORDER = 20 // plenty for "who buzzed 2nd/3rd", caps memory for a long game
+// Crowd reactions: a fixed set (so a phone can't push arbitrary text to the big screen) and a
+// per-connection cooldown (so one phone can't flood it).
+const REACTIONS = new Set(['🔥', '👏', '😂', '😱', '❤️', '🤯'])
+const REACTION_COOLDOWN_MS = 600
 
 export class BuzzerRoom {
   constructor(state, env) {
@@ -22,6 +26,8 @@ export class BuzzerRoom {
     this.playerSockets = new Set()
     /** @type {Map<WebSocket, {connId: string, name: string, teamId: string}>} */
     this.players = new Map()
+    /** @type {Map<WebSocket, number>} when each socket last sent a reaction (cooldown). */
+    this.lastReactionAt = new Map()
     this.buzzState = 'closed' // 'closed' | 'open' | 'locked'
     this.winner = null
     this.order = []
@@ -198,6 +204,15 @@ export class BuzzerRoom {
       // cover Year/Tier Guess's free-for-all guesses too, or ejecting a team would do nothing there.
       if (this.buzzState === 'open' && player.teamId && this.iced.has(player.teamId)) return
       this.broadcastToHost({ type: 'guess', connId: player.connId, text: msg.text.slice(0, 200) })
+    } else if (msg.type === 'react' && typeof msg.emoji === 'string') {
+      // Anyone who has joined — spectators included — can cheer. Host-only, like guesses and ballots.
+      const player = this.players.get(socket)
+      if (!player || !REACTIONS.has(msg.emoji)) return
+      const now = Date.now()
+      const last = this.lastReactionAt.get(socket) ?? 0
+      if (now - last < REACTION_COOLDOWN_MS) return
+      this.lastReactionAt.set(socket, now)
+      this.broadcastToHost({ type: 'react', emoji: msg.emoji, name: player.name, teamId: player.teamId })
     } else if (msg.type === 'ballot' && Array.isArray(msg.rankedTeamIds)) {
       // Draft ranking: a drafter's ballot, host-only like 'guess'. Whose ballot it is comes from the
       // sender's own joined team (a spectator has none, so can't vote) — never from the message, so
@@ -211,6 +226,7 @@ export class BuzzerRoom {
 
   removePlayer(socket) {
     this.playerSockets.delete(socket)
+    this.lastReactionAt.delete(socket)
     if (this.players.delete(socket)) {
       this.broadcastToHost({ type: 'roster', players: this.rosterList() })
     }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
+import { rulesFor } from '../lib/mode-rules'
 import ButtonLink from '../components/ui/ButtonLink'
 import { summarizeDraftBoard } from '../lib/draft-summary'
 import HomeSection from '../components/HomeSection'
@@ -29,8 +30,17 @@ import {
   importTimelineGames,
 } from '../lib/storage/timeline-repository'
 import { listSeasons, deleteSeason, saveSeason, exportAllSeasons, importSeasons } from '../lib/storage/season-repository'
-import { downloadBackupFile, parseBackupFile, BackupFileError, type BackupContents } from '../lib/game-backup'
-import { duplicateGame, isLyricMode, isTierGuessMode, type Game } from '../types'
+import { buildBackupFile, downloadBackupFile, parseBackupFile, BackupFileError, type BackupContents } from '../lib/game-backup'
+import {
+  CloudBackupError,
+  downloadCloudBackup,
+  formatBackupCode,
+  isCloudBackupAvailable,
+  loadSavedCloudBackup,
+  normalizeBackupCode,
+  uploadCloudBackup,
+} from '../lib/cloud-backup'
+import { duplicateGame, usesTierList, type Game } from '../types'
 import { duplicateTierList, type TierList } from '../types/tierlist'
 import { duplicateTournament, type Tournament } from '../types/tournament'
 import { duplicateSeason, type Season } from '../types/season'
@@ -101,6 +111,10 @@ export default function Home() {
   const [timelineGames, setTimelineGames] = useState<TimelineGame[]>([])
   const [seasons, setSeasons] = useState<Season[]>([])
   const [backupStatus, setBackupStatus] = useState<string | null>(null)
+  const [cloud, setCloud] = useState(loadSavedCloudBackup)
+  const [cloudBusy, setCloudBusy] = useState(false)
+  const [showCloudCode, setShowCloudCode] = useState(false)
+  const [cloudCodeInput, setCloudCodeInput] = useState('')
   const [activeTags, setActiveTags] = useState<string[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const importFileInput = useRef<HTMLInputElement | null>(null)
@@ -300,7 +314,7 @@ export default function Home() {
 
   // Tier Guess rides on the tier-lists flag — fully hidden when it's off, same as the tier
   // lists section below, rather than just blocking its Edit/Present links.
-  const modeVisibleGames = tierListsEnabled ? games : games.filter((g) => !isTierGuessMode(g))
+  const modeVisibleGames = tierListsEnabled ? games : games.filter((g) => !usesTierList(g))
 
   // Shared tag vocabulary across both games and tier lists — one filter bar organizes both
   // sections at once, since a tag like "Friday Night" is just as meaningful for either.
@@ -344,25 +358,22 @@ export default function Home() {
   const visibleTimelineGames = timelineGames.filter((g) => matchesSearch(g.name))
   const visibleSeasons = seasons.filter((s) => matchesSearch(s.name, s.tag))
 
-  function handleExportAll() {
-    // Reads straight from storage rather than the tierLists/tournaments/draftBoards state
-    // vars, so a backup taken while a flag is off still includes anything already saved under it.
-    const allGames = exportAllGames()
-    const allTierLists = exportAllTierLists()
-    const allTournaments = exportAllTournaments()
-    const allDraftBoards = exportAllDraftBoards()
-    const allPopularityGames = exportAllPopularityGames()
-    const allTimelineGames = exportAllTimelineGames()
-    const allSeasons = exportAllSeasons()
-    const contents = {
-      games: allGames,
-      tierLists: allTierLists,
-      tournaments: allTournaments,
-      draftBoards: allDraftBoards,
-      popularityGames: allPopularityGames,
-      timelineGames: allTimelineGames,
-      seasons: allSeasons,
+  // Reads straight from storage rather than the tierLists/tournaments/draftBoards state vars, so a
+  // backup taken while a flag is off still includes anything already saved under it.
+  function collectBackupContents(): BackupContents {
+    return {
+      games: exportAllGames(),
+      tierLists: exportAllTierLists(),
+      tournaments: exportAllTournaments(),
+      draftBoards: exportAllDraftBoards(),
+      popularityGames: exportAllPopularityGames(),
+      timelineGames: exportAllTimelineGames(),
+      seasons: exportAllSeasons(),
     }
+  }
+
+  function handleExportAll() {
+    const contents = collectBackupContents()
     if (Object.values(contents).every((list) => list.length === 0)) {
       setBackupStatus('Nothing to back up yet.')
       return
@@ -372,12 +383,55 @@ export default function Home() {
     setBackupStatus(`Downloaded a backup of ${parts.join(', ')}.`)
   }
 
+  async function handleCloudBackup() {
+    const contents = collectBackupContents()
+    if (Object.values(contents).every((list) => list.length === 0)) {
+      setBackupStatus('Nothing to back up yet.')
+      return
+    }
+    setCloudBusy(true)
+    try {
+      const saved = await uploadCloudBackup(buildBackupFile(contents))
+      setCloud(saved)
+      setShowCloudCode(true)
+      setBackupStatus(`Backed up ${describeBackupContents(contents).join(', ')} to the cloud.`)
+    } catch (err) {
+      setBackupStatus(err instanceof CloudBackupError ? err.message : 'Cloud backup failed.')
+    } finally {
+      setCloudBusy(false)
+    }
+  }
+
+  async function handleCloudRestore() {
+    const code = normalizeBackupCode(cloudCodeInput)
+    setCloudBusy(true)
+    try {
+      const { backup } = await downloadCloudBackup(code)
+      await restoreFromText(backup)
+      setCloud(loadSavedCloudBackup())
+      setCloudCodeInput('')
+    } catch (err) {
+      setBackupStatus(err instanceof CloudBackupError ? err.message : 'Could not restore that backup.')
+    } finally {
+      setCloudBusy(false)
+    }
+  }
+
   async function handleImportFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
     if (!file) return
     try {
-      const text = await file.text()
+      await restoreFromText(await file.text())
+    } catch (err) {
+      setBackupStatus(err instanceof BackupFileError ? err.message : 'Could not read that file.')
+    }
+  }
+
+  // Confirms, then writes a backup's contents into storage and refreshes what's on screen. Shared by
+  // "Restore from backup" (a file) and "Restore from cloud".
+  async function restoreFromText(text: string) {
+    try {
       const imported = parseBackupFile(text)
       if (Object.values(imported).every((list) => list.length === 0)) {
         setBackupStatus('That backup file is empty.')
@@ -405,7 +459,7 @@ export default function Home() {
       if (seasonsEnabled) setSeasons(listSeasons())
       setBackupStatus(`Restored ${parts.join(', ')} from backup.`)
     } catch (err) {
-      setBackupStatus(err instanceof BackupFileError ? err.message : 'Could not read that file.')
+      setBackupStatus(err instanceof BackupFileError ? err.message : 'Could not read that backup.')
     }
   }
 
@@ -429,6 +483,9 @@ export default function Home() {
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
             <ButtonLink to="/new" variant="primary" size="lg" className="px-10 shadow-lg shadow-hardwood-500/20">
               + CREATE GAME
+            </ButtonLink>
+            <ButtonLink to="/quick" size="lg" className="px-10">
+              ⚡ QUICK GAME
             </ButtonLink>
             {tierListsEnabled && (
               <ButtonLink to="/tierlists/new" size="lg" className="px-10">
@@ -570,7 +627,7 @@ export default function Home() {
                       <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-2xl text-arena-500">
-                        {isLyricMode(game) ? '📝' : isTierGuessMode(game) ? '🎯' : '🎵'}
+                        {rulesFor(game.mode).icon}
                       </div>
                     )}
                   </div>
@@ -598,6 +655,11 @@ export default function Home() {
                     )}
                   </div>
                   <div className="flex shrink-0 gap-2">
+                    {(game.history?.length ?? 0) > 0 && game.progress?.completed && (
+                      <Link to={`/games/${game.id}/replay`} className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-200 hover:border-hardwood-500">
+                        Replay
+                      </Link>
+                    )}
                     <Link to={`/games/${game.id}/edit`} className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-200 hover:border-hardwood-500">
                       Edit
                     </Link>
@@ -964,6 +1026,57 @@ export default function Home() {
             </button>
           </div>
           <input ref={importFileInput} type="file" accept="application/json" className="hidden" onChange={handleImportFile} />
+          {isCloudBackupAvailable() && (
+            <div className="mx-auto mt-4 max-w-md rounded-xl border border-arena-700 bg-arena-900/40 p-4 text-left">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div className="text-sm font-semibold text-slate-200">☁️ Cloud backup</div>
+                  <div className="text-xs text-slate-500">
+                    {cloud ? `Last backed up ${timeAgo(cloud.at)}.` : 'Keep a copy online and restore it on any device with a code.'}
+                  </div>
+                </div>
+                <button
+                  onClick={handleCloudBackup}
+                  disabled={cloudBusy}
+                  className="rounded-full border border-hardwood-500 px-4 py-1.5 text-sm font-semibold text-hardwood-400 hover:bg-hardwood-500/10 disabled:opacity-50"
+                >
+                  {cloudBusy ? 'Working…' : cloud ? 'Back up again' : 'Back up now'}
+                </button>
+              </div>
+              {cloud && (
+                <div className="mt-3">
+                  <button onClick={() => setShowCloudCode((v) => !v)} className="text-xs text-slate-400 underline hover:text-slate-200">
+                    {showCloudCode ? 'Hide my restore code' : 'Show my restore code'}
+                  </button>
+                  {showCloudCode && (
+                    <div className="mt-2 rounded-lg bg-black/30 px-3 py-2">
+                      <div className="font-mono text-sm tracking-wider text-white">{formatBackupCode(cloud.code)}</div>
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        Write this down — anyone with it can read and replace your backup, and it's the only way to restore on another device.
+                        Backups untouched for 90 days are deleted.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="mt-3 flex gap-2">
+                <input
+                  value={cloudCodeInput}
+                  onChange={(e) => setCloudCodeInput(e.target.value)}
+                  placeholder="Restore code"
+                  aria-label="Cloud backup restore code"
+                  className="min-w-0 flex-1 rounded-lg border border-arena-600 bg-arena-800 px-3 py-1.5 font-mono text-sm text-slate-100 outline-none focus:border-hardwood-500"
+                />
+                <button
+                  onClick={handleCloudRestore}
+                  disabled={cloudBusy || normalizeBackupCode(cloudCodeInput).length < 16}
+                  className="rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-200 hover:border-hardwood-500 disabled:opacity-40"
+                >
+                  Restore
+                </button>
+              </div>
+            </div>
+          )}
           {backupStatus && <p className="mt-2 text-xs text-slate-400">{backupStatus}</p>}
         </div>
 
