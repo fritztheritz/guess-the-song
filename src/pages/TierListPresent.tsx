@@ -598,13 +598,20 @@ export default function TierListPresent() {
               </span>
               <span className="hidden sm:inline">Reset</span>
             </Button>
+            <Link
+              to={`/tierlists/${list.id}/rank-together`}
+              title="Rank the songs blind, together on this screen"
+              className="hidden items-center gap-1.5 rounded-full border border-arena-500 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:border-hardwood-500 md:inline-flex"
+            >
+              <span aria-hidden>🙈</span> Blind ranking
+            </Link>
             {groupRankingAvailable && (
               <Link
                 to={`/tierlists/${list.id}/blind`}
                 title="Play Blind Ranking with everyone's phones"
                 className="hidden items-center gap-1.5 rounded-full border border-arena-500 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:border-hardwood-500 md:inline-flex"
               >
-                <span aria-hidden>🙈</span> Blind ranking
+                <span aria-hidden>📱</span> Blind (phones)
               </Link>
             )}
             <Link

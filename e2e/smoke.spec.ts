@@ -156,3 +156,30 @@ test('blind ranking explains it needs phone buzz-in when that is off', async ({ 
   await page.goto('tierlists/tl/blind')
   await expect(page.getByText(/turn on Phone Buzz-In/)).toBeVisible()
 })
+
+test('one-screen blind ranking: slots lock in and the result saves as a tier list', async ({ page }) => {
+  await page.goto('./')
+  await page.evaluate(() => {
+    const now = new Date().toISOString()
+    const tiers = [{ id: 'a', name: 'S', color: '#ef4444' }, { id: 'b', name: 'A', color: '#f97316' }]
+    const songs = [1, 2, 3].map((i) => ({ id: `s${i}`, soundcloudTrackId: `${i}`, title: `T${i}`, artist: 'B', tierId: null, order: i }))
+    localStorage.setItem('gts.tierlists.v1', JSON.stringify({ tl: { id: 'tl', name: 'L', tiers, songs, createdAt: now, updatedAt: now } }))
+    localStorage.setItem('gts.flags.v1', JSON.stringify({ 'tier-lists': true }))
+  })
+  await page.goto('tierlists/tl/rank-together')
+  await page.getByRole('button', { name: /START/ }).click()
+  // Pick slot 2 for the first song, lock it, and the slot becomes unusable.
+  await page.getByRole('button', { name: 'Slot 2, empty' }).click()
+  await page.getByRole('button', { name: /LOCK IN #2/ }).click()
+  await expect(page.getByRole('button', { name: /^Slot 2: / })).toBeDisabled()
+  await page.getByRole('button', { name: /NEXT SONG/ }).click()
+  await page.getByRole('button', { name: 'Slot 1, empty' }).click()
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Enter')
+  await page.getByRole('button', { name: 'Slot 3, empty' }).click()
+  await page.getByRole('button', { name: /LOCK IN #3/ }).click()
+  await page.getByRole('button', { name: /SEE RESULTS/ }).click()
+  await page.getByRole('button', { name: /Save as tier list/ }).click()
+  await expect(page).toHaveURL(/tierlists\/.+\/present/)
+  await expect(page.getByText('L — group ranking').first()).toBeVisible()
+})
