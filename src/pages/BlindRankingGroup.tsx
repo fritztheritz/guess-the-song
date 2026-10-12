@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getTierList, saveTierList } from '../lib/storage/tierlist-repository'
-import { emptySlots, nextEmptySlot, placeInSlot, rankingToTierList, type Slots } from '../lib/slot-ranking'
+import { BuzzerSocket, type SocketStatus } from '../lib/buzzer/buzzer-socket'
+import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
+import type { BuzzerPlayer, PhoneRoundState } from '../lib/buzzer/protocol'
+import { playerKey } from '../lib/blind-rank'
+import { emptySlots, nextEmptySlot, placeInSlot, rankingToTierList, suggestionStats, type Slots, type Suggestions } from '../lib/slot-ranking'
+import { useFeatureFlag } from '../state/feature-flags-context'
+import ConnectionBanner from '../components/ConnectionBanner'
+import JoinLink from '../components/JoinLink'
+import JoinQrCode from '../components/JoinQrCode'
 import { shuffled } from '../lib/quick-game'
 import { playCorrect, playFanfare } from '../lib/sound-effects'
 import { useToast } from '../state/toast-context'
@@ -19,6 +27,36 @@ const MAX_SONGS = 25
 
 type Stage = 'lobby' | 'playing' | 'results'
 
+interface SavedGame {
+  songIds: string[]
+  slots: Slots
+  index: number
+  stage: Stage
+  justPlaced: number | null
+  /** Phones: the room code (so phones can rejoin after a reload) and what they've suggested so far. */
+  phonesOn?: boolean
+  code?: string
+  suggestions?: Suggestions
+}
+
+const VOTER_TEAM_ID = 'players'
+
+const saveKey = (listId: string) => `gts.blindgroup.v1.${listId}`
+
+function loadSaved(listId: string, available: TierListSong[]): SavedGame | null {
+  try {
+    const raw = localStorage.getItem(saveKey(listId))
+    if (!raw) return null
+    const g = JSON.parse(raw) as SavedGame
+    const byId = new Map(available.map((s) => [s.id, s]))
+    if (!Array.isArray(g.songIds) || g.songIds.length < MIN_SONGS || !g.songIds.every((id) => byId.has(id))) return null
+    if (!Array.isArray(g.slots) || g.slots.length !== g.songIds.length || (g.stage !== 'playing' && g.stage !== 'results')) return null
+    return g
+  } catch {
+    return null
+  }
+}
+
 // Blind Ranking on one shared screen: a song comes up, the room argues about where it belongs, and the
 // host drops it into a numbered slot (1 = favourite). Slots are final, so later songs have to fit around
 // what's already down — the list fills in from the middle out as the group's taste takes shape.
@@ -30,12 +68,27 @@ export default function BlindRankingGroup() {
   const list = useMemo(() => getTierList(tierListId), [tierListId])
   const available = Math.min(list?.songs.length ?? 0, MAX_SONGS)
   const [count, setCount] = useState(Math.min(available, 10))
-  const [songs, setSongs] = useState<TierListSong[]>([])
-  const [stage, setStage] = useState<Stage>('lobby')
-  const [index, setIndex] = useState(0)
-  const [slots, setSlots] = useState<Slots>([])
+  // A game in progress survives a reload: it's restored from localStorage if its songs still exist.
+  const [saved] = useState(() => loadSaved(tierListId, list?.songs ?? []))
+  const [songs, setSongs] = useState<TierListSong[]>(() => {
+    const byId = new Map((list?.songs ?? []).map((s) => [s.id, s]))
+    return saved ? saved.songIds.map((id) => byId.get(id)!) : []
+  })
+  const [stage, setStage] = useState<Stage>(saved?.stage ?? 'lobby')
+  const [index, setIndex] = useState(saved?.index ?? 0)
+  const [slots, setSlots] = useState<Slots>(saved?.slots ?? [])
   const [selected, setSelected] = useState<number | null>(null)
-  const [justPlaced, setJustPlaced] = useState<number | null>(null)
+  const [justPlaced, setJustPlaced] = useState<number | null>(saved?.justPlaced ?? null)
+  // Phones are optional: they join a room and *suggest* a slot for each song; the host still makes the call.
+  const phonesAvailable = useFeatureFlag('phone-buzzer') && isBuzzerConfigured()
+  const [phonesOn, setPhonesOn] = useState(saved?.phonesOn ?? false)
+  const [code] = useState(() => saved?.code ?? generateRoomCode())
+  const [suggestions, setSuggestions] = useState<Suggestions>(saved?.suggestions ?? {})
+  const [revealed, setRevealed] = useState(false)
+  const [players, setPlayers] = useState<BuzzerPlayer[]>([])
+  const [status, setStatus] = useState<SocketStatus>('connecting')
+  const socketRef = useRef<BuzzerSocket | null>(null)
+  const playersRef = useRef<BuzzerPlayer[]>([])
   const live = useRef({ stage, index, selected, justPlaced, slots })
   useEffect(() => {
     live.current = { stage, index, selected, justPlaced, slots }
@@ -49,8 +102,90 @@ export default function BlindRankingGroup() {
     setIndex(0)
     setSelected(null)
     setJustPlaced(null)
+    setSuggestions({})
+    setRevealed(false)
     setStage('playing')
   }
+
+  useEffect(() => {
+    try {
+      if (stage === 'lobby') localStorage.removeItem(saveKey(tierListId))
+      else localStorage.setItem(saveKey(tierListId), JSON.stringify({ songIds: songs.map((s) => s.id), slots, index, stage, justPlaced, phonesOn, code, suggestions } satisfies SavedGame))
+    } catch {
+      // Storage unavailable — the game still works, it just won't survive a reload.
+    }
+  }, [tierListId, songs, slots, index, stage, justPlaced, phonesOn, code, suggestions])
+
+  const handleGuess = useCallback((connId: string, text: string) => {
+    const { stage: st, index: i, slots: cur, justPlaced: placed } = live.current
+    if (st !== 'playing' || placed !== null) return
+    const player = playersRef.current.find((p) => p.connId === connId)
+    const m = /^(\d+):(\d+)$/.exec(text.trim())
+    if (!player || !m || Number(m[1]) !== i) return
+    const slot = Number(m[2])
+    if (slot < 1 || slot > cur.length || cur[slot - 1] !== null) return
+    const key = playerKey(player.name)
+    setSuggestions((prev) => ({ ...prev, [key]: { name: player.name.trim(), bySong: { ...prev[key]?.bySong, [i]: slot } } }))
+  }, [])
+
+  useEffect(() => {
+    if (!phonesOn || !phonesAvailable || !list) return
+    const socket = new BuzzerSocket(code, 'host')
+    socketRef.current = socket
+    const offStatus = socket.onStatus(setStatus)
+    const off = socket.onMessage((msg) => {
+      if (msg.type === 'roster') {
+        playersRef.current = msg.players
+        setPlayers(msg.players)
+      } else if (msg.type === 'guess') {
+        handleGuess(msg.connId, msg.text)
+      } else if (msg.type === 'state' && live.current.stage === 'playing' && msg.buzzState === 'closed') {
+        // The room lost its state (host just connected / room recycled) — open suggestions again.
+        socket.send({ type: 'open' })
+      }
+    })
+    socket.connect()
+    return () => {
+      socket.send({ type: 'close' })
+      off()
+      offStatus()
+      socket.close()
+      socketRef.current = null
+    }
+  }, [phonesOn, phonesAvailable, list, code, handleGuess])
+
+  const stats = useMemo(() => (stage === 'results' ? suggestionStats(suggestions, slots) : []), [stage, suggestions, slots])
+
+  // What phones see: the current song and the slots already taken, then — at the end — how close they were.
+  useEffect(() => {
+    const socket = socketRef.current
+    if (!socket || !phonesOn) return
+    const song = stage === 'playing' ? songs[index] : null
+    const state: PhoneRoundState = {
+      gameName: list?.name ?? 'Blind Ranking',
+      possessionIndex: index,
+      totalPossessions: songs.length,
+      phase: stage === 'results' ? 'final' : stage === 'playing' ? 'clue' : 'intro',
+      mode: 'blindrank',
+      clueText: null,
+      revealed: null,
+      teams: [],
+      blind: {
+        index,
+        total: songs.length,
+        song: song ? { title: song.title, artist: song.artist, artworkUrl: song.artworkUrl } : null,
+        group: {
+          taken: slots.flatMap((s, i) => (s === null ? [] : [{ slot: i + 1, title: songs[s].title }])).filter((t) => stage !== 'playing' || t.slot - 1 !== justPlaced),
+          placedSlot: stage === 'playing' && justPlaced !== null ? justPlaced + 1 : undefined,
+          stats: stage === 'results' ? stats : undefined,
+        },
+      },
+    }
+    socket.sendAndRemember({ type: 'sync-teams', teams: [{ id: VOTER_TEAM_ID, name: 'Players', color: '#e8871e', avatar: '🙈' }] })
+    socket.sendAndRemember({ type: 'sync-round', state })
+    if (stage === 'playing') socket.send({ type: 'open' })
+    else socket.send({ type: 'close' })
+  }, [phonesOn, stage, index, slots, justPlaced, status, stats, songs, list?.name])
 
   const lockIn = useCallback(() => {
     const { selected: slot, index: i, slots: cur } = live.current
@@ -66,6 +201,7 @@ export default function BlindRankingGroup() {
   const advance = useCallback(() => {
     const { index: i, slots: cur } = live.current
     setJustPlaced(null)
+    setRevealed(false)
     if (i >= cur.length - 1) {
       setStage('results')
       playFanfare()
@@ -133,8 +269,18 @@ export default function BlindRankingGroup() {
     )
   }
 
-  const current = stage === 'playing' ? songs[index] : null
   const locked = justPlaced !== null
+  const current = stage === 'playing' ? songs[index] : null
+  // Who suggested what for the song on screen — shown only after the reveal (or once it's locked in).
+  const showSuggestions = revealed || locked
+  const suggestedNames = Object.values(suggestions).filter((p) => p.bySong[index] !== undefined).map((p) => p.name)
+  const chipsBySlot = new Map<number, string[]>()
+  if (showSuggestions && stage === 'playing') {
+    for (const p of Object.values(suggestions)) {
+      const slot = p.bySong[index]
+      if (slot !== undefined) chipsBySlot.set(slot - 1, [...(chipsBySlot.get(slot - 1) ?? []), p.name])
+    }
+  }
 
   return (
     <div className="min-h-svh court-lines">
@@ -166,6 +312,41 @@ export default function BlindRankingGroup() {
               />
               <span className="text-xs text-slate-500">of {list.songs.length} (random pick, max {MAX_SONGS})</span>
             </label>
+            {phonesAvailable && (
+              <div className="space-y-3 rounded-xl border border-arena-600 p-4">
+                {!phonesOn ? (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-sm text-slate-400">Optional: let people join on their phones to suggest where each song goes.</p>
+                    <Button variant="outline" size="sm" onClick={() => setPhonesOn(true)}>
+                      📱 Let phones join
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center gap-5">
+                      <JoinQrCode code={code} size={110} />
+                      <div>
+                        <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Scan or enter the code</div>
+                        <div className="font-display text-4xl tracking-[0.3em] text-white">{code}</div>
+                      </div>
+                    </div>
+                    <JoinLink code={code} />
+                    <ConnectionBanner status={status} />
+                    <div className="flex flex-wrap items-center gap-1.5" aria-label="Players joined">
+                      {players.length === 0 && <span className="text-xs text-slate-500">Nobody has joined yet — you can start without them.</span>}
+                      {players.map((p) => (
+                        <span key={p.connId} className="rounded-full bg-hardwood-500/20 px-3 py-1 text-xs text-hardwood-300">
+                          📱 {p.name}
+                        </span>
+                      ))}
+                      <button type="button" onClick={() => setPhonesOn(false)} className="ml-auto text-xs text-slate-500 hover:text-white">
+                        Turn phones off
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
             <div className="flex justify-center">
               <Button size="lg" onClick={start}>
                 START →
@@ -206,6 +387,35 @@ export default function BlindRankingGroup() {
                   )}
                   <span className="text-center text-[11px] text-slate-500">{locked ? 'Enter for next' : '↑ ↓ to choose · Enter to lock'}</span>
                 </div>
+              </Panel>
+            )}
+
+            {current && phonesOn && (
+              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400" aria-label="Phone suggestions">
+                <span>
+                  📱 {suggestedNames.length} of {players.length} {players.length === 1 ? 'player has' : 'players have'} suggested
+                </span>
+                {!showSuggestions && suggestedNames.length > 0 && (
+                  <Button variant="outline" size="sm" onClick={() => setRevealed(true)}>
+                    👀 Reveal suggestions
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {stage === 'results' && stats.length > 0 && (
+              <Panel padding="sm" className="space-y-1">
+                <div className="text-xs uppercase tracking-widest text-slate-500">How close were the phones to the group's calls?</div>
+                {stats.map((st, i) => (
+                  <div key={st.name} className="flex flex-wrap items-baseline gap-x-3 text-slate-200">
+                    <span className="font-semibold">{st.name}</span>
+                    <span className="text-sm text-slate-400">
+                      {st.exact} exact of {st.answered} · off by {st.avgOff.toFixed(1)} slots
+                    </span>
+                    {i === 0 && stats.length > 1 && <span className="text-xs text-scoreboard-green">closest to the group</span>}
+                    {i === stats.length - 1 && stats.length > 1 && <span className="text-xs text-hardwood-400">most contrarian</span>}
+                  </div>
+                ))}
               </Panel>
             )}
 
@@ -264,6 +474,15 @@ export default function BlindRankingGroup() {
                           </>
                         ) : (
                           <span className="text-sm">{isSelected && current ? `← ${current.title}` : 'empty'}</span>
+                        )}
+                        {chipsBySlot.get(slot) && (
+                          <span className="ml-auto flex shrink-0 flex-wrap justify-end gap-1">
+                            {chipsBySlot.get(slot)!.map((n) => (
+                              <span key={n} className="rounded-full bg-hardwood-500/25 px-2 py-0.5 text-xs text-hardwood-300">
+                                📱 {n}
+                              </span>
+                            ))}
+                          </span>
                         )}
                       </button>
                     </li>

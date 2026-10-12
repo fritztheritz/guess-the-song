@@ -172,6 +172,9 @@ test('one-screen blind ranking: slots lock in and the result saves as a tier lis
   await page.getByRole('button', { name: 'Slot 2, empty' }).click()
   await page.getByRole('button', { name: /LOCK IN #2/ }).click()
   await expect(page.getByRole('button', { name: /^Slot 2: / })).toBeDisabled()
+  // A reload mid-game picks up where it left off.
+  await page.reload()
+  await expect(page.getByRole('button', { name: /^Slot 2: / })).toBeDisabled()
   await page.getByRole('button', { name: /NEXT SONG/ }).click()
   await page.getByRole('button', { name: 'Slot 1, empty' }).click()
   await page.keyboard.press('Enter')

@@ -46,3 +46,32 @@ export function rankingToTierList(source: TierList, songs: TierListSong[], slots
     updatedAt: now,
   }
 }
+
+/** Each player's suggested slot per song index (1-based slot), keyed by lowercase name. */
+export type Suggestions = Record<string, { name: string; bySong: Record<number, number> }>
+
+export interface SuggestionStat {
+  name: string
+  /** Songs they made a suggestion for. */
+  answered: number
+  /** Suggestions that matched the group's slot exactly. */
+  exact: number
+  /** Average distance, in slots, between their suggestion and where the group put the song. */
+  avgOff: number
+}
+
+/** How close each player's suggestions were to the group's final calls, closest first. */
+export function suggestionStats(suggestions: Suggestions, slots: Slots): SuggestionStat[] {
+  const finalSlot = new Map<number, number>()
+  slots.forEach((songIndex, i) => songIndex !== null && finalSlot.set(songIndex, i + 1))
+  return Object.values(suggestions)
+    .map((p) => {
+      const diffs = Object.entries(p.bySong).flatMap(([song, slot]) => {
+        const actual = finalSlot.get(Number(song))
+        return actual === undefined ? [] : [Math.abs(actual - slot)]
+      })
+      return { name: p.name, answered: diffs.length, exact: diffs.filter((d) => d === 0).length, avgOff: diffs.length ? diffs.reduce((a, b) => a + b, 0) / diffs.length : 0 }
+    })
+    .filter((s) => s.answered > 0)
+    .sort((a, b) => a.avgOff - b.avgOff)
+}

@@ -72,6 +72,15 @@ export interface PhoneRoundState {
     total: number
     song: { title: string; artist: string; artworkUrl?: string } | null
     results?: { songs: string[]; matches: Array<{ name: string; closest: string | null; pct: number | null }> }
+    /** One-screen Blind Ranking with phones along for the ride: a phone *suggests* a slot (same "<songIndex>:<slot>"
+     *  `guess`, and it may change its mind) and the host makes the final call. `taken` are the filled slots,
+     *  `placedSlot` is where the host put the current song, and `stats` (final screen only) is how close each
+     *  player's suggestions were to the group's calls. */
+    group?: {
+      taken: Array<{ slot: number; title: string }>
+      placedSlot?: number
+      stats?: Array<{ name: string; answered: number; exact: number; avgOff: number }>
+    }
   }
   /** mode: "tierlist" only — Group ranking: everyone on a phone files every song into a tier. `songs`
    *  is the order the ballot's digits follow; `submitted` lists the connIds that have voted. A

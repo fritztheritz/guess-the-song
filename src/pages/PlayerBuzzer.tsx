@@ -10,6 +10,7 @@ import TierBallot from '../components/TierBallot'
 import ReactionBar from '../components/ReactionBar'
 import HigherLowerPicker from '../components/HigherLowerPicker'
 import BlindRankPicker from '../components/BlindRankPicker'
+import BlindSuggestPicker from '../components/BlindSuggestPicker'
 import { encodeTierBallot } from '../lib/tierlist-ballot'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import { applyThemeVars } from '../lib/themes'
@@ -279,6 +280,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
     if (roundState?.mode === 'blindrank') {
       if (roundState.phase === 'final') return { text: '🏁 All songs placed — check the screen', tone: 'wait' }
       if (identity?.teamId === null) return { text: '👀 Watching the ranking', tone: 'wait' }
+      if (roundState.blind?.group) return roundState.blind.song ? { text: '🙈 Suggest where it goes', tone: 'go' } : { text: '⏳ Waiting for the host', tone: 'wait' }
       return roundState.blind?.song ? { text: '🙈 Place this song — no take-backs', tone: 'go' } : { text: '⏳ Waiting for the host', tone: 'wait' }
     }
     if (roundState?.mode === 'tierlist') {
@@ -474,6 +476,13 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
           {roundState?.mode === 'blindrank' ? (
             !roundState.blind ? null : identity?.teamId === null ? (
               <p className="text-sm text-slate-400">Just watching — everyone else is placing the songs.</p>
+            ) : roundState.blind.group ? (
+              <BlindSuggestPicker
+                blind={roundState.blind}
+                code={activeCode}
+                myName={identity?.name ?? ''}
+                onSuggest={(songIndex, slot) => socketRef.current?.send({ type: 'guess', text: `${songIndex}:${slot}` })}
+              />
             ) : (
               <BlindRankPicker
                 blind={roundState.blind}

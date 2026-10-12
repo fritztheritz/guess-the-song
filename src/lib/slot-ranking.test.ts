@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createEmptyTierList } from '../types/tierlist'
 import type { TierListSong } from '../types/tierlist'
-import { emptySlots, nextEmptySlot, placeInSlot, rankingToTierList } from './slot-ranking'
+import { emptySlots, nextEmptySlot, placeInSlot, rankingToTierList, suggestionStats } from './slot-ranking'
 
 const song = (n: number): TierListSong => ({ id: `s${n}`, soundcloudTrackId: `${n}`, title: `T${n}`, artist: 'A', tierId: null, order: 0 })
 
@@ -19,6 +19,21 @@ describe('slot ranking', () => {
     expect(nextEmptySlot(slots, 1, 1)).toBe(3)
     expect(nextEmptySlot(slots, 3, -1)).toBe(1)
     expect(nextEmptySlot(slots, 3, 1)).toBe(3)
+  })
+
+  it('scores suggestions against where the group put each song', () => {
+    // Group: song 2 in slot 1, song 0 in slot 2, song 1 in slot 3.
+    const stats = suggestionStats(
+      {
+        ann: { name: 'Ann', bySong: { 2: 1, 0: 2, 1: 3 } },
+        bo: { name: 'Bo', bySong: { 2: 3, 0: 2 } },
+        cy: { name: 'Cy', bySong: {} },
+      },
+      [2, 0, 1],
+    )
+    expect(stats.map((s) => s.name)).toEqual(['Ann', 'Bo'])
+    expect(stats[0]).toMatchObject({ answered: 3, exact: 3, avgOff: 0 })
+    expect(stats[1]).toMatchObject({ answered: 2, exact: 1, avgOff: 1 })
   })
 
   it('spreads a finished ranking across the tiers, best first', () => {
