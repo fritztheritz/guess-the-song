@@ -1,5 +1,6 @@
+import BackLink from '../components/BackLink'
 import { useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { listGames } from '../lib/storage/game-repository'
 import { buildPlayerProfile } from '../lib/player-profile'
 import type { Game } from '../types'
@@ -28,9 +29,7 @@ export default function PlayerProfile() {
   return (
     <div className="min-h-svh court-lines">
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <Link to="/stats" className="text-sm text-slate-400 hover:text-hardwood-400">
-          ← Stats
-        </Link>
+        <BackLink to="/stats">Stats</BackLink>
 
         {!profile ? (
           <div className="mt-6">

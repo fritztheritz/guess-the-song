@@ -1,6 +1,7 @@
+import BackLink from '../components/BackLink'
 import { useEffect, useRef, useState } from 'react'
 import { useWakeLock } from '../lib/use-wake-lock'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import type { TierList } from '../types/tierlist'
 import { getTierList } from '../lib/storage/tierlist-repository'
 import { rankedCount, songsInGroup } from '../lib/tierlist-ranking'
@@ -122,9 +123,7 @@ export default function TierListDisplay() {
       {celebrating && <Confetti />}
 
       <div className="mb-5 flex items-center justify-between gap-4">
-        <Link to={`/tierlists/${list.id}/present`} className="text-sm text-slate-500 hover:text-slate-300">
-          ← Control screen
-        </Link>
+        <BackLink to={`/tierlists/${list.id}/present`}>Control screen</BackLink>
         <div className="flex items-center gap-4 text-center">
           <ProgressRing value={ranked} max={list.songs.length} size={64} label="songs ranked" />
           <h1 className="font-display text-4xl tracking-wide text-white">{list.name}</h1>

@@ -1,3 +1,4 @@
+import BackLink from '../components/BackLink'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getPopularityGame, savePopularityGame } from '../lib/storage/popularity-repository'
@@ -307,9 +308,7 @@ export default function PopularityPresent() {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-arena-950 text-slate-400">
         <span>Game not found.</span>
-        <Link to="/" className="text-hardwood-400 hover:underline">
-          ← Home
-        </Link>
+        <BackLink to="/">Home</BackLink>
       </div>
     )
   }
@@ -321,9 +320,7 @@ export default function PopularityPresent() {
       {celebrating && <Confetti />}
 
       <div className="flex items-center justify-between px-6 py-4">
-        <Link to="/" className="text-sm text-slate-500 hover:text-slate-300">
-          ← Home
-        </Link>
+        <BackLink to="/">Home</BackLink>
         <div className="flex items-center gap-2 text-center">
           {game.artistImageUrl && <img src={game.artistImageUrl} alt="" className="h-8 w-8 rounded-full object-cover" />}
           <div>

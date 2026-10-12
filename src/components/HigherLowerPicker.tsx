@@ -1,4 +1,5 @@
 import type { PhoneRoundState } from '../lib/buzzer/protocol'
+import { PhoneBanner } from './PhoneParts'
 
 type Card = NonNullable<PhoneRoundState['higherLower']>
 
@@ -38,15 +39,9 @@ export default function HigherLowerPicker({
       </div>
 
       {revealed ? (
-        <div
-          role="status"
-          className={`rounded-xl border-2 px-4 py-3 ${right ? 'border-scoreboard-green bg-scoreboard-green/15 text-scoreboard-green' : 'border-arena-600 bg-arena-800 text-slate-300'}`}
-        >
-          <div className="font-display text-xl tracking-wide">
-            {card.answer === 'higher' ? '⬆️ HIGHER' : '⬇️ LOWER'} — #{card.rank} of {card.size}
-          </div>
-          <div className="text-xs">{picked ? (right ? 'You called it!' : 'Not this time.') : 'No call from you this round.'}</div>
-        </div>
+        <PhoneBanner tone={right ? 'good' : 'neutral'} title={`${card.answer === 'higher' ? '⬆️ HIGHER' : '⬇️ LOWER'} — #${card.rank} of ${card.size}`}>
+          {picked ? (right ? 'You called it!' : 'Not this time.') : 'No call from you this round.'}
+        </PhoneBanner>
       ) : (
         <>
           <p className="text-sm text-slate-300">

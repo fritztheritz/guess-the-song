@@ -1,6 +1,6 @@
+import BackLink from '../components/BackLink'
 import ModeComparison from '../components/ModeComparison'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { useFeatureFlags } from '../state/feature-flags-context'
 import { useConfirm } from '../state/confirm-context'
 import { useToast } from '../state/toast-context'
@@ -39,9 +39,7 @@ export default function Admin() {
               live site before it's on for everyone.
             </p>
           </div>
-          <Link to="/" className="shrink-0 text-sm text-slate-400 underline hover:text-hardwood-400">
-            ← Home
-          </Link>
+          <BackLink to="/">Home</BackLink>
         </div>
 
         {flags.length === 0 ? (

@@ -1,5 +1,5 @@
+import BackLink from '../components/BackLink'
 import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { listGames } from '../lib/storage/game-repository'
 import { listPopularityGames } from '../lib/storage/popularity-repository'
 import { listTimelineGames } from '../lib/storage/timeline-repository'
@@ -84,9 +84,7 @@ export default function Stats() {
             <h1 className="font-display text-3xl tracking-wide text-white">STATS</h1>
             <p className="mt-1 text-sm text-slate-400">Aggregated across every completed game — quiz rounds, Guess the Popularity and Guess the Timeline — in this browser.</p>
           </div>
-          <Link to="/" className="shrink-0 text-sm text-slate-400 underline hover:text-hardwood-400">
-            ← Home
-          </Link>
+          <BackLink to="/">Home</BackLink>
         </div>
 
         {totalCompleted === 0 ? (

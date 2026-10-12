@@ -1,3 +1,4 @@
+import BackLink from '../components/BackLink'
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getGame } from '../lib/storage/game-repository'
@@ -20,9 +21,7 @@ export default function GameReplay() {
   return (
     <div className="min-h-svh court-lines">
       <div className="mx-auto max-w-3xl px-6 py-12">
-        <Link to="/" className="text-sm text-slate-400 hover:text-hardwood-400">
-          ← Home
-        </Link>
+        <BackLink to="/">Home</BackLink>
 
         {!game ? (
           <div className="mt-6">

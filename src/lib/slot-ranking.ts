@@ -1,7 +1,7 @@
 import type { TierList, TierListSong } from '../types/tierlist'
 
 // Shared-screen Blind Ranking: songs arrive one at a time and the group drops each into a numbered
-// slot (1 = favourite). A slot, once filled, is final.
+// slot (1 = favorite). A slot, once filled, is final.
 
 /** `slots[i]` is the song index sitting in slot i + 1, or null while it's empty. */
 export type Slots = (number | null)[]
@@ -74,4 +74,23 @@ export function suggestionStats(suggestions: Suggestions, slots: Slots): Suggest
     })
     .filter((s) => s.answered > 0)
     .sort((a, b) => a.avgOff - b.avgOff)
+}
+
+/** localStorage key prefix for an in-progress one-screen game (one per tier list). */
+export const BLIND_SAVE_PREFIX = 'gts.blindgroup.v1.'
+
+/** Games still being played that a reload (or a later visit) can pick up, for Home's "continue" card. */
+export function listSavedBlindGames(): Array<{ listId: string; savedAt: string }> {
+  const out: Array<{ listId: string; savedAt: string }> = []
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (!key?.startsWith(BLIND_SAVE_PREFIX)) continue
+      const g = JSON.parse(localStorage.getItem(key) ?? '{}') as { stage?: string; savedAt?: string }
+      if (g.stage === 'playing' && g.savedAt) out.push({ listId: key.slice(BLIND_SAVE_PREFIX.length), savedAt: g.savedAt })
+    }
+  } catch {
+    // Storage unavailable — nothing to resume.
+  }
+  return out
 }

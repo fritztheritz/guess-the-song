@@ -1,5 +1,5 @@
 // Blind Ranking: songs come up one at a time and each player must lock the current song into a numbered
-// slot (1 = their favourite) before they hear the next — no take-backs, so you have to guess where the
+// slot (1 = their favorite) before they hear the next — no take-backs, so you have to guess where the
 // songs still to come will fit. Afterwards everyone's lists are compared. Pure, so the rules (one slot
 // per song, first pick wins, how "in sync" two lists are) can be tested.
 
@@ -108,7 +108,7 @@ export function mostUnique(picks: BlindPicks): { name: string; similarity: numbe
 
 export interface SongStat {
   song: number
-  /** Average slot across players (1 = everyone's favourite). */
+  /** Average slot across players (1 = everyone's favorite). */
   mean: number
   /** Standard deviation of the slots — high means the group split on it. */
   spread: number

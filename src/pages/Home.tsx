@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import { rulesFor } from '../lib/mode-rules'
 import ButtonLink from '../components/ui/ButtonLink'
 import { summarizeDraftBoard } from '../lib/draft-summary'
-import HomeSection from '../components/HomeSection'
+import HomeSection, { HOME_JUMP_EVENT } from '../components/HomeSection'
+import { listSavedBlindGames } from '../lib/slot-ranking'
 import EmptyState from '../components/ui/EmptyState'
 import { Link, useNavigate } from 'react-router-dom'
 import { listGames, deleteGame, saveGame, exportAllGames, importGames } from '../lib/storage/game-repository'
@@ -290,6 +291,12 @@ export default function Home() {
       ...(timelineEnabled
         ? timelineGames.map((g) => ({ key: `tm-${g.id}`, icon: '🕰️', label: 'Timeline', name: g.name, to: `/timeline/${g.id}/present`, updatedAt: g.updatedAt }))
         : []),
+      ...(tierListsEnabled
+        ? listSavedBlindGames().flatMap((b) => {
+            const l = tierLists.find((x) => x.id === b.listId)
+            return l ? [{ key: `bg-${l.id}`, icon: '🙈', label: 'Blind Ranking', name: `${l.name} — game in progress`, to: `/tierlists/${l.id}/rank-together`, updatedAt: b.savedAt }] : []
+          })
+        : []),
       ...(seasonsEnabled
         ? seasons.map((s) => ({ key: `sn-${s.id}`, icon: '📅', label: 'Season', name: s.name, to: `/seasons/${s.id}`, updatedAt: s.updatedAt }))
         : []),
@@ -315,6 +322,18 @@ export default function Home() {
   // Tier Guess rides on the tier-lists flag — fully hidden when it's off, same as the tier
   // lists section below, rather than just blocking its Edit/Present links.
   const modeVisibleGames = tierListsEnabled ? games : games.filter((g) => !usesTierList(g))
+
+  // The sections shown below, for the jump bar — only the ones that actually have something in them.
+  const jumpSections = [
+    { id: 'games', label: 'Games', count: modeVisibleGames.length, on: true },
+    { id: 'tierlists', label: 'Tier lists', count: tierLists.length, on: tierListsEnabled },
+    { id: 'tournaments', label: 'Tournaments', count: tournaments.length, on: tournamentsEnabled },
+    { id: 'seasons', label: 'Seasons', count: seasons.length, on: seasonsEnabled },
+    { id: 'drafts', label: 'Drafts', count: draftBoards.length, on: draftEnabled },
+    { id: 'popularity', label: 'Popularity', count: popularityGames.length, on: popularityEnabled },
+    { id: 'timeline', label: 'Timeline', count: timelineGames.length, on: timelineEnabled },
+  ].filter((sec) => sec.on && sec.count > 0)
+
 
   // Shared tag vocabulary across both games and tier lists — one filter bar organizes both
   // sections at once, since a tag like "Friday Night" is just as meaningful for either.
@@ -610,6 +629,20 @@ export default function Home() {
               </button>
             )}
           </div>
+        )}
+
+        {jumpSections.length >= 3 && searchQuery.trim() === '' && (
+          <nav aria-label="Jump to a section" className="mx-auto mt-10 flex max-w-3xl flex-wrap items-center justify-center gap-2">
+            {jumpSections.map((sec) => (
+              <button
+                key={sec.id}
+                onClick={() => window.dispatchEvent(new CustomEvent(HOME_JUMP_EVENT, { detail: sec.id }))}
+                className="rounded-full border border-arena-600 px-3 py-1 text-xs font-medium text-slate-300 hover:border-hardwood-500 hover:text-white"
+              >
+                {sec.label} <span className="text-slate-500">{sec.count}</span>
+              </button>
+            ))}
+          </nav>
         )}
 
         {modeVisibleGames.length > 0 && (

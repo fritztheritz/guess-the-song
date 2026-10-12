@@ -1,3 +1,4 @@
+import BackLink from '../components/BackLink'
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import type { TierList, TierListSong } from '../types/tierlist'
@@ -11,6 +12,7 @@ import Confetti from '../components/Confetti'
 import ProgressRing from '../components/ProgressRing'
 import Button from '../components/ui/Button'
 import Kbd from '../components/Kbd'
+import ActionMenu from '../components/ActionMenu'
 import TierListGroupRanking from '../components/TierListGroupRanking'
 import { isBuzzerConfigured } from '../lib/buzzer/config'
 import { useFeatureFlag } from '../state/feature-flags-context'
@@ -556,27 +558,12 @@ export default function TierListPresent() {
           <div className="flex min-w-0 items-center gap-3">
             <ProgressRing value={ranked} max={list.songs.length} size={44} label="songs ranked" />
             <div className="min-w-0">
-              <Link to={`/tierlists/${list.id}/edit`} className="text-xs text-slate-400 hover:text-hardwood-400">
-                ← Edit
-              </Link>
+              <BackLink to={`/tierlists/${list.id}/edit`}>Edit</BackLink>
               <h1 className="truncate font-display text-2xl leading-tight tracking-wide text-white">{list.name}</h1>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <SoundControl />
-            <div className="flex overflow-hidden rounded-full border border-arena-500 text-xs" role="group" aria-label="Tile size">
-              {(['comfy', 'compact'] as const).map((size) => (
-                <button
-                  key={size}
-                  onClick={() => chooseTileSize(size)}
-                  aria-pressed={tileSize === size}
-                  title={size === 'comfy' ? 'Larger tiles with artist names' : 'Smaller tiles'}
-                  className={`px-2.5 py-1.5 ${tileSize === size ? 'bg-hardwood-500/20 text-hardwood-400' : 'text-slate-400 hover:text-white'}`}
-                >
-                  {size === 'comfy' ? 'Large' : 'Small'}
-                </button>
-              ))}
-            </div>
             <Button
               variant="outline"
               size="sm"
@@ -598,30 +585,16 @@ export default function TierListPresent() {
               </span>
               <span className="hidden sm:inline">Reset</span>
             </Button>
-            <Link
-              to={`/tierlists/${list.id}/rank-together`}
-              title="Rank the songs blind, together on this screen"
-              className="hidden items-center gap-1.5 rounded-full border border-arena-500 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:border-hardwood-500 md:inline-flex"
-            >
-              <span aria-hidden>🙈</span> Blind ranking
-            </Link>
-            {groupRankingAvailable && (
-              <Link
-                to={`/tierlists/${list.id}/blind`}
-                title="Play Blind Ranking with everyone's phones"
-                className="hidden items-center gap-1.5 rounded-full border border-arena-500 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:border-hardwood-500 md:inline-flex"
-              >
-                <span aria-hidden>📱</span> Blind (phones)
-              </Link>
-            )}
-            <Link
-              to={`/tierlists/${list.id}/display`}
-              target="_blank"
-              title="Open the big-screen view in a new tab"
-              className="hidden items-center gap-1.5 rounded-full border border-arena-500 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:border-hardwood-500 sm:inline-flex"
-            >
-              <span aria-hidden>📺</span> Display
-            </Link>
+            <ActionMenu
+              label="Games & view"
+              items={[
+                { key: 'rank', label: '🙈 Blind ranking — one screen', to: `/tierlists/${list.id}/rank-together`, title: 'Rank the songs blind, together on this screen' },
+                { key: 'phones', label: '📱 Blind ranking — phones', to: `/tierlists/${list.id}/blind`, hidden: !groupRankingAvailable, title: "Play Blind Ranking with everyone's phones" },
+                { key: 'display', label: '📺 Big-screen display', to: `/tierlists/${list.id}/display`, external: true, title: 'Open the big-screen view in a new tab' },
+                { key: 'comfy', label: 'Large tiles', checked: tileSize === 'comfy', onSelect: () => chooseTileSize('comfy') },
+                { key: 'compact', label: 'Small tiles', checked: tileSize === 'compact', onSelect: () => chooseTileSize('compact') },
+              ]}
+            />
           </div>
         </div>
       </div>

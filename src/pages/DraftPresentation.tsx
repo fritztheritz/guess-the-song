@@ -1,6 +1,7 @@
+import BackLink from '../components/BackLink'
 import { useEffect, useRef, useState } from 'react'
 import { useWakeLock } from '../lib/use-wake-lock'
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import type { DraftBoard, DraftPoolSong, Drafter } from '../types/draft'
 import { snakeOrder, computeDraftStandings } from '../types/draft'
 import { getDraftBoard } from '../lib/storage/draft-repository'
@@ -125,9 +126,7 @@ export default function DraftPresentation() {
       {celebrating && <Confetti />}
 
       <div className="flex items-center justify-between">
-        <Link to={`/drafts/${board.id}/sessions/${session.id}`} className="text-sm text-slate-500 hover:text-slate-300">
-          ← Control room
-        </Link>
+        <BackLink to={`/drafts/${board.id}/sessions/${session.id}`}>Control room</BackLink>
         <div className="text-center">
           <div className="font-display text-2xl tracking-wide text-white">{session.name}</div>
           <div className="text-xs text-slate-500">{board.name}</div>

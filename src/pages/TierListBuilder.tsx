@@ -1,5 +1,6 @@
+import BackLink from '../components/BackLink'
 import { useMemo, useState } from 'react'
-import { Link, useLocation, useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 import { applyTierPreset, createTierDef, MAX_TIERS, MIN_TIERS, TIER_PRESETS, type TierList, type TierListSong } from '../types/tierlist'
 import { rankedCount, shuffleUnranked } from '../lib/tierlist-ranking'
 import { getTierList, listTierLists, saveTierList } from '../lib/storage/tierlist-repository'
@@ -126,9 +127,7 @@ export default function TierListBuilder() {
     return (
       <div className="mx-auto max-w-md px-6 py-16">
         <ErrorState message="That tier list couldn't be found.">
-          <Link to="/" className="mt-2 inline-block text-xs text-slate-300 underline hover:text-white">
-            ← Back home
-          </Link>
+          <BackLink to="/">Back home</BackLink>
         </ErrorState>
       </div>
     )
@@ -145,9 +144,7 @@ export default function TierListBuilder() {
       <div className="mx-auto max-w-4xl px-6 py-12">
         <div className="mb-8 flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <Link to="/" className="text-sm text-slate-400 hover:text-hardwood-400">
-              ← Home
-            </Link>
+            <BackLink to="/">Home</BackLink>
             <input
               value={list.name}
               onChange={(e) => persist({ ...list, name: e.target.value })}

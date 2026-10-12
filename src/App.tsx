@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import { lazyPage } from './lib/lazy-page'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router-dom'
+import RouteErrorBoundary from './components/RouteErrorBoundary'
 import { PageSkeleton } from './components/skeletons'
 import Home from './pages/Home'
 import RequireFlag from './components/RequireFlag'
@@ -37,7 +38,9 @@ const CreateTimelineGame = lazyPage(() => import('./pages/CreateTimelineGame'))
 const TimelinePresent = lazyPage(() => import('./pages/TimelinePresent'))
 
 export default function App() {
+  const { pathname } = useLocation()
   return (
+    <RouteErrorBoundary key={pathname}>
     <Suspense fallback={<PageSkeleton />}>
     <Routes>
       <Route path="/" element={<Home />} />
@@ -200,5 +203,6 @@ export default function App() {
       />
     </Routes>
     </Suspense>
+    </RouteErrorBoundary>
   )
 }

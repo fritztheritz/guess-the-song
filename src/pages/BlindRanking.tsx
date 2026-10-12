@@ -1,3 +1,4 @@
+import BackLink from '../components/BackLink'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getTierList } from '../lib/storage/tierlist-repository'
@@ -195,7 +196,7 @@ export default function BlindRanking() {
   if (!list) {
     return (
       <div className="mx-auto max-w-md px-6 py-16">
-        <EmptyState icon="🔎" action={<Link to="/" className="text-sm text-hardwood-400 underline">← Back home</Link>}>
+        <EmptyState icon="🔎" action={<BackLink to="/">Back home</BackLink>}>
           That tier list couldn't be found.
         </EmptyState>
       </div>
@@ -204,7 +205,7 @@ export default function BlindRanking() {
   if (!enabled) {
     return (
       <div className="mx-auto max-w-md px-6 py-16">
-        <EmptyState icon="📱" action={<Link to={`/tierlists/${list.id}/present`} className="text-sm text-hardwood-400 underline">← Back</Link>}>
+        <EmptyState icon="📱" action={<BackLink to={`/tierlists/${list.id}/present`}>Back</BackLink>}>
           Blind Ranking runs on players' phones — turn on Phone Buzz-In (and configure the buzzer Worker) first.
         </EmptyState>
       </div>
@@ -227,9 +228,7 @@ export default function BlindRanking() {
       {stage === 'results' && <Confetti />}
       <div className="mx-auto max-w-4xl px-6 py-8">
         <div className="mb-6 flex items-center justify-between gap-3">
-          <Link to={`/tierlists/${list.id}/present`} className="text-sm text-slate-400 hover:text-hardwood-400">
-            ← Tier list
-          </Link>
+          <BackLink to={`/tierlists/${list.id}/present`}>Tier list</BackLink>
           <h1 className="font-display text-3xl tracking-wide text-white">🙈 BLIND RANKING</h1>
           <SoundControl />
         </div>
@@ -238,7 +237,7 @@ export default function BlindRanking() {
           <div className="space-y-5">
             <Panel padding="md" className="space-y-4">
               <p className="text-sm text-slate-300">
-                {total} songs from “{list.name}” will come up one at a time. Everyone ranks each on their phone before the next — 1 is the favourite, and
+                {total} songs from “{list.name}” will come up one at a time. Everyone ranks each on their phone before the next — 1 is the favorite, and
                 a slot can't be changed or reused. Then we compare lists.
               </p>
               <div className="flex flex-wrap items-center gap-5">
@@ -337,7 +336,7 @@ export default function BlindRanking() {
                 return (
                   <>
                     <Panel padding="sm">
-                      <div className="text-xs uppercase tracking-widest text-slate-500">Crowd favourite</div>
+                      <div className="text-xs uppercase tracking-widest text-slate-500">Crowd favorite</div>
                       <div className="truncate text-lg text-slate-100">{songs[fav.song].title}</div>
                       <div className="text-xs text-slate-500">average slot {fav.mean.toFixed(1)}</div>
                     </Panel>

@@ -1,3 +1,4 @@
+import BackLink from '../components/BackLink'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getTimelineGame, saveTimelineGame } from '../lib/storage/timeline-repository'
@@ -170,9 +171,7 @@ export default function TimelinePresent() {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-arena-950 text-slate-400">
         <span>Game not found.</span>
-        <Link to="/" className="text-hardwood-400 hover:underline">
-          ← Home
-        </Link>
+        <BackLink to="/">Home</BackLink>
       </div>
     )
   }
@@ -221,9 +220,7 @@ export default function TimelinePresent() {
       {celebrating && <Confetti />}
 
       <div className="flex items-center justify-between px-6 py-4">
-        <Link to="/" className="text-sm text-slate-500 hover:text-slate-300">
-          ← Home
-        </Link>
+        <BackLink to="/">Home</BackLink>
         <div className="text-center">
           <div className="font-display text-lg tracking-wide text-white">{game.name}</div>
           <div className="text-xs text-slate-500">

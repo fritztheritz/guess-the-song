@@ -21,6 +21,12 @@
   --color-scoreboard-amber: #ffb703;
   --color-scoreboard-green: #2bd47d;
 
+  /* Dim text on the dark arena backgrounds: Tailwind's stock slate-500/600 land at ~3.8:1 and ~2.4:1 there,
+     which is hard to read for the small labels this app uses a lot. These keep the hierarchy but clear AA (4.5:1) /
+     near it for deliberately-muted text. */
+  --color-slate-500: #8391a6;
+  --color-slate-600: #6b7a90;
+
   --font-display: 'Bebas Neue', 'Oswald', system-ui, sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
@@ -192,4 +198,10 @@ select:focus-visible {
     0%, 70% { opacity: 1; }
     100% { opacity: 0; }
   }
+}
+
+/* Confetti is decoration — skip it entirely for people who ask for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-confetti-fall { animation: none; opacity: 0; }
+  .animate-pop-in { animation: none; }
 }

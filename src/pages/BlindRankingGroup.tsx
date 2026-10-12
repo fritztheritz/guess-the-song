@@ -1,3 +1,4 @@
+import BackLink from '../components/BackLink'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getTierList, saveTierList } from '../lib/storage/tierlist-repository'
@@ -5,7 +6,7 @@ import { BuzzerSocket, type SocketStatus } from '../lib/buzzer/buzzer-socket'
 import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
 import type { BuzzerPlayer, PhoneRoundState } from '../lib/buzzer/protocol'
 import { playerKey } from '../lib/blind-rank'
-import { emptySlots, nextEmptySlot, placeInSlot, rankingToTierList, suggestionStats, type Slots, type Suggestions } from '../lib/slot-ranking'
+import { BLIND_SAVE_PREFIX, emptySlots, nextEmptySlot, placeInSlot, rankingToTierList, suggestionStats, type Slots, type Suggestions } from '../lib/slot-ranking'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import ConnectionBanner from '../components/ConnectionBanner'
 import JoinLink from '../components/JoinLink'
@@ -14,8 +15,8 @@ import { shuffled } from '../lib/quick-game'
 import { playCorrect, playFanfare } from '../lib/sound-effects'
 import { useToast } from '../state/toast-context'
 import { useWakeLock } from '../lib/use-wake-lock'
+import { downloadRankingImage } from '../lib/ranking-image'
 import Confetti from '../components/Confetti'
-import ProgressRing from '../components/ProgressRing'
 import SoundControl from '../components/SoundControl'
 import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
@@ -37,11 +38,21 @@ interface SavedGame {
   phonesOn?: boolean
   code?: string
   suggestions?: Suggestions
+  /** When this was last saved — lets Home offer "continue". */
+  savedAt?: string
 }
+
+const saveKey = (listId: string) => `${BLIND_SAVE_PREFIX}${listId}`
 
 const VOTER_TEAM_ID = 'players'
 
-const saveKey = (listId: string) => `gts.blindgroup.v1.${listId}`
+// A stable colour per player name, so the same person is the same colour on every slot.
+const CHIP_COLORS = ['#f97316', '#22c55e', '#3b82f6', '#ec4899', '#eab308', '#14b8a6', '#a855f7', '#ef4444']
+function chipColor(name: string): string {
+  let h = 0
+  for (const ch of playerKey(name)) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return CHIP_COLORS[h % CHIP_COLORS.length]
+}
 
 function loadSaved(listId: string, available: TierListSong[]): SavedGame | null {
   try {
@@ -58,7 +69,7 @@ function loadSaved(listId: string, available: TierListSong[]): SavedGame | null 
 }
 
 // Blind Ranking on one shared screen: a song comes up, the room argues about where it belongs, and the
-// host drops it into a numbered slot (1 = favourite). Slots are final, so later songs have to fit around
+// host drops it into a numbered slot (1 = favorite). Slots are final, so later songs have to fit around
 // what's already down — the list fills in from the middle out as the group's taste takes shape.
 export default function BlindRankingGroup() {
   const { tierListId = '' } = useParams()
@@ -110,7 +121,7 @@ export default function BlindRankingGroup() {
   useEffect(() => {
     try {
       if (stage === 'lobby') localStorage.removeItem(saveKey(tierListId))
-      else localStorage.setItem(saveKey(tierListId), JSON.stringify({ songIds: songs.map((s) => s.id), slots, index, stage, justPlaced, phonesOn, code, suggestions } satisfies SavedGame))
+      else localStorage.setItem(saveKey(tierListId), JSON.stringify({ songIds: songs.map((s) => s.id), slots, index, stage, justPlaced, phonesOn, code, suggestions, savedAt: new Date().toISOString() } satisfies SavedGame))
     } catch {
       // Storage unavailable — the game still works, it just won't survive a reload.
     }
@@ -243,6 +254,11 @@ export default function BlindRankingGroup() {
     }
   }
 
+  async function shareImage() {
+    const ranked = slots.flatMap((s) => (s === null ? [] : [{ title: songs[s].title, artist: songs[s].artist }]))
+    await downloadRankingImage(list?.name ?? 'Blind Ranking', ranked)
+  }
+
   function saveAsTierList() {
     if (!list) return
     const saved = saveTierList(rankingToTierList(list, songs, slots, `${list.name} — group ranking`))
@@ -253,7 +269,7 @@ export default function BlindRankingGroup() {
   if (!list) {
     return (
       <div className="mx-auto max-w-md px-6 py-16">
-        <EmptyState icon="🔎" action={<Link to="/" className="text-sm text-hardwood-400 underline">← Back home</Link>}>
+        <EmptyState icon="🔎" action={<BackLink to="/">Back home</BackLink>}>
           That tier list couldn't be found.
         </EmptyState>
       </div>
@@ -281,115 +297,155 @@ export default function BlindRankingGroup() {
       if (slot !== undefined) chipsBySlot.set(slot - 1, [...(chipsBySlot.get(slot - 1) ?? []), p.name])
     }
   }
+  const placedCount = slots.filter((x) => x !== null).length
+  const twoColumns = slots.length > 8
+  const ranked = slots.flatMap((s) => (s === null ? [] : [songs[s]]))
 
   return (
     <div className="min-h-svh court-lines">
       {stage === 'results' && <Confetti />}
-      <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6">
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <Link to={`/tierlists/${list.id}/present`} className="text-sm text-slate-400 hover:text-hardwood-400">
-            ← Tier list
-          </Link>
+      <div className="mx-auto max-w-4xl px-4 pb-10 sm:px-6">
+        <div className="flex items-center justify-between gap-3 py-5">
+          <BackLink to={`/tierlists/${list.id}/present`}>Tier list</BackLink>
           <h1 className="font-display text-3xl tracking-wide text-white">🙈 BLIND RANKING</h1>
           <SoundControl />
         </div>
 
         {stage === 'lobby' && (
-          <Panel padding="md" className="space-y-5">
-            <p className="text-sm text-slate-300">
-              Songs from “{list.name}” come up one at a time. Talk it over as a group, then put each one in a numbered slot — 1 is the favourite. Once a
-              slot is filled it's final, so leave room for what's still to come.
-            </p>
-            <label className="flex items-center gap-3 text-sm text-slate-300">
-              How many songs?
-              <input
-                type="number"
-                min={MIN_SONGS}
-                max={available}
-                value={count}
-                onChange={(e) => setCount(Math.max(MIN_SONGS, Math.min(available, Number(e.target.value) || MIN_SONGS)))}
-                className="w-20 rounded-lg border border-arena-500 bg-arena-800 px-3 py-1.5 text-white"
-              />
-              <span className="text-xs text-slate-500">of {list.songs.length} (random pick, max {MAX_SONGS})</span>
-            </label>
-            {phonesAvailable && (
-              <div className="space-y-3 rounded-xl border border-arena-600 p-4">
-                {!phonesOn ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm text-slate-400">Optional: let people join on their phones to suggest where each song goes.</p>
-                    <Button variant="outline" size="sm" onClick={() => setPhonesOn(true)}>
-                      📱 Let phones join
-                    </Button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex flex-wrap items-center gap-5">
-                      <JoinQrCode code={code} size={110} />
+          <div className="mx-auto max-w-2xl space-y-4">
+            <Panel padding="md" className="space-y-5">
+              <p className="text-sm text-slate-300">
+                Songs from “{list.name}” come up one at a time. Talk it over as a group, then put each one in a numbered slot — 1 is the favorite. Once a
+                slot is filled it's final, so leave room for what's still to come.
+              </p>
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-arena-600 px-4 py-3">
+                <div>
+                  <div className="text-sm font-semibold text-slate-100">How many songs?</div>
+                  <div className="text-xs text-slate-500">Random pick from {list.songs.length} in the list</div>
+                </div>
+                <div className="flex items-center gap-2" role="group" aria-label="Number of songs">
+                  <button
+                    type="button"
+                    aria-label="Fewer songs"
+                    onClick={() => setCount((c) => Math.max(MIN_SONGS, c - 1))}
+                    disabled={count <= MIN_SONGS}
+                    className="h-11 w-11 rounded-full border border-arena-500 text-xl text-white enabled:hover:border-hardwood-500 disabled:opacity-40"
+                  >
+                    −
+                  </button>
+                  <span className="scoreboard-digit w-12 text-center font-display text-4xl text-white" aria-live="polite">
+                    {count}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="More songs"
+                    onClick={() => setCount((c) => Math.min(available, c + 1))}
+                    disabled={count >= available}
+                    className="h-11 w-11 rounded-full border border-arena-500 text-xl text-white enabled:hover:border-hardwood-500 disabled:opacity-40"
+                  >
+                    +
+                  </button>
+                  {available > count && (
+                    <button type="button" onClick={() => setCount(available)} className="ml-1 rounded-full px-3 py-1.5 text-xs text-slate-400 hover:text-white">
+                      All {available}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {phonesAvailable && (
+                <div className="rounded-xl border border-arena-600 p-4">
+                  {!phonesOn ? (
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Scan or enter the code</div>
-                        <div className="font-display text-4xl tracking-[0.3em] text-white">{code}</div>
+                        <div className="text-sm font-semibold text-slate-100">Phones</div>
+                        <div className="text-xs text-slate-500">Optional — people can suggest where each song goes.</div>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={() => setPhonesOn(true)}>
+                        📱 Let phones join
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center gap-5">
+                        <JoinQrCode code={code} size={110} />
+                        <div>
+                          <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Scan or enter the code</div>
+                          <div className="font-display text-4xl tracking-[0.3em] text-white">{code}</div>
+                        </div>
+                      </div>
+                      <JoinLink code={code} />
+                      <ConnectionBanner status={status} />
+                      <div className="flex flex-wrap items-center gap-1.5" aria-label="Players joined">
+                        {players.length === 0 && <span className="text-xs text-slate-500">Nobody has joined yet — you can start without them.</span>}
+                        {players.map((p) => (
+                          <span key={p.connId} className="rounded-full px-3 py-1 text-xs" style={{ background: `${chipColor(p.name)}33`, color: chipColor(p.name) }}>
+                            📱 {p.name}
+                          </span>
+                        ))}
+                        <button type="button" onClick={() => setPhonesOn(false)} className="ml-auto text-xs text-slate-500 hover:text-white">
+                          Turn phones off
+                        </button>
                       </div>
                     </div>
-                    <JoinLink code={code} />
-                    <ConnectionBanner status={status} />
-                    <div className="flex flex-wrap items-center gap-1.5" aria-label="Players joined">
-                      {players.length === 0 && <span className="text-xs text-slate-500">Nobody has joined yet — you can start without them.</span>}
-                      {players.map((p) => (
-                        <span key={p.connId} className="rounded-full bg-hardwood-500/20 px-3 py-1 text-xs text-hardwood-300">
-                          📱 {p.name}
-                        </span>
-                      ))}
-                      <button type="button" onClick={() => setPhonesOn(false)} className="ml-auto text-xs text-slate-500 hover:text-white">
-                        Turn phones off
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </Panel>
             <div className="flex justify-center">
               <Button size="lg" onClick={start}>
                 START →
               </Button>
             </div>
-          </Panel>
+          </div>
+        )}
+
+        {stage === 'playing' && current && (
+          // Stays put while the slot list scrolls, so the song being placed is always in view.
+          <div className="sticky top-0 z-10 -mx-4 mb-4 border-b border-arena-700 bg-arena-950/90 px-4 pb-3 pt-2 backdrop-blur sm:-mx-6 sm:px-6">
+            <Panel padding="sm" className="flex flex-wrap items-center gap-4">
+              <div key={current.id} className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-arena-800 animate-pop-in sm:h-24 sm:w-24">
+                {current.artworkUrl ? <img src={current.artworkUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-4xl text-arena-500">♪</div>}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-xs uppercase tracking-widest text-slate-500">
+                  Song {index + 1} of {total} · {total - placedCount} {total - placedCount === 1 ? 'slot' : 'slots'} left
+                </div>
+                <div className="truncate font-display text-3xl text-white sm:text-4xl">{current.title}</div>
+                <div className="truncate text-lg text-slate-400">{current.artist}</div>
+                {current.soundcloudUrl && (
+                  <a href={current.soundcloudUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-hardwood-400 hover:underline">
+                    ▶ Play on SoundCloud ↗
+                  </a>
+                )}
+              </div>
+              <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto">
+                {locked ? (
+                  <Button size="lg" onClick={advance}>
+                    {index >= total - 1 ? 'SEE RESULTS →' : 'NEXT SONG →'}
+                  </Button>
+                ) : (
+                  <Button size="lg" onClick={lockIn} disabled={selected === null}>
+                    {selected === null ? 'PICK A SLOT' : `🔒 LOCK IN #${selected + 1}`}
+                  </Button>
+                )}
+                <span className="text-center text-[11px] text-slate-500">{locked ? 'Enter for next' : '↑ ↓ to choose · Enter to lock'}</span>
+              </div>
+              <div
+                className="h-1.5 w-full overflow-hidden rounded-full bg-arena-800"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={total}
+                aria-valuenow={placedCount}
+                aria-label="Songs placed"
+              >
+                <div className="h-full rounded-full bg-hardwood-500 transition-[width] duration-300" style={{ width: `${(placedCount / total) * 100}%` }} />
+              </div>
+            </Panel>
+          </div>
         )}
 
         {stage !== 'lobby' && (
           <div className="space-y-5">
-            {current && (
-              <Panel padding="md" className="flex flex-wrap items-center gap-4">
-                <ProgressRing value={index + 1} max={total} size={52} label="songs" />
-                <div key={current.id} className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-arena-800 animate-pop-in">
-                  {current.artworkUrl ? <img src={current.artworkUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-4xl text-arena-500">♪</div>}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs uppercase tracking-widest text-slate-500">
-                    Song {index + 1} of {total}
-                  </div>
-                  <div className="truncate font-display text-3xl text-white sm:text-4xl">{current.title}</div>
-                  <div className="truncate text-lg text-slate-400">{current.artist}</div>
-                  {current.soundcloudUrl && (
-                    <a href={current.soundcloudUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-hardwood-400 hover:underline">
-                      ▶ Play on SoundCloud ↗
-                    </a>
-                  )}
-                </div>
-                <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto">
-                  {locked ? (
-                    <Button size="lg" onClick={advance}>
-                      {index >= total - 1 ? 'SEE RESULTS →' : 'NEXT SONG →'}
-                    </Button>
-                  ) : (
-                    <Button size="lg" onClick={lockIn} disabled={selected === null}>
-                      {selected === null ? 'PICK A SLOT' : `🔒 LOCK IN #${selected + 1}`}
-                    </Button>
-                  )}
-                  <span className="text-center text-[11px] text-slate-500">{locked ? 'Enter for next' : '↑ ↓ to choose · Enter to lock'}</span>
-                </div>
-              </Panel>
-            )}
-
             {current && phonesOn && (
               <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400" aria-label="Phone suggestions">
                 <span>
@@ -403,46 +459,59 @@ export default function BlindRankingGroup() {
               </div>
             )}
 
-            {stage === 'results' && stats.length > 0 && (
-              <Panel padding="sm" className="space-y-1">
-                <div className="text-xs uppercase tracking-widest text-slate-500">How close were the phones to the group's calls?</div>
-                {stats.map((st, i) => (
-                  <div key={st.name} className="flex flex-wrap items-baseline gap-x-3 text-slate-200">
-                    <span className="font-semibold">{st.name}</span>
-                    <span className="text-sm text-slate-400">
-                      {st.exact} exact of {st.answered} · off by {st.avgOff.toFixed(1)} slots
-                    </span>
-                    {i === 0 && stats.length > 1 && <span className="text-xs text-scoreboard-green">closest to the group</span>}
-                    {i === stats.length - 1 && stats.length > 1 && <span className="text-xs text-hardwood-400">most contrarian</span>}
-                  </div>
-                ))}
-              </Panel>
-            )}
-
             {stage === 'results' && (
-              <div className="flex flex-wrap justify-center gap-3">
-                <Button onClick={saveAsTierList}>💾 Save as tier list</Button>
-                <Button variant="outline" onClick={copyResults}>
-                  📋 Copy ranking
-                </Button>
-                <Button variant="outline" onClick={() => setStage('lobby')}>
-                  Play again
-                </Button>
+              <div className="space-y-5">
+                <Podium songs={ranked} />
+                {stats.length > 0 && (
+                  <Panel padding="sm" className="space-y-1">
+                    <div className="text-xs uppercase tracking-widest text-slate-500">How close were the phones to the group's calls?</div>
+                    {stats.map((st, i) => (
+                      <div key={st.name} className="flex flex-wrap items-baseline gap-x-3 text-slate-200">
+                        <span className="font-semibold" style={{ color: chipColor(st.name) }}>
+                          {st.name}
+                        </span>
+                        <span className="text-sm text-slate-400">
+                          {st.exact} exact of {st.answered} · off by {st.avgOff.toFixed(1)} slots
+                        </span>
+                        {i === 0 && stats.length > 1 && <span className="text-xs text-scoreboard-green">closest to the group</span>}
+                        {i === stats.length - 1 && stats.length > 1 && <span className="text-xs text-hardwood-400">most contrarian</span>}
+                      </div>
+                    ))}
+                  </Panel>
+                )}
+                <div className="flex flex-wrap justify-center gap-3">
+                  <Button onClick={saveAsTierList}>💾 Save as tier list</Button>
+                  <Button variant="outline" onClick={shareImage}>
+                    🖼️ Save as image
+                  </Button>
+                  <Button variant="outline" onClick={copyResults}>
+                    📋 Copy ranking
+                  </Button>
+                  <Button variant="outline" onClick={() => setStage('lobby')}>
+                    Play again
+                  </Button>
+                </div>
               </div>
             )}
 
             <div>
               <div className="mb-1 flex justify-between text-[11px] uppercase tracking-widest text-slate-500">
-                <span>⭐ Favourite</span>
-                <span>Least favourite</span>
+                <span>⭐ favorite</span>
+                <span>Least favorite</span>
               </div>
-              <ol className="space-y-1.5" aria-label="Ranking slots">
+              <ol
+                className={`gap-1.5 ${twoColumns ? 'grid md:grid-flow-col md:grid-cols-2 md:[grid-template-rows:repeat(var(--rows),auto)]' : 'space-y-1.5'}`}
+                style={twoColumns ? ({ '--rows': Math.ceil(slots.length / 2) } as React.CSSProperties) : undefined}
+                aria-label="Ranking slots"
+              >
                 {slots.map((songIndex, slot) => {
                   const song = songIndex === null ? null : songs[songIndex]
                   const isSelected = selected === slot
                   const fresh = justPlaced === slot
                   const empty = song === null
                   const clickable = empty && stage === 'playing' && !locked
+                  const chips = chipsBySlot.get(slot)
+                  const agree = (chips?.length ?? 0) >= 2
                   return (
                     <li key={slot}>
                       <button
@@ -456,9 +525,11 @@ export default function BlindRankingGroup() {
                             ? 'animate-pop-in border-hardwood-400 bg-hardwood-500/20'
                             : isSelected
                               ? 'border-hardwood-400 bg-hardwood-500/10'
-                              : empty
-                                ? 'border-dashed border-arena-600 text-slate-500 enabled:hover:border-hardwood-500'
-                                : 'border-arena-600 bg-arena-800'
+                              : agree
+                                ? 'border-scoreboard-green/60 bg-scoreboard-green/5'
+                                : empty
+                                  ? 'border-dashed border-arena-600 text-slate-500 enabled:hover:border-hardwood-500'
+                                  : 'border-arena-600 bg-arena-800'
                         }`}
                       >
                         <span className="w-8 shrink-0 text-center font-display text-2xl text-hardwood-400">{slot + 1}</span>
@@ -475,11 +546,12 @@ export default function BlindRankingGroup() {
                         ) : (
                           <span className="text-sm">{isSelected && current ? `← ${current.title}` : 'empty'}</span>
                         )}
-                        {chipsBySlot.get(slot) && (
-                          <span className="ml-auto flex shrink-0 flex-wrap justify-end gap-1">
-                            {chipsBySlot.get(slot)!.map((n) => (
-                              <span key={n} className="rounded-full bg-hardwood-500/25 px-2 py-0.5 text-xs text-hardwood-300">
-                                📱 {n}
+                        {chips && (
+                          <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
+                            {agree && <span className="text-xs text-scoreboard-green">🤝 {chips.length} agree</span>}
+                            {chips.map((n) => (
+                              <span key={n} className="rounded-full px-2.5 py-1 text-sm font-semibold" style={{ background: `${chipColor(n)}33`, color: chipColor(n) }}>
+                                {n}
                               </span>
                             ))}
                           </span>
@@ -493,6 +565,36 @@ export default function BlindRankingGroup() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// The top three on a podium (winner in the middle and tallest) — mirrors the game's final podium.
+function Podium({ songs }: { songs: TierListSong[] }) {
+  const top = songs.slice(0, 3)
+  if (top.length < 2) return null
+  const order = top.length === 3 ? [1, 0, 2] : [1, 0]
+  const heights = ['h-32', 'h-24', 'h-16']
+  const medals = ['🥇', '🥈', '🥉']
+  return (
+    <div className="flex items-end justify-center gap-3" aria-label="Top three">
+      {order.map((rank) => {
+        const song = top[rank]
+        return (
+          <div key={song.id} className="flex w-1/3 max-w-[11rem] flex-col items-center gap-1.5 animate-pop-in" style={{ animationDelay: `${(2 - rank) * 150}ms` }}>
+            {rank === 0 && <div className="text-3xl" aria-hidden>👑</div>}
+            <div className="h-16 w-16 overflow-hidden rounded-xl bg-arena-800">
+              {song.artworkUrl ? <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-2xl text-arena-500">♪</div>}
+            </div>
+            <div className="max-w-full truncate text-center font-display text-lg text-slate-100">{song.title}</div>
+            <div className={`flex w-full items-start justify-center rounded-t-xl border border-b-0 border-arena-600 bg-arena-800/80 pt-2 ${heights[rank]}`}>
+              <span className="text-2xl" aria-hidden>
+                {medals[rank]}
+              </span>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }

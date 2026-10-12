@@ -1,6 +1,9 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 const KEY = 'gts.home.sections.v1'
+
+/** Fired by the Home jump bar: open that section and scroll to it. */
+export const HOME_JUMP_EVENT = 'gts:home-jump'
 
 function readClosed(): Record<string, boolean> {
   try {
@@ -25,9 +28,18 @@ export default function HomeSection({ id, title, count, forceOpen, children }: {
       // Best-effort only.
     }
   }
+  useEffect(() => {
+    function onJump(e: Event) {
+      if ((e as CustomEvent<string>).detail !== id) return
+      setClosed(false)
+      requestAnimationFrame(() => document.getElementById(`home-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    }
+    window.addEventListener(HOME_JUMP_EVENT, onJump)
+    return () => window.removeEventListener(HOME_JUMP_EVENT, onJump)
+  }, [id])
   const open = forceOpen || !closed
   return (
-    <div className="mt-16">
+    <div id={`home-${id}`} className="mt-12 scroll-mt-6">
       <h2 className="mb-4">
         <button
           onClick={toggle}
