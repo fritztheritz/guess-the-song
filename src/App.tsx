@@ -22,6 +22,7 @@ const QuickGame = lazyPage(() => import('./pages/QuickGame'))
 const Settings = lazyPage(() => import('./pages/Settings'))
 const BlindRanking = lazyPage(() => import('./pages/BlindRanking'))
 const BlindRankingGroup = lazyPage(() => import('./pages/BlindRankingGroup'))
+const WhosePick = lazyPage(() => import('./pages/WhosePick'))
 const Admin = lazyPage(() => import('./pages/Admin'))
 const CreateTierList = lazyPage(() => import('./pages/CreateTierList'))
 const TierListBuilder = lazyPage(() => import('./pages/TierListBuilder'))
@@ -104,6 +105,14 @@ export default function App() {
         element={
           <RequireFlag flag="tier-lists">
             <BlindRankingGroup />
+          </RequireFlag>
+        }
+      />
+      <Route
+        path="/tierlists/:tierListId/whose-pick"
+        element={
+          <RequireFlag flag="tier-lists">
+            <WhosePick />
           </RequireFlag>
         }
       />

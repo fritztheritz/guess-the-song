@@ -14,7 +14,7 @@ export const EMOJI_ICON: Record<string, IconName> = {
   '🧊': 'snow', '🎁': 'gift', '🎡': 'wheel', '🎨': 'palette', '🎲': 'dice', '🤝': 'users', '🗳️': 'vote', '🖥️': 'monitor', '🧰': 'toolbox',
   '⬆️': 'arrow-up', '⬇️': 'arrow-down', '↕️': 'arrows-v', '🔻': 'triangle-down', '🟢': 'dot',
   '🥇': 'medal-1', '🥈': 'medal-2', '🥉': 'medal-3', '🏅': 'medal', '👑': 'crown', '🥷': 'bolt', '🪄': 'sparkle', '💥': 'sparkle', '📸': 'sparkle',
-  '🎛️': 'toolbox', '💾': 'save', '🖼️': 'image', '🖼': 'image', '☁️': 'cloud', '🌐': 'globe', '🔗': 'link', '🔁': 'refresh', '📤': 'share', '📺': 'tv', '🔀': 'shuffle', '🎉': 'sparkle', '🧑‍⚖️': 'whistle',
+  '🎛️': 'toolbox', '🕵️': 'search', '🕵': 'search', '💾': 'save', '🖼️': 'image', '🖼': 'image', '☁️': 'cloud', '🌐': 'globe', '🔗': 'link', '🔁': 'refresh', '📤': 'share', '📺': 'tv', '🔀': 'shuffle', '🎉': 'sparkle', '🧑‍⚖️': 'whistle',
 }
 
 const EMOJI_RE = new RegExp(

@@ -30,7 +30,7 @@ export interface BuzzerWinner {
 }
 
 export type PhonePhase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime' | 'suddendeath' | 'ranking'
-export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year' | 'higherlower' | 'blindrank' | 'popularity' | 'draft' | 'tierlist'
+export type PhoneMode = 'song' | 'lyric' | 'tierguess' | 'year' | 'higherlower' | 'blindrank' | 'popularity' | 'draft' | 'tierlist' | 'whosepick'
 
 // A deliberately reduced view of the game, computed host-side and pushed down through the
 // same room every buzz already flows through — Phone Buzz-In's players are on their own
@@ -89,6 +89,24 @@ export interface PhoneRoundState {
     songs: Array<{ id: string; title: string; artist: string; artworkUrl?: string; url?: string }>
     tiers: Array<{ name: string; color: string }>
     submitted: string[]
+  }
+  /** mode: "whosepick" only — Whose Pick Is This?: first everyone claims a few songs from `pool` (a phone taps with a
+   *  `guess` of "p:<songId>"; `claimed` maps each taken song to an opaque tag of its owner, and the host settles
+   *  races — first tap wins), then each song plays and a phone names its picker with "g:<songId>:<optionIndex>".
+   *  Who owns a song is never sent until `revealed`. */
+  whosePick?: {
+    stage: 'picking' | 'guessing' | 'revealed' | 'final'
+    limit?: number
+    pool?: Array<{ id: string; title: string; artist: string }>
+    claimed?: Record<string, string>
+    song?: { id: string; title: string; artist: string; artworkUrl?: string; index: number; total: number }
+    /** The pickers' names, in the order the guess buttons are numbered. */
+    options?: string[]
+    /** guessing: how many phones have answered, of how many can. */
+    answered?: number
+    eligible?: number
+    /** revealed: the right option. */
+    answer?: number
   }
   /** Year/Tier Guess, while a guess window is open: how many teams have a guess in. */
   guessProgress?: { teamsIn: number; of: number }

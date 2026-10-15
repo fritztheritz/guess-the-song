@@ -217,3 +217,10 @@ test('settings are remembered', async ({ page }) => {
   await page.reload()
   await expect(page.getByRole('switch', { name: 'Keep the screen awake' })).toHaveAttribute('aria-checked', 'false')
 })
+
+test('Whose Pick explains it needs phones when the room server is not set up', async ({ page }) => {
+  await seed(page)
+  await page.goto('tierlists/tl1/whose-pick')
+  await expect(page.getByRole('heading', { name: /WHOSE PICK/ })).toBeVisible()
+  await expect(page.getByText(/needs phones/)).toBeVisible()
+})

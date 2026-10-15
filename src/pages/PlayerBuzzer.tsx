@@ -19,6 +19,7 @@ import { isSoundMuted, playBuzzIn, playEject, playWrong, setSoundMuted, unlockAu
 import { Icon } from '../components/Icon'
 import { withIcons } from '../lib/with-icons'
 import StickerBar from '../components/StickerBar'
+import WhosePickPicker from '../components/WhosePickPicker'
 
 const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   song: '🎧 Listen up!',
@@ -30,6 +31,7 @@ const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   popularity: '📈 Guess the popularity rank',
   draft: '🏀 Draft night',
   tierlist: '🏆 Group tier list',
+  whosepick: '🕵️ Whose pick is this?',
 }
 
 // Short labels for the month tap-grid (guessStage: 'guessMonth') — full names would wrap
@@ -287,6 +289,14 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
       if (roundState.blind?.group) return roundState.blind.song ? { text: '🙈 Suggest where it goes', tone: 'go' } : { text: '⏳ Waiting for the host', tone: 'wait' }
       return roundState.blind?.song ? { text: '🙈 Place this song — no take-backs', tone: 'go' } : { text: '⏳ Waiting for the host', tone: 'wait' }
     }
+    if (roundState?.mode === 'whosepick') {
+      const wp = roundState.whosePick
+      if (!wp || wp.stage === 'final') return { text: '🏁 Game over — check the screen', tone: 'wait' }
+      if (identity?.teamId === null) return { text: '👀 Watching the game', tone: 'wait' }
+      if (wp.stage === 'picking') return { text: '🎧 Pick your favorites', tone: 'go' }
+      if (wp.stage === 'revealed') return { text: '✓ Revealed — check the screen', tone: 'wait' }
+      return { text: '🕵️ Whose pick is it?', tone: 'go' }
+    }
     if (roundState?.mode === 'tierlist') {
       if (roundState.phase === 'final') return { text: '🏁 Voting closed — check the screen', tone: 'wait' }
       if (identity?.teamId === null) return { text: '👀 Watching the vote', tone: 'wait' }
@@ -358,7 +368,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
               roundState.phase === 'clue' && roundState.popularity ? (
                 <> · Rank #{roundState.popularity.rank} of {roundState.popularity.totalRanks}</>
               ) : null
-            ) : roundState.phase === 'clue' || roundState.phase === 'revealed' ? (
+            ) : (roundState.phase === 'clue' || roundState.phase === 'revealed') && roundState.totalPossessions > 0 ? (
               <> · Round {roundState.possessionIndex + 1}/{roundState.totalPossessions}</>
             ) : null}
           </div>
@@ -487,7 +497,19 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             <StickerBar teams={teams} myTeamId={identity.teamId} onSend={(sticker, targetTeamId) => socketRef.current?.send({ type: 'sticker', sticker, targetTeamId })} />
           )}
 
-          {roundState?.mode === 'blindrank' ? (
+          {roundState?.mode === 'whosepick' ? (
+            !roundState.whosePick ? null : identity?.teamId === null ? (
+              <p className="text-sm text-slate-400">Just watching — everyone else is picking and guessing.</p>
+            ) : (
+              <WhosePickPicker
+                state={roundState.whosePick}
+                code={activeCode}
+                myName={identity?.name ?? ''}
+                onPick={(songId) => socketRef.current?.send({ type: 'guess', text: `p:${songId}` })}
+                onGuess={(songId, i) => socketRef.current?.send({ type: 'guess', text: `g:${songId}:${i}` })}
+              />
+            )
+          ) : roundState?.mode === 'blindrank' ? (
             !roundState.blind ? null : identity?.teamId === null ? (
               <p className="text-sm text-slate-400">Just watching — everyone else is placing the songs.</p>
             ) : roundState.blind.group ? (

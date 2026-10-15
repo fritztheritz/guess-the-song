@@ -79,7 +79,7 @@ function Ticket({ p, letter }: { p: Palette; letter: string }) {
 }
 
 function Equaliser({ p, seed }: { p: Palette; seed: number }) {
-  const bars = Array.from({ length: 7 }, (_, i) => 22 + ((seed >> (i * 3)) % 7) * 8)
+  const bars = Array.from({ length: 7 }, (_, i) => 22 + ((seed >>> (i * 3)) % 7) * 8)
   return (
     <>
       <rect width="100" height="100" fill="#0f1938" />
@@ -110,7 +110,7 @@ function Sunburst({ p }: { p: Palette }) {
 export default function ArtPlaceholder({ seed }: { seed: string }) {
   const h = hash(seed.trim().toLowerCase() || 'song')
   const p = PALETTES[h % PALETTES.length]
-  const kind = (h >> 4) % 6
+  const kind = (h >>> 4) % 6
   const letter = (seed.trim().match(/[A-Za-z0-9]/)?.[0] ?? '♪').toUpperCase()
   return (
     <svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" className="block h-full w-full" aria-hidden>

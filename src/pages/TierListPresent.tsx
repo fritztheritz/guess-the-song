@@ -591,6 +591,7 @@ export default function TierListPresent() {
               label="Games & view"
               items={[
                 { key: 'rank', label: '🙈 Blind ranking — one screen', to: `/tierlists/${list.id}/rank-together`, title: 'Rank the songs blind, together on this screen' },
+                { key: 'whosepick', label: '🕵️ Whose pick is this? — phones', to: `/tierlists/${list.id}/whose-pick`, hidden: !groupRankingAvailable || list.songs.length < 6, title: 'Everyone secretly picks favorites from this list on their phone, then guesses who picked what' },
                 { key: 'phones', label: '📱 Blind ranking — phones', to: `/tierlists/${list.id}/blind`, hidden: !groupRankingAvailable, title: "Play Blind Ranking with everyone's phones" },
                 { key: 'display', label: '📺 Big-screen display', to: `/tierlists/${list.id}/display`, external: true, title: 'Open the big-screen view in a new tab' },
                 { key: 'comfy', label: 'Large tiles', checked: tileSize === 'comfy', onSelect: () => chooseTileSize('comfy') },
