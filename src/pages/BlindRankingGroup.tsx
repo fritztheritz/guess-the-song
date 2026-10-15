@@ -537,7 +537,7 @@ export default function BlindRankingGroup() {
                         }}
                         aria-label={song ? `Slot ${slot + 1}: ${song.title}` : `Slot ${slot + 1}, empty`}
                         aria-pressed={clickable ? isSelected : undefined}
-                        className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border-2 py-2 pl-[4.25rem] pr-3 text-left transition ${
+                        className={`relative flex w-full items-center gap-3 rounded-xl border-2 px-3 py-2 text-left transition ${
                           fresh
                             ? 'animate-pop-in border-hardwood-400 bg-hardwood-500/20'
                             : isSelected
@@ -549,10 +549,7 @@ export default function BlindRankingGroup() {
                                   : 'border-arena-600 bg-arena-800'
                         }`}
                       >
-                        <span
-                          aria-hidden
-                          className={`jersey-num pointer-events-none absolute -bottom-3 left-2 select-none text-[3rem] ${empty ? 'text-hardwood-500/40' : 'text-hardwood-400'}`}
-                        >
+                        <span aria-hidden className={`jersey-num w-11 shrink-0 select-none text-center text-[2.5rem] leading-none ${empty ? 'text-hardwood-500/50' : 'text-hardwood-400'}`}>
                           {slot + 1}
                         </span>
                         {song ? (
@@ -613,7 +610,7 @@ function Podium({ songs }: { songs: TierListSong[] }) {
               <span className="text-2xl" aria-hidden>
                 {withIcons(medals[rank])}
               </span>
-              <span aria-hidden className="jersey-num absolute -bottom-2 right-1 select-none text-6xl text-black/45">
+              <span aria-hidden className="jersey-num absolute bottom-1 right-2 select-none text-5xl leading-none text-black/45">
                 {rank + 1}
               </span>
             </div>

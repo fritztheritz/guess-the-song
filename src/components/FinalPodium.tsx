@@ -42,7 +42,7 @@ export default function FinalPodium({ teams, moves }: { teams: Team[]; moves?: R
                 <div className="text-2xl" aria-hidden>
                   {withIcons(style.medal)}
                 </div>
-                <span aria-hidden className="jersey-num absolute -bottom-2 left-1 select-none text-6xl text-black/45">
+                <span aria-hidden className="jersey-num absolute bottom-1 left-2 select-none text-5xl leading-none text-black/45">
                   {rank + 1}
                 </span>
                 <div className="relative rounded-sm bg-black/60 px-1.5 py-1 text-scoreboard-amber">
