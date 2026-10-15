@@ -315,7 +315,7 @@ export default function BlindRankingGroup() {
   return (
     <div className={`min-h-svh court-lines ${shaking ? 'animate-screen-shake' : ''}`}>
       {stage === 'results' && <Confetti />}
-      <div className="mx-auto max-w-4xl px-4 pb-10 sm:px-6">
+      <div className="mx-auto max-w-2xl px-4 pb-10 sm:px-6">
         <div className="flex items-center justify-between gap-3 py-5">
           <BackLink to={`/tierlists/${list.id}/present`}>Tier list</BackLink>
           <h1 className="title-page text-center"><Icon name="eye-off" /> BLIND RANKING</h1>
@@ -508,9 +508,8 @@ export default function BlindRankingGroup() {
             )}
 
             <div>
-              <div className="mb-1 flex justify-between text-xs uppercase tracking-widest text-slate-500">
-                <span><Icon name="star-solid" /> favorite</span>
-                <span>Least favorite</span>
+              <div className="mb-1 text-xs uppercase tracking-widest text-slate-500">
+                <Icon name="star-solid" /> Favorite
               </div>
               <ol
                 className="space-y-1.5"
@@ -578,6 +577,7 @@ export default function BlindRankingGroup() {
                   )
                 })}
               </ol>
+              <div className="mt-1 text-right text-xs uppercase tracking-widest text-slate-500">Least favorite</div>
             </div>
           </div>
         )}

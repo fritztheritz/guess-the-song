@@ -722,8 +722,8 @@ export default function Home() {
               {visibleTierLists.map((list) => {
                 const ranked = list.songs.filter((s) => s.tierId !== null).length
                 return (
-                  <Panel key={list.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
-                    <div className="min-w-0 flex-1 basis-56">
+                  <Panel key={list.id} className="@container"><div className="flex flex-col gap-3 @xl:flex-row @xl:items-center @xl:justify-between">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-1.5">
                         <span className="mt-[0.3em] text-xs"><Icon name="trophy" /></span>
                         <div className="font-semibold text-slate-100">{list.name}</div>
@@ -755,7 +755,7 @@ export default function Home() {
                         </div>
                       )}
                     </div>
-                    <div className="ml-auto flex gap-2">
+                    <div className="flex gap-2 self-end @xl:self-auto">
                       <Link
                         to={`/tierlists/${list.id}/edit`}
                         className="rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-200 hover:border-hardwood-500"
@@ -784,7 +784,7 @@ export default function Home() {
                         <Icon name="x" />
                       </button>
                     </div>
-                  </Panel>
+                  </div></Panel>
                 )
               })}
             </div>
@@ -799,8 +799,8 @@ export default function Home() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {visibleTournaments.map((tournament) => (
-                  <Panel key={tournament.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
-                    <div className="min-w-0 flex-1 basis-56">
+                  <Panel key={tournament.id} className="@container"><div className="flex flex-col gap-3 @xl:flex-row @xl:items-center @xl:justify-between">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-1.5">
                         <span className="mt-[0.3em] text-xs"><Icon name="trophy" /></span>
                         <div className="font-semibold text-slate-100">{tournament.name}</div>
@@ -818,7 +818,7 @@ export default function Home() {
                         </div>
                       )}
                     </div>
-                    <div className="ml-auto flex gap-2">
+                    <div className="flex gap-2 self-end @xl:self-auto">
                       <Link
                         to={`/tournaments/${tournament.id}`}
                         className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
@@ -841,7 +841,7 @@ export default function Home() {
                         <Icon name="x" />
                       </button>
                     </div>
-                  </Panel>
+                  </div></Panel>
                 ))}
               </div>
             )}
@@ -855,8 +855,8 @@ export default function Home() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {visibleSeasons.map((season) => (
-                  <Panel key={season.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
-                    <div className="min-w-0 flex-1 basis-56">
+                  <Panel key={season.id} className="@container"><div className="flex flex-col gap-3 @xl:flex-row @xl:items-center @xl:justify-between">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-1.5">
                         <span className="mt-[0.3em] text-xs"><Icon name="calendar" /></span>
                         <div className="font-semibold text-slate-100">{season.name}</div>
@@ -865,7 +865,7 @@ export default function Home() {
                         Tag: <span className="rounded-full bg-arena-700 px-1.5 py-0.5 text-xs text-slate-400">{season.tag}</span>
                       </div>
                     </div>
-                    <div className="ml-auto flex gap-2">
+                    <div className="flex gap-2 self-end @xl:self-auto">
                       <Link
                         to={`/seasons/${season.id}`}
                         className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
@@ -888,7 +888,7 @@ export default function Home() {
                         <Icon name="x" />
                       </button>
                     </div>
-                  </Panel>
+                  </div></Panel>
                 ))}
               </div>
             )}
@@ -904,8 +904,8 @@ export default function Home() {
                 {visibleDraftBoards.map((board) => {
                   const available = board.songPool.filter((s) => !s.takenBySessionId).length
                   return (
-                    <Panel key={board.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
-                      <div className="min-w-0 flex-1 basis-56">
+                    <Panel key={board.id} className="@container"><div className="flex flex-col gap-3 @xl:flex-row @xl:items-center @xl:justify-between">
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-start gap-1.5">
                           <span className="mt-[0.3em] text-xs"><Icon name="headphones" /></span>
                           <div className="font-semibold text-slate-100">{board.name}</div>
@@ -932,7 +932,7 @@ export default function Home() {
                           </div>
                         )}
                       </div>
-                      <div className="ml-auto flex gap-2">
+                      <div className="flex gap-2 self-end @xl:self-auto">
                         <Link
                           to={`/drafts/${board.id}`}
                           className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
@@ -947,7 +947,7 @@ export default function Home() {
                           <Icon name="x" />
                         </button>
                       </div>
-                    </Panel>
+                    </div></Panel>
                   )
                 })}
               </div>
@@ -964,8 +964,8 @@ export default function Home() {
               {visiblePopularityGames.map((game) => {
                 const solvedCount = Object.keys(game.progress.solved).length
                 return (
-                  <Panel key={game.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
-                    <div className="min-w-0 flex-1 basis-56">
+                  <Panel key={game.id} className="@container"><div className="flex flex-col gap-3 @xl:flex-row @xl:items-center @xl:justify-between">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-1.5">
                         <span className="mt-[0.3em] text-xs"><Icon name="trend" /></span>
                         <div className="font-semibold text-slate-100">{game.name}</div>
@@ -974,7 +974,7 @@ export default function Home() {
                         {game.artistName} · {solvedCount}/{game.ranks.length} ranks solved
                       </div>
                     </div>
-                    <div className="ml-auto flex gap-2">
+                    <div className="flex gap-2 self-end @xl:self-auto">
                       <Link
                         to={`/popularity/${game.id}/present`}
                         className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
@@ -989,7 +989,7 @@ export default function Home() {
                         <Icon name="x" />
                       </button>
                     </div>
-                  </Panel>
+                  </div></Panel>
                 )
               })}
             </div>
@@ -1006,8 +1006,8 @@ export default function Home() {
               {visibleTimelineGames.map((game) => {
                 const placedCount = game.progress.timeline.length - 1
                 return (
-                  <Panel key={game.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
-                    <div className="min-w-0 flex-1 basis-56">
+                  <Panel key={game.id} className="@container"><div className="flex flex-col gap-3 @xl:flex-row @xl:items-center @xl:justify-between">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-start gap-1.5">
                         <span className="mt-[0.3em] text-xs"><Icon name="clock" /></span>
                         <div className="font-semibold text-slate-100">{game.name}</div>
@@ -1016,7 +1016,7 @@ export default function Home() {
                         {game.songs.length} songs · {placedCount} placed
                       </div>
                     </div>
-                    <div className="ml-auto flex gap-2">
+                    <div className="flex gap-2 self-end @xl:self-auto">
                       <Link
                         to={`/timeline/${game.id}/present`}
                         className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
@@ -1031,7 +1031,7 @@ export default function Home() {
                         <Icon name="x" />
                       </button>
                     </div>
-                  </Panel>
+                  </div></Panel>
                 )
               })}
             </div>
