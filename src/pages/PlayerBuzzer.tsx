@@ -18,6 +18,7 @@ import { applyThemeVars } from '../lib/themes'
 import { isSoundMuted, playBuzzIn, playEject, playWrong, setSoundMuted, unlockAudio } from '../lib/sound-effects'
 import { Icon } from '../components/Icon'
 import { withIcons } from '../lib/with-icons'
+import StickerBar from '../components/StickerBar'
 
 const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   song: '🎧 Listen up!',
@@ -482,6 +483,9 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
           </div>
 
           {roundState?.reactions && <ReactionBar onReact={(emoji) => socketRef.current?.send({ type: 'react', emoji })} />}
+          {roundState?.stickers && identity?.teamId && (
+            <StickerBar teams={teams} myTeamId={identity.teamId} onSend={(sticker, targetTeamId) => socketRef.current?.send({ type: 'sticker', sticker, targetTeamId })} />
+          )}
 
           {roundState?.mode === 'blindrank' ? (
             !roundState.blind ? null : identity?.teamId === null ? (

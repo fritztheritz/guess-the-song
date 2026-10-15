@@ -41,3 +41,23 @@ export function setArenaFx(on: boolean): void {
     // Best-effort only.
   }
 }
+
+const STICKERS_KEY = 'gts.stickers.v1'
+
+/** Host-side switch for trash-talk stickers from phones (default on; only matters when Crowd Reactions is on). */
+export function getStickersOn(): boolean {
+  try {
+    return localStorage.getItem(STICKERS_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+
+export function setStickersOn(on: boolean): void {
+  try {
+    if (on) localStorage.removeItem(STICKERS_KEY)
+    else localStorage.setItem(STICKERS_KEY, 'off')
+  } catch {
+    // Best-effort only.
+  }
+}

@@ -132,7 +132,7 @@ export const FEATURE_FLAGS: FeatureFlagDef[] = [
     key: 'reactions',
     label: 'Crowd Reactions',
     description:
-      'Phones get a row of emoji (🔥 👏 😂 😱 ❤️ 🤯) to tap during the game; they float up the host and public-display screens. Spectators can cheer too. Needs the Worker version with reactions deployed.',
+      'Phones get a row of emoji (🔥 👏 😂 😱 ❤️ 🤯) to tap during the game; they float up the host and public-display screens. Spectators can cheer too. Teamed phones also get a Trash talk drawer of stickers (AIRBALL, BRICK, SWISH…) they can aim at a rival team; the host can switch those off in the room panel. Needs the Worker version with reactions (and stickers) deployed.',
     default: false,
   },
   {

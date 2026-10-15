@@ -1,3 +1,4 @@
+import type { StickerId } from './buzzer/protocol'
 // Cross-window sync for the Host Controller / Public Display split. Scores, teams and
 // progress already sync for free via the existing localStorage `storage` event (any tab
 // that isn't the one writing gets notified) — this only needs to carry the ephemeral,
@@ -34,6 +35,8 @@ export type PresentationMessage =
   | { type: 'state'; snapshot: PresentationSnapshot }
   /** A phone's crowd reaction, to float up the public display. */
   | { type: 'reaction'; emoji: string; name: string }
+  /** A phone's trash-talk sticker, to stick on the public display. */
+  | { type: 'sticker'; sticker: StickerId; name: string; teamName: string; color: string; targetName?: string }
 
 export function presentationChannelName(gameId: string): string {
   return `gts-presentation-${gameId}`

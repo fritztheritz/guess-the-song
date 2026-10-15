@@ -94,6 +94,8 @@ export interface PhoneRoundState {
   guessProgress?: { teamsIn: number; of: number }
   /** The host has crowd reactions on — phones show the reaction bar. */
   reactions?: boolean
+  /** The host has trash-talk stickers on — teamed phones show the sticker bar. */
+  stickers?: boolean
   /** Sudden death is in progress — teams not tied for the lead are sitting it out. */
   suddenDeath?: boolean
   /** mode: "tierguess" only — the tier list's own defined tiers (e.g. S/A/B/C/D), so a
@@ -133,6 +135,21 @@ export interface PhoneRoundState {
 /** Crowd reactions a phone can send — mirrored by REACTIONS in worker/src/buzzer-room.js, which drops anything else. */
 export const REACTION_EMOJIS = ['🔥', '👏', '😂', '😱', '❤️', '🤯'] as const
 
+/** Trash-talk stickers a teamed phone can slap on the big screen — mirrored by STICKERS in worker/src/buzzer-room.js
+ *  (the parity test in stickers.test.ts keeps the two lists in step). */
+export const STICKERS = [
+  { id: 'airball', label: 'AIRBALL' },
+  { id: 'brick', label: 'BRICK' },
+  { id: 'swish', label: 'SWISH' },
+  { id: 'ice-cold', label: 'ICE COLD' },
+  { id: 'too-easy', label: 'TOO EASY' },
+  { id: 'sit-down', label: 'SIT DOWN' },
+  { id: 'on-fire', label: 'ON FIRE' },
+  { id: 'bench', label: 'BENCH THEM' },
+] as const
+
+export type StickerId = (typeof STICKERS)[number]['id']
+
 export type HostOutMessage =
   | { type: 'sync-teams'; teams: BuzzerTeam[] }
   | { type: 'sync-round'; state: PhoneRoundState }
@@ -160,6 +177,8 @@ export type PlayerOutMessage =
   | { type: 'ballot'; rankedTeamIds: string[] }
   /** A crowd reaction — any joined player, spectators too. Rate-limited and host-only. */
   | { type: 'react'; emoji: string }
+  /** A trash-talk sticker, optionally aimed at a rival team. Teamed players only; rate-limited and host-only. */
+  | { type: 'sticker'; sticker: StickerId; targetTeamId?: string }
 
 export type ServerMessage =
   | { type: 'state'; buzzState: BuzzState; winner: BuzzerWinner | null; order: BuzzerWinner[]; iced: string[] }
@@ -173,3 +192,5 @@ export type ServerMessage =
   | { type: 'ballot'; connId: string; teamId: string; rankedTeamIds: string[] }
   /** Host-only — a phone's crowd reaction, to float across the screens. */
   | { type: 'react'; emoji: string; name: string; teamId: string | null }
+  /** Host-only — a phone's sticker. targetTeamId is only ever a real rival team (or null). */
+  | { type: 'sticker'; sticker: StickerId; name: string; teamId: string; targetTeamId: string | null }

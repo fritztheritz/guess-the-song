@@ -5,6 +5,7 @@ import JoinQrCode from './JoinQrCode'
 import { joinUrl } from '../lib/buzzer/join-url'
 import { Icon } from './Icon'
 import { withIcons } from '../lib/with-icons'
+import Switch from './ui/Switch'
 
 // Host-only panel: shows the room code players type into /buzz, and who's connected on
 // which team. Doesn't touch buzz state itself — HostController owns that (open/close tied
@@ -16,12 +17,15 @@ export default function BuzzerPanel({
   roster,
   iced,
   onClose,
+  stickers,
 }: {
   code: string
   teams: Team[]
   roster: BuzzerPlayer[]
   iced: string[]
   onClose: () => void
+  /** Present when Crowd Reactions is on: whether phones' trash-talk stickers show, and a way to switch them. */
+  stickers?: { on: boolean; onChange: (on: boolean) => void }
 }) {
   const url = joinUrl(code)
   // Same inline "label flips to a checkmark for 2s" feedback as AnswerKeyModal's copy
@@ -101,6 +105,16 @@ export default function BuzzerPanel({
             )
           })()}
         </div>
+
+        {stickers && (
+          <div className="mt-4 flex items-center justify-between gap-3 border-t border-arena-700 pt-4">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-slate-100">Trash-talk stickers</div>
+              <div className="text-xs text-slate-500">Teamed phones can slap AIRBALL, BRICK and friends on the screen.</div>
+            </div>
+            <Switch on={stickers.on} onChange={stickers.onChange} label="Trash-talk stickers" />
+          </div>
+        )}
 
         <button onClick={onClose} className="mt-5 w-full rounded-full border border-arena-500 py-2 text-sm text-slate-300 hover:border-hardwood-500">
           Close

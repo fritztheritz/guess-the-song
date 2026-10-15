@@ -13,6 +13,10 @@ const MAX_ORDER = 20 // plenty for "who buzzed 2nd/3rd", caps memory for a long 
 // per-connection cooldown (so one phone can't flood it).
 const REACTIONS = new Set(['🔥', '👏', '😂', '😱', '❤️', '🤯'])
 const REACTION_COOLDOWN_MS = 600
+// Trash-talk stickers: also a fixed set (mirrors STICKERS in src/lib/buzzer/protocol.ts), teamed players only,
+// with a longer cooldown than the emoji reactions since each one takes over a chunk of the big screen.
+const STICKERS = new Set(['airball', 'brick', 'swish', 'ice-cold', 'too-easy', 'sit-down', 'on-fire', 'bench'])
+const STICKER_COOLDOWN_MS = 2500
 
 export class BuzzerRoom {
   constructor(state, env) {
@@ -28,6 +32,8 @@ export class BuzzerRoom {
     this.players = new Map()
     /** @type {Map<WebSocket, number>} when each socket last sent a reaction (cooldown). */
     this.lastReactionAt = new Map()
+    /** @type {Map<WebSocket, number>} when each socket last sent a sticker (cooldown). */
+    this.lastStickerAt = new Map()
     this.buzzState = 'closed' // 'closed' | 'open' | 'locked'
     this.winner = null
     this.order = []
@@ -213,6 +219,18 @@ export class BuzzerRoom {
       if (now - last < REACTION_COOLDOWN_MS) return
       this.lastReactionAt.set(socket, now)
       this.broadcastToHost({ type: 'react', emoji: msg.emoji, name: player.name, teamId: player.teamId })
+    } else if (msg.type === 'sticker' && typeof msg.sticker === 'string') {
+      // Team vs team banter: only someone on a team can send one (a spectator has no side to talk for), and the
+      // sender's team always comes from the Worker's own record, never the message. An aim at an unknown team,
+      // or at the sender's own, is quietly dropped to "no target".
+      const player = this.players.get(socket)
+      if (!player || player.teamId === null || !STICKERS.has(msg.sticker)) return
+      const now = Date.now()
+      const last = this.lastStickerAt.get(socket) ?? 0
+      if (now - last < STICKER_COOLDOWN_MS) return
+      this.lastStickerAt.set(socket, now)
+      const aimed = typeof msg.targetTeamId === 'string' && msg.targetTeamId !== player.teamId && this.teams.some((t) => t.id === msg.targetTeamId)
+      this.broadcastToHost({ type: 'sticker', sticker: msg.sticker, name: player.name, teamId: player.teamId, targetTeamId: aimed ? msg.targetTeamId : null })
     } else if (msg.type === 'ballot' && Array.isArray(msg.rankedTeamIds)) {
       // Draft ranking: a drafter's ballot, host-only like 'guess'. Whose ballot it is comes from the
       // sender's own joined team (a spectator has none, so can't vote) — never from the message, so
@@ -227,6 +245,7 @@ export class BuzzerRoom {
   removePlayer(socket) {
     this.playerSockets.delete(socket)
     this.lastReactionAt.delete(socket)
+    this.lastStickerAt.delete(socket)
     if (this.players.delete(socket)) {
       this.broadcastToHost({ type: 'roster', players: this.rosterList() })
     }

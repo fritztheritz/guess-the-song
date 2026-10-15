@@ -738,10 +738,10 @@ export default function Home() {
               {visibleTierLists.map((list) => {
                 const ranked = list.songs.filter((s) => s.tierId !== null).length
                 return (
-                  <Panel key={list.id} className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs"><Icon name="trophy" /></span>
+                  <Panel key={list.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
+                    <div className="min-w-0 flex-1 basis-56">
+                      <div className="flex items-start gap-1.5">
+                        <span className="mt-[0.3em] text-xs"><Icon name="trophy" /></span>
                         <div className="font-semibold text-slate-100">{list.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">
@@ -754,7 +754,7 @@ export default function Home() {
                         · {timeAgo(list.updatedAt)}
                       </div>
                       {list.songs.length > 0 && (
-                        <div className="mt-1.5 flex h-1.5 max-w-56 overflow-hidden rounded-full bg-arena-700" aria-hidden>
+                        <div className="mt-1.5 flex h-1.5 overflow-hidden rounded-full bg-arena-700" aria-hidden>
                           {list.tiers.map((tier) => {
                             const n = list.songs.filter((s) => s.tierId === tier.id).length
                             return n > 0 ? <span key={tier.id} style={{ width: `${(n / list.songs.length) * 100}%`, background: tier.color }} /> : null
@@ -771,7 +771,7 @@ export default function Home() {
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="ml-auto flex gap-2">
                       <Link
                         to={`/tierlists/${list.id}/edit`}
                         className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-200 hover:border-hardwood-500"
@@ -809,7 +809,7 @@ export default function Home() {
         )}
 
         {tournamentsEnabled && tournaments.length > 0 && (
-          <HomeSection id="tournaments" inset="right" title="YOUR TOURNAMENTS" count={tournaments.length} forceOpen={searchQuery.trim() !== ''}>
+          <HomeSection id="tournaments" title="YOUR TOURNAMENTS" count={tournaments.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleTournaments.length === 0 ? (
               <EmptyState icon="🔎">No tournaments match your search or filters.</EmptyState>
             ) : (
@@ -817,8 +817,8 @@ export default function Home() {
                 {visibleTournaments.map((tournament) => (
                   <Panel key={tournament.id} className="flex items-center justify-between">
                     <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs"><Icon name="trophy" /></span>
+                      <div className="flex items-start gap-1.5">
+                        <span className="mt-[0.3em] text-xs"><Icon name="trophy" /></span>
                         <div className="font-semibold text-slate-100">{tournament.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">
@@ -873,8 +873,8 @@ export default function Home() {
                 {visibleSeasons.map((season) => (
                   <Panel key={season.id} className="flex items-center justify-between">
                     <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs"><Icon name="calendar" /></span>
+                      <div className="flex items-start gap-1.5">
+                        <span className="mt-[0.3em] text-xs"><Icon name="calendar" /></span>
                         <div className="font-semibold text-slate-100">{season.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">
@@ -912,7 +912,7 @@ export default function Home() {
         )}
 
         {draftEnabled && draftBoards.length > 0 && (
-          <HomeSection id="drafts" inset="right" title="YOUR DRAFTS" count={draftBoards.length} forceOpen={searchQuery.trim() !== ''}>
+          <HomeSection id="drafts" title="YOUR DRAFTS" count={draftBoards.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleDraftBoards.length === 0 ? (
               <EmptyState icon="🔎">No drafts match your search or filters.</EmptyState>
             ) : (
@@ -922,8 +922,8 @@ export default function Home() {
                   return (
                     <Panel key={board.id} className="flex items-center justify-between">
                       <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs"><Icon name="headphones" /></span>
+                        <div className="flex items-start gap-1.5">
+                          <span className="mt-[0.3em] text-xs"><Icon name="headphones" /></span>
                           <div className="font-semibold text-slate-100">{board.name}</div>
                         </div>
                         <div className="text-sm text-slate-500">
@@ -982,8 +982,8 @@ export default function Home() {
                 return (
                   <Panel key={game.id} className="flex items-center justify-between">
                     <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs"><Icon name="trend" /></span>
+                      <div className="flex items-start gap-1.5">
+                        <span className="mt-[0.3em] text-xs"><Icon name="trend" /></span>
                         <div className="font-semibold text-slate-100">{game.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">
@@ -1014,7 +1014,7 @@ export default function Home() {
         )}
 
         {timelineEnabled && timelineGames.length > 0 && (
-          <HomeSection id="timeline" inset="right" title="YOUR TIMELINE GAMES" count={timelineGames.length} forceOpen={searchQuery.trim() !== ''}>
+          <HomeSection id="timeline" title="YOUR TIMELINE GAMES" count={timelineGames.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleTimelineGames.length === 0 ? (
               <EmptyState icon="🔎">No timeline games match your search.</EmptyState>
             ) : (
@@ -1024,8 +1024,8 @@ export default function Home() {
                 return (
                   <Panel key={game.id} className="flex items-center justify-between">
                     <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs"><Icon name="clock" /></span>
+                      <div className="flex items-start gap-1.5">
+                        <span className="mt-[0.3em] text-xs"><Icon name="clock" /></span>
                         <div className="font-semibold text-slate-100">{game.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">

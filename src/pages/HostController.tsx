@@ -22,7 +22,7 @@ import {
 } from '../types'
 import { getGame, saveGame } from '../lib/storage/game-repository'
 import { createAudioSource, type AudioSource } from '../lib/audio'
-import { playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, playStreak, playEject, playSoundboard } from '../lib/sound-effects'
+import { playSqueak, playBuzzer, playBuzzIn, playCorrect, playWrong, playFanfare, playStreak, playEject, playSoundboard } from '../lib/sound-effects'
 import { EJECT_PHRASES, HALFTIME_PROMPTS, MONTH_NAMES, PENDING_GUESSES_KEY, SOUNDBOARD } from '../lib/host-content'
 import ShotClockDigit from '../components/ShotClockDigit'
 import ArtworkFill from '../components/ArtworkFill'
@@ -40,6 +40,9 @@ import { recordPossession } from '../lib/history'
 import { correctAnswer, isCorrectGuess } from '../lib/higher-lower'
 import { useReactions } from '../lib/use-reactions'
 import ReactionLayer from '../components/ReactionLayer'
+import { useStickers } from '../lib/use-stickers'
+import StickerLayer from '../components/StickerLayer'
+import { getStickersOn, setStickersOn } from '../lib/settings'
 import { computeAward, creditMultiplier, settleGuessPossession } from '../lib/awards'
 import { closestMatcher as closestMatcherFor, gradeGuesses, isExactMonth as isExactMonthGuess, isExactPosition as isExactPositionGuess, monthNumber } from '../lib/guess-grading'
 import { SCORING, TIMING, applyScoreDeltas, parseGuessNumber, rankMoves, ranksOf, settleStreaks } from '../lib/scoring'
@@ -99,6 +102,8 @@ export default function HostController({ gameId }: { gameId: string }) {
   const soundboardEnabled = useFeatureFlag('soundboard')
   const reactionsEnabled = useFeatureFlag('reactions')
   const { reactions, push: pushReaction } = useReactions()
+  const { stickers, push: pushSticker } = useStickers()
+  const [stickersOn, setStickersOnState] = useState(() => getStickersOn())
   const [toolsOpen, setToolsOpen] = useState(readToolsOpen)
   const toggleTools = () => {
     const next = !toolsOpen
@@ -221,6 +226,10 @@ export default function HostController({ gameId }: { gameId: string }) {
   const wantOpenRef = useRef<string[] | null>(null)
   const reactionsEnabledRef = useRef(false)
   reactionsEnabledRef.current = reactionsEnabled
+  const stickersOnRef = useRef(false)
+  stickersOnRef.current = reactionsEnabled && stickersOn
+  const teamsRef = useRef(game?.teams ?? [])
+  teamsRef.current = game?.teams ?? []
   const startScoresRef = useRef<Record<string, number>>({})
   // Teams the keyboard buzz-in path has marked wrong for the current clue — a client-side
   // mirror of BuzzerRoom's `iced` set (see buzzer-room.js) for when there's no phone
@@ -412,6 +421,15 @@ export default function HostController({ gameId }: { gameId: string }) {
         if (!reactionsEnabledRef.current) return
         pushReaction(msg.emoji, msg.name)
         channelRef.current?.postMessage({ type: 'reaction', emoji: msg.emoji, name: msg.name } satisfies PresentationMessage)
+      } else if (msg.type === 'sticker') {
+        if (!stickersOnRef.current) return
+        const team = teamsRef.current.find((t) => t.id === msg.teamId)
+        if (!team) return
+        const targetName = msg.targetTeamId ? teamsRef.current.find((t) => t.id === msg.targetTeamId)?.name : undefined
+        const sticker = { sticker: msg.sticker, name: msg.name, teamName: team.name, color: team.color, targetName }
+        pushSticker(sticker)
+        playSqueak()
+        channelRef.current?.postMessage({ type: 'sticker', ...sticker } satisfies PresentationMessage)
       } else if (msg.type === 'guess') {
         if (isGuess) {
           // No buzzWinner exists for these modes' own guess — anyone connected can submit,
@@ -612,6 +630,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         theme: currentThemeVarsForGuests(),
         suddenDeath: game.suddenDeath ? true : undefined,
         reactions: reactionsEnabled || undefined,
+        stickers: (reactionsEnabled && stickersOn) || undefined,
         higherLower:
           isHL && round?.higherLower && (phase === 'clue' || phase === 'revealed')
             ? {
@@ -1730,6 +1749,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       </div>
 
       {reactionsEnabled && <ReactionLayer reactions={reactions} />}
+      {reactionsEnabled && stickersOn && <StickerLayer stickers={stickers} />}
 
       {timerPaused && (
         <div role="status" className="fixed left-1/2 top-3 z-30 -translate-x-1/2 rounded-full bg-scoreboard-amber px-4 py-1.5 text-xs font-semibold text-arena-950 shadow-lg">
@@ -2559,7 +2579,14 @@ export default function HostController({ gameId }: { gameId: string }) {
       )}
 
       {buzzerPanelOpen && game.buzzerRoomCode && (
-        <BuzzerPanel code={game.buzzerRoomCode} teams={game.teams} roster={buzzRoster} iced={buzzIced} onClose={() => setBuzzerPanelOpen(false)} />
+        <BuzzerPanel
+          code={game.buzzerRoomCode}
+          teams={game.teams}
+          roster={buzzRoster}
+          iced={buzzIced}
+          onClose={() => setBuzzerPanelOpen(false)}
+          stickers={reactionsEnabled ? { on: stickersOn, onChange: (on) => { setStickersOn(on); setStickersOnState(on) } } : undefined}
+        />
       )}
     </div>
   )

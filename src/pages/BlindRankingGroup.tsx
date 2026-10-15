@@ -413,8 +413,8 @@ export default function BlindRankingGroup() {
 
         {stage === 'playing' && current && (
           // Stays put while the slot list scrolls, so the song being placed is always in view.
-          <div className="sticky top-0 z-10 -mx-4 mb-4 border-b border-arena-700 bg-arena-950/90 px-4 pb-3 pt-2 backdrop-blur sm:-mx-6 sm:px-6">
-            <Panel padding="sm" className="ticket flex flex-wrap items-center gap-4 px-6">
+          <div className="sticky top-0 z-10 mb-4 pb-3 pt-2">
+            <Panel padding="sm" className="ticket flex flex-wrap items-center gap-4 !bg-arena-800 px-6">
               <div key={current.id} className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-arena-800 animate-pop-in sm:h-24 sm:w-24">
                 {current.artworkUrl ? <img src={current.artworkUrl} alt="" className="h-full w-full object-cover" /> : <ArtPlaceholder seed={`${current.title} ${current.artist ?? ''}`} />}
               </div>
@@ -537,7 +537,7 @@ export default function BlindRankingGroup() {
                         }}
                         aria-label={song ? `Slot ${slot + 1}: ${song.title}` : `Slot ${slot + 1}, empty`}
                         aria-pressed={clickable ? isSelected : undefined}
-                        className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border-2 py-2 pl-14 pr-3 text-left transition ${
+                        className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border-2 py-2 pl-[4.25rem] pr-3 text-left transition ${
                           fresh
                             ? 'animate-pop-in border-hardwood-400 bg-hardwood-500/20'
                             : isSelected
@@ -551,7 +551,7 @@ export default function BlindRankingGroup() {
                       >
                         <span
                           aria-hidden
-                          className={`jersey-num pointer-events-none absolute -bottom-2 left-1 select-none text-[3.6rem] ${empty ? 'text-hardwood-500/40' : 'text-hardwood-400'}`}
+                          className={`jersey-num pointer-events-none absolute -bottom-3 left-2 select-none text-[3rem] ${empty ? 'text-hardwood-500/40' : 'text-hardwood-400'}`}
                         >
                           {slot + 1}
                         </span>

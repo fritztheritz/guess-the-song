@@ -3,6 +3,8 @@ import BuzzerBeaterBanner from '../components/BuzzerBeaterBanner'
 import { useWakeLock } from '../lib/use-wake-lock'
 import { useReactions } from '../lib/use-reactions'
 import ReactionLayer from '../components/ReactionLayer'
+import { useStickers } from '../lib/use-stickers'
+import StickerLayer from '../components/StickerLayer'
 import { isHigherLowerMode, isLyricMode, isTierGuessMode, isYearMode, LYRIC_HINT_LABELS, type SongRound } from '../types'
 import { correctAnswer } from '../lib/higher-lower'
 import { getGame } from '../lib/storage/game-repository'
@@ -45,6 +47,7 @@ function readStoredBigScreen(): boolean {
 export default function PublicDisplay({ gameId }: { gameId: string }) {
   useWakeLock(true)
   const { reactions, push: pushReaction } = useReactions()
+  const { stickers, push: pushSticker } = useStickers()
   const [game, setGame] = useStoredEntity(gameId, getGame)
   const [snapshot, setSnapshot] = useState<PresentationSnapshot | null>(null)
   const [tickedRemaining, setRemaining] = useState(0)
@@ -79,11 +82,12 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
     channel.onmessage = (e: MessageEvent<PresentationMessage>) => {
       if (e.data?.type === 'state') setSnapshot(e.data.snapshot)
       else if (e.data?.type === 'reaction') pushReaction(e.data.emoji, e.data.name)
+      else if (e.data?.type === 'sticker') pushSticker({ sticker: e.data.sticker, name: e.data.name, teamName: e.data.teamName, color: e.data.color, targetName: e.data.targetName })
     }
     const message: PresentationMessage = { type: 'request-sync' }
     channel.postMessage(message)
     return () => channel.close()
-  }, [gameId, pushReaction])
+  }, [gameId, pushReaction, pushSticker])
 
   // Local shot-clock countdown derived from the controller's play-start broadcast, rather
   // than syncing every 100ms tick over the wire.
@@ -137,6 +141,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
   return (
     <div className="fixed inset-0 overflow-hidden bg-arena-950">
       <ReactionLayer reactions={reactions} />
+      <StickerLayer stickers={stickers} />
       <div
         className="flex h-screen w-screen flex-col court-lines text-white"
         style={bigScreen ? { transform: `scale(${BIG_SCREEN_FACTOR})` } : undefined}
