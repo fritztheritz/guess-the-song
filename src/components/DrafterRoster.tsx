@@ -1,5 +1,6 @@
 import type { DraftPoolSong, Drafter } from '../types/draft'
 import Panel from './ui/Panel'
+import { Icon } from './Icon'
 
 export default function DrafterRoster({
   drafter,
@@ -39,7 +40,7 @@ export default function DrafterRoster({
         {drafter.soundcloudPlaylistUrl ? (
           <div className="flex shrink-0 items-center gap-1.5">
             <a href={drafter.soundcloudPlaylistUrl} target="_blank" rel="noreferrer" className="text-xs text-[#ff7733] hover:text-[#ff5500]">
-              🎵 Playlist ↗
+              <Icon name="note" /> Playlist ↗
             </a>
             {onResetPlaylist && (
               <button onClick={onResetPlaylist} aria-label="Reset playlist link" title="Reset playlist link" className="text-xs text-slate-500 hover:text-slate-300">
@@ -55,7 +56,7 @@ export default function DrafterRoster({
               title={createDisabledReason}
               className="shrink-0 text-xs text-slate-400 enabled:hover:text-[#ff7733] disabled:cursor-not-allowed disabled:opacity-40"
             >
-              🎵 Create
+              <Icon name="note" /> Create
             </button>
           )
         )}

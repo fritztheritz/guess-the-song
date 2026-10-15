@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Icon } from './Icon'
 import type { PhoneRoundState } from '../lib/buzzer/protocol'
 import { playerKey } from '../lib/blind-rank'
 import { PhoneBanner, PhoneSongCard } from './PhoneParts'
 import { tileClass } from './phone-tiles'
+import { withIcons } from '../lib/with-icons'
 
 type Blind = NonNullable<PhoneRoundState['blind']>
 
@@ -45,7 +47,7 @@ export default function BlindSuggestPicker({
     const stat = group.stats?.find((s) => playerKey(s.name) === playerKey(myName))
     return (
       <div className="w-full max-w-xs">
-        <PhoneBanner tone="accent" title="🙈 ALL PLACED">
+        <PhoneBanner tone="accent" title={withIcons("🙈 ALL PLACED")}>
           {stat ? (
             <>
               You matched the group exactly on <span className="font-semibold text-white">{stat.exact}</span> of {stat.answered} songs — off by {stat.avgOff.toFixed(1)} slots on average.
@@ -79,7 +81,7 @@ export default function BlindSuggestPicker({
       <PhoneSongCard title={blind.song.title} artist={blind.song.artist} artworkUrl={blind.song.artworkUrl} />
 
       {placed !== undefined ? (
-        <PhoneBanner title={`🔒 THE GROUP PUT IT AT #${placed}`}>
+        <PhoneBanner title={<><Icon name="lock" /> THE GROUP PUT IT AT #{placed}</>}>
           {suggestion === undefined ? "You didn't suggest a slot." : suggestion === placed ? `You said #${suggestion} — spot on!` : `You said #${suggestion}.`}
         </PhoneBanner>
       ) : (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { parseDraftResultsShareData, DraftShareLinkError, type ShareableDraftResults } from '../lib/draft-share'
+import { withIcons } from '../lib/with-icons'
 
 // Public, no-auth, param-driven — same idea as ImportGame.tsx, but this page only ever reads
 // what's already embedded in the URL and never touches localStorage, since a viewer opening
@@ -56,7 +57,7 @@ export default function SharedDraftResults() {
             <div key={i} className="rounded-xl border border-arena-600 bg-arena-800/70 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 font-display text-lg" style={{ color: standing.color }}>
-                  {i === 0 ? '🏆 ' : ''}
+                  {i === 0 ? withIcons('🏆 ') : ''}
                   {standing.avatar ? `${standing.avatar} ` : ''}
                   {standing.name}
                 </div>

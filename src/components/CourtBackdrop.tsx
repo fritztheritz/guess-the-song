@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 
 // The page background is a half-court floor plan, drawn once and fixed behind every screen. Each route
@@ -33,6 +34,12 @@ function cropFor(pathname: string): Crop {
 export default function CourtBackdrop() {
   const { pathname } = useLocation()
   const { x, y, zoom } = cropFor(pathname)
+  // The player's phone page gets a ball for a mouse pointer (only visible with a mouse — touch has no cursor).
+  useEffect(() => {
+    const on = pathname.split('/')[1] === 'buzz'
+    document.documentElement.classList.toggle('cursor-ball', on)
+    return () => document.documentElement.classList.remove('cursor-ball')
+  }, [pathname])
   // viewBox is 1000 × 940; the group is scaled about the origin so (x, y) lands on the centre.
   const transform = `translate(${500 - zoom * x}px, ${470 - zoom * y}px) scale(${zoom})`
   return (

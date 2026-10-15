@@ -56,6 +56,9 @@ import SoundCloudAttribution from '../components/SoundCloudAttribution'
 import SoundCloudConnectPanel from '../components/SoundCloudConnectPanel'
 import SpotifyConnectPanel from '../components/SpotifyConnectPanel'
 import Panel from '../components/ui/Panel'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
+import HeroBall from '../components/HeroBall'
 
 function describeBackupContents(contents: BackupContents): string[] {
   const label = (count: number, singular: string, plural = `${singular}s`) =>
@@ -483,61 +486,65 @@ export default function Home() {
   }
 
   return (
-    <div className="relative min-h-svh court-lines">
-      <div className="mx-auto max-w-5xl px-6 py-16">
+    <div className="relative min-h-svh overflow-x-clip court-lines">
+      <div className="home-sections mx-auto max-w-6xl px-6 py-12">
         {themesEnabled && (
           <button
             onClick={() => setThemePickerOpen(true)}
             className="absolute right-4 top-4 rounded-full border border-arena-600 bg-black/30 px-3 py-1.5 text-sm text-slate-300 hover:border-hardwood-500"
           >
-            🎨 Theme
+            <Icon name="palette" /> Theme
           </button>
         )}
         {themePickerOpen && <ThemePicker onClose={() => setThemePickerOpen(false)} />}
-        <div className="text-center">
-          <div className="mb-3 text-5xl">🏀</div>
-          <h1 className="font-display text-6xl tracking-wide text-white">BUZZER BEATS</h1>
-          <p className="mt-2 text-slate-400">A basketball-themed party trivia game — songs, lyrics, years, and rankings.</p>
-
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <ButtonLink to="/new" variant="primary" size="lg" className="px-10 shadow-lg shadow-hardwood-500/20">
+        <header className="relative pb-4 pt-6 sm:pt-10">
+          <HeroBall className="pointer-events-auto absolute -right-24 -top-10 z-0 w-[14rem] rotate-[14deg] opacity-90 sm:-right-24 sm:-top-14 sm:w-[24rem] lg:-right-16 lg:-top-20 lg:w-[30rem]" />
+          <div className="relative z-10 max-w-3xl">
+            <h1 className="font-display text-[5.6rem] leading-[0.82] tracking-tight text-white [text-shadow:4px_4px_0_rgb(0_0_0/0.45)] sm:text-[9rem]">
+              <span className="block">BUZZER</span>{' '}
+              <span className="ml-8 inline-block -rotate-2 bg-hardwood-500 px-3 pb-1 pt-2 text-arena-950 [text-shadow:none] shadow-[5px_5px_0_0_rgb(0_0_0/0.5)] sm:ml-24">BEATS</span>
+            </h1>
+            <p className="mt-6 max-w-md text-lg leading-snug text-slate-300">A basketball-themed party trivia game — songs, lyrics, years, and rankings.</p>
+          </div>
+          <div className="relative z-10 mt-8 flex flex-wrap items-center gap-x-3 gap-y-4 [&>:nth-child(even)]:rotate-[0.8deg] [&>:nth-child(odd)]:-rotate-[0.6deg]">
+            <ButtonLink to="/new" variant="primary" size="lg" className="px-8">
               + CREATE GAME
             </ButtonLink>
-            <ButtonLink to="/quick" size="lg" className="px-10">
-              ⚡ QUICK GAME
+            <ButtonLink to="/quick" size="lg" className="px-8">
+              <Icon name="bolt" /> QUICK GAME
             </ButtonLink>
             {tierListsEnabled && (
-              <ButtonLink to="/tierlists/new" size="lg" className="px-10">
+              <ButtonLink to="/tierlists/new" size="lg" className="px-8">
                 + CREATE TIER LIST
               </ButtonLink>
             )}
             {tournamentsEnabled && (
-              <ButtonLink to="/tournaments/new" size="lg" className="px-10">
+              <ButtonLink to="/tournaments/new" size="lg" className="px-8">
                 + CREATE TOURNAMENT
               </ButtonLink>
             )}
             {draftEnabled && (
-              <ButtonLink to="/drafts/new" size="lg" className="px-10">
+              <ButtonLink to="/drafts/new" size="lg" className="px-8">
                 + CREATE DRAFT
               </ButtonLink>
             )}
             {popularityEnabled && (
-              <ButtonLink to="/popularity/new" size="lg" className="px-10">
+              <ButtonLink to="/popularity/new" size="lg" className="px-8">
                 + GUESS THE POPULARITY
               </ButtonLink>
             )}
             {timelineEnabled && (
-              <ButtonLink to="/timeline/new" size="lg" className="px-10">
+              <ButtonLink to="/timeline/new" size="lg" className="px-8">
                 + GUESS THE TIMELINE
               </ButtonLink>
             )}
             {seasonsEnabled && (
-              <ButtonLink to="/seasons/new" size="lg" className="px-10">
+              <ButtonLink to="/seasons/new" size="lg" className="px-8">
                 + CREATE SEASON
               </ButtonLink>
             )}
           </div>
-        </div>
+        </header>
 
         {games.length === 0 && (
           <div className="mx-auto mt-12 max-w-lg space-y-4">
@@ -549,13 +556,14 @@ export default function Home() {
           </div>
         )}
 
+        <div className="mt-12 grid gap-6 md:grid-cols-2 md:items-end">
         {resumeItem && (
-          <div className="mx-auto mt-12 max-w-md">
+          <div className="max-w-md">
             <Link
               to={resumeItem.to}
               className="flex items-center gap-3 rounded-xl border border-hardwood-500/40 bg-hardwood-500/10 px-4 py-3 hover:border-hardwood-500"
             >
-              <span className="text-2xl">{resumeItem.icon}</span>
+              <span className="text-2xl">{withIcons(resumeItem.icon)}</span>
               <div className="min-w-0 flex-1">
                 <div className="marker -rotate-1 text-base text-pop-400">Continue where you left off</div>
                 <div className="truncate font-semibold text-slate-100">{resumeItem.name}</div>
@@ -566,9 +574,9 @@ export default function Home() {
         )}
 
         {hasAnyContent && (
-          <div className="mx-auto mt-12 max-w-md">
+          <div className="w-full max-w-sm md:col-start-2 md:justify-self-end">
             <div className="relative">
-              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
+              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"><Icon name="search" /></span>
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -581,25 +589,26 @@ export default function Home() {
                   aria-label="Clear search"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
                 >
-                  ✕
+                  <Icon name="x" />
                 </button>
               )}
             </div>
           </div>
         )}
+        </div>
 
         {recentFinished.length > 0 && searchQuery.trim() === '' && (
-          <div className="mx-auto mt-10 max-w-3xl">
+          <div className="mt-10">
             <div className="marker mb-2 -rotate-1 text-base text-slate-400">Recently finished</div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {recentFinished.map((game) => (
                 <Link
                   key={game.id}
                   to={`/games/${game.id}/present`}
-                  className="rounded-xl border border-arena-600 bg-arena-800/60 px-3 py-2 hover:border-hardwood-500"
+                  className="rounded-xl border-2 border-arena-600 bg-arena-800/70 px-3 py-2 shadow-lg transition-transform odd:-rotate-1 even:rotate-1 hover:rotate-0 hover:border-hardwood-500"
                 >
                   <div className="truncate text-sm font-semibold text-slate-100">{game.name}</div>
-                  <div className="truncate text-xs text-scoreboard-green">{gameStatus(game).text}</div>
+                  <div className="truncate text-xs text-scoreboard-green">{withIcons(gameStatus(game).text)}</div>
                   <div className="text-[11px] text-slate-500">{timeAgo(game.updatedAt)}</div>
                 </Link>
               ))}
@@ -608,7 +617,7 @@ export default function Home() {
         )}
 
         {allTags.length > 0 && (
-          <div className="mx-auto mt-12 flex max-w-2xl flex-wrap items-center justify-center gap-2">
+          <div className="mt-10 flex flex-wrap items-center gap-2">
             <span className="text-xs uppercase tracking-widest text-slate-500">Tags</span>
             {allTags.map((tag) => (
               <button
@@ -632,12 +641,12 @@ export default function Home() {
         )}
 
         {jumpSections.length >= 3 && searchQuery.trim() === '' && (
-          <nav aria-label="Jump to a section" className="mx-auto mt-10 flex max-w-3xl flex-wrap items-center justify-center gap-2">
+          <nav aria-label="Jump to a section" className="mt-8 flex flex-wrap items-center gap-2">
             {jumpSections.map((sec) => (
               <button
                 key={sec.id}
                 onClick={() => window.dispatchEvent(new CustomEvent(HOME_JUMP_EVENT, { detail: sec.id }))}
-                className="rounded-full border border-arena-600 px-3 py-1 text-xs font-medium text-slate-300 hover:border-hardwood-500 hover:text-white"
+                className="rounded-full border border-arena-600 px-3 py-1 text-xs font-medium text-slate-300 odd:-rotate-1 even:rotate-1 hover:rotate-0 hover:border-hardwood-500 hover:text-white"
               >
                 {sec.label} <span className="text-slate-500">{sec.count}</span>
               </button>
@@ -660,7 +669,7 @@ export default function Home() {
                       <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-2xl text-arena-500">
-                        {rulesFor(game.mode).icon}
+                        {withIcons(rulesFor(game.mode).icon)}
                       </div>
                     )}
                   </div>
@@ -675,7 +684,7 @@ export default function Home() {
                         gameStatus(game).tone === 'live' ? 'text-hardwood-400' : gameStatus(game).tone === 'done' ? 'text-scoreboard-green' : 'text-slate-500'
                       }`}
                     >
-                      {gameStatus(game).text} · {timeAgo(game.updatedAt)}
+                      {withIcons(gameStatus(game).text)} · {timeAgo(game.updatedAt)}
                     </div>
                     {game.tags && game.tags.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
@@ -708,7 +717,7 @@ export default function Home() {
                       ⧉
                     </button>
                     <button onClick={() => handleDelete(game.id)} className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500" aria-label="Delete game">
-                      ✕
+                      <Icon name="x" />
                     </button>
                   </div>
                   </div>
@@ -721,7 +730,7 @@ export default function Home() {
         )}
 
         {tierListsEnabled && tierLists.length > 0 && (
-          <HomeSection id="tierlists" title="YOUR TIER LISTS" count={tierLists.length} forceOpen={searchQuery.trim() !== ''}>
+          <HomeSection id="tierlists" inset="left" title="YOUR TIER LISTS" count={tierLists.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleTierLists.length === 0 ? (
               <EmptyState icon="🔎">No tier lists match your search or filters.</EmptyState>
             ) : (
@@ -732,7 +741,7 @@ export default function Home() {
                   <Panel key={list.id} className="flex items-center justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs">🏆</span>
+                        <span className="text-xs"><Icon name="trophy" /></span>
                         <div className="font-semibold text-slate-100">{list.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">
@@ -740,7 +749,7 @@ export default function Home() {
                         {list.songs.length === 0
                           ? 'no songs yet'
                           : ranked === list.songs.length
-                            ? '✓ fully ranked'
+                            ? withIcons('✓ fully ranked')
                             : `${ranked} of ${list.songs.length} ranked`}{' '}
                         · {timeAgo(list.updatedAt)}
                       </div>
@@ -788,7 +797,7 @@ export default function Home() {
                         className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
                         aria-label="Delete tier list"
                       >
-                        ✕
+                        <Icon name="x" />
                       </button>
                     </div>
                   </Panel>
@@ -800,7 +809,7 @@ export default function Home() {
         )}
 
         {tournamentsEnabled && tournaments.length > 0 && (
-          <HomeSection id="tournaments" title="YOUR TOURNAMENTS" count={tournaments.length} forceOpen={searchQuery.trim() !== ''}>
+          <HomeSection id="tournaments" inset="right" title="YOUR TOURNAMENTS" count={tournaments.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleTournaments.length === 0 ? (
               <EmptyState icon="🔎">No tournaments match your search or filters.</EmptyState>
             ) : (
@@ -809,7 +818,7 @@ export default function Home() {
                   <Panel key={tournament.id} className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs">🏆</span>
+                        <span className="text-xs"><Icon name="trophy" /></span>
                         <div className="font-semibold text-slate-100">{tournament.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">
@@ -845,7 +854,7 @@ export default function Home() {
                         className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
                         aria-label="Delete tournament"
                       >
-                        ✕
+                        <Icon name="x" />
                       </button>
                     </div>
                   </Panel>
@@ -856,7 +865,7 @@ export default function Home() {
         )}
 
         {seasonsEnabled && seasons.length > 0 && (
-          <HomeSection id="seasons" title="YOUR SEASONS" count={seasons.length} forceOpen={searchQuery.trim() !== ''}>
+          <HomeSection id="seasons" inset="left" title="YOUR SEASONS" count={seasons.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleSeasons.length === 0 ? (
               <EmptyState icon="🔎">No seasons match your search.</EmptyState>
             ) : (
@@ -865,7 +874,7 @@ export default function Home() {
                   <Panel key={season.id} className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs">📅</span>
+                        <span className="text-xs"><Icon name="calendar" /></span>
                         <div className="font-semibold text-slate-100">{season.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">
@@ -892,7 +901,7 @@ export default function Home() {
                         className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
                         aria-label="Delete season"
                       >
-                        ✕
+                        <Icon name="x" />
                       </button>
                     </div>
                   </Panel>
@@ -903,7 +912,7 @@ export default function Home() {
         )}
 
         {draftEnabled && draftBoards.length > 0 && (
-          <HomeSection id="drafts" title="YOUR DRAFTS" count={draftBoards.length} forceOpen={searchQuery.trim() !== ''}>
+          <HomeSection id="drafts" inset="right" title="YOUR DRAFTS" count={draftBoards.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleDraftBoards.length === 0 ? (
               <EmptyState icon="🔎">No drafts match your search or filters.</EmptyState>
             ) : (
@@ -914,7 +923,7 @@ export default function Home() {
                     <Panel key={board.id} className="flex items-center justify-between">
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs">🎧</span>
+                          <span className="text-xs"><Icon name="headphones" /></span>
                           <div className="font-semibold text-slate-100">{board.name}</div>
                         </div>
                         <div className="text-sm text-slate-500">
@@ -951,7 +960,7 @@ export default function Home() {
                           className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
                           aria-label="Delete draft"
                         >
-                          ✕
+                          <Icon name="x" />
                         </button>
                       </div>
                     </Panel>
@@ -963,7 +972,7 @@ export default function Home() {
         )}
 
         {popularityEnabled && popularityGames.length > 0 && (
-          <HomeSection id="popularity" title="YOUR POPULARITY GAMES" count={popularityGames.length} forceOpen={searchQuery.trim() !== ''}>
+          <HomeSection id="popularity" inset="left" title="YOUR POPULARITY GAMES" count={popularityGames.length} forceOpen={searchQuery.trim() !== ''}>
             {visiblePopularityGames.length === 0 ? (
               <EmptyState icon="🔎">No popularity games match your search.</EmptyState>
             ) : (
@@ -974,7 +983,7 @@ export default function Home() {
                   <Panel key={game.id} className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs">📈</span>
+                        <span className="text-xs"><Icon name="trend" /></span>
                         <div className="font-semibold text-slate-100">{game.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">
@@ -993,7 +1002,7 @@ export default function Home() {
                         className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
                         aria-label="Delete game"
                       >
-                        ✕
+                        <Icon name="x" />
                       </button>
                     </div>
                   </Panel>
@@ -1005,7 +1014,7 @@ export default function Home() {
         )}
 
         {timelineEnabled && timelineGames.length > 0 && (
-          <HomeSection id="timeline" title="YOUR TIMELINE GAMES" count={timelineGames.length} forceOpen={searchQuery.trim() !== ''}>
+          <HomeSection id="timeline" inset="right" title="YOUR TIMELINE GAMES" count={timelineGames.length} forceOpen={searchQuery.trim() !== ''}>
             {visibleTimelineGames.length === 0 ? (
               <EmptyState icon="🔎">No timeline games match your search.</EmptyState>
             ) : (
@@ -1016,7 +1025,7 @@ export default function Home() {
                   <Panel key={game.id} className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <span className="text-xs">🕰️</span>
+                        <span className="text-xs"><Icon name="clock" /></span>
                         <div className="font-semibold text-slate-100">{game.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">
@@ -1035,7 +1044,7 @@ export default function Home() {
                         className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
                         aria-label="Delete game"
                       >
-                        ✕
+                        <Icon name="x" />
                       </button>
                     </div>
                   </Panel>
@@ -1063,7 +1072,7 @@ export default function Home() {
             <div className="mx-auto mt-4 max-w-md rounded-xl border border-arena-700 bg-arena-900/40 p-4 text-left">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <div className="text-sm font-semibold text-slate-200">☁️ Cloud backup</div>
+                  <div className="text-sm font-semibold text-slate-200"><Icon name="cloud" /> Cloud backup</div>
                   <div className="text-xs text-slate-500">
                     {cloud ? `Last backed up ${timeAgo(cloud.at)}.` : 'Keep a copy online and restore it on any device with a code.'}
                   </div>

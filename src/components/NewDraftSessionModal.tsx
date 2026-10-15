@@ -7,6 +7,7 @@ import DraftOrderWheel from './DraftOrderWheel'
 import ModalShell from './ui/ModalShell'
 import TextInput from './ui/TextInput'
 import Button from './ui/Button'
+import { Icon } from './Icon'
 
 const MIN_DRAFTERS = 2
 const MAX_DRAFTERS = 8
@@ -137,7 +138,7 @@ export default function NewDraftSessionModal({
                   className="rounded-full border border-arena-600 px-2.5 py-1 text-xs text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
                   title="Give everyone a random name and mascot"
                 >
-                  🎲 Names
+                  <Icon name="dice" /> Names
                 </button>
                 <button
                   type="button"
@@ -145,7 +146,7 @@ export default function NewDraftSessionModal({
                   className="rounded-full border border-arena-600 px-2.5 py-1 text-xs text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
                   title="Spin the wheel for pick order"
                 >
-                  🎡 Order
+                  <Icon name="wheel" /> Order
                 </button>
               </div>
             </div>
@@ -191,7 +192,7 @@ export default function NewDraftSessionModal({
                       aria-label="Fill from a saved team"
                       className="shrink-0 rounded-lg border border-arena-600 px-2 py-1.5 text-sm text-slate-400 hover:border-hardwood-500 hover:text-hardwood-400"
                     >
-                      ★
+                      <Icon name="star-solid" />
                     </button>
                   )}
                   {drafters.length > MIN_DRAFTERS && (
@@ -201,7 +202,7 @@ export default function NewDraftSessionModal({
                       aria-label={`Remove ${drafter.name}`}
                       className="shrink-0 rounded-lg px-2 py-1 text-slate-500 hover:text-scoreboard-500"
                     >
-                      ✕
+                      <Icon name="x" />
                     </button>
                   )}
                   {stylePickerIndex === i && (

@@ -1,4 +1,5 @@
 import type { DraftPoolSong, Drafter } from '../types/draft'
+import ArtPlaceholder from './ArtPlaceholder'
 
 interface Props {
   /** The track currently playing, if any. */
@@ -20,7 +21,7 @@ export default function NowPlayingBar({ song, drafter, index, total, onPrev, onN
   return (
     <div role="region" aria-label="Now playing" className="sticky bottom-3 z-20 flex items-center gap-3 rounded-xl border border-hardwood-500 bg-arena-900/95 px-4 py-3 shadow-2xl shadow-black/60 backdrop-blur">
       <div className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-arena-700">
-        {song.artworkUrl ? <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-arena-500">♪</div>}
+        {song.artworkUrl ? <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" /> : <ArtPlaceholder seed={`${song.title} ${song.artist ?? ''}`} />}
       </div>
       <div className="min-w-0 flex-1">
         <div className="text-[10px] uppercase tracking-[0.3em] text-hardwood-400">

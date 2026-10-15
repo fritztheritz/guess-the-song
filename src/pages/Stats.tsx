@@ -18,6 +18,8 @@ import AwardsPanel from '../components/AwardsPanel'
 import { aggregatePlayers, computeAwards } from '../lib/achievements'
 import PlayerLeaderboard from '../components/PlayerLeaderboard'
 import { useFeatureFlag } from '../state/feature-flags-context'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
 
 function StatTile({ label, value }: { label: string; value: number }) {
   return (
@@ -100,12 +102,12 @@ export default function Stats() {
           </EmptyState>
         ) : (
           <div className="space-y-8">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-[1.7fr_1fr_1fr] gap-3">
               <StatTile label="Games played" value={totalCompleted} />
               <StatTile label="Possessions" value={totalPossessions} />
               <StatTile label="Teams tracked" value={standings.length} />
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-[1fr_1fr_1.7fr] gap-3">
               <StatTile label="Quiz games" value={completed.length} />
               <StatTile label="Popularity games" value={completedPopularity.length} />
               <StatTile label="Timeline games" value={completedTimeline.length} />
@@ -123,7 +125,7 @@ export default function Stats() {
                       style={{ width: `${Math.max(3, (s.totalScore / Math.max(1, standings[0].totalScore)) * 100)}%`, background: s.color }}
                     />
                     <span className="relative font-medium" style={{ color: s.color }}>
-                      {i === 0 ? '🏆 ' : ''}
+                      {i === 0 ? withIcons('🏆 ') : ''}
                       {s.name}
                       <span className="ml-2 text-xs text-slate-500">
                         {s.gamesPlayed} game{s.gamesPlayed === 1 ? '' : 's'}
@@ -136,10 +138,18 @@ export default function Stats() {
             </section>
 
             <ScoreTrend games={recentGames} />
-            <WinRateChart rows={winRates} />
-            <ActivityStrip weeks={activity} />
+            <div className="sm:mr-16">
+              <WinRateChart rows={winRates} />
+            </div>
+            <div className="sm:ml-16">
+              <ActivityStrip weeks={activity} />
+            </div>
 
-            {achievementsEnabled && <AwardsPanel awards={awards} title="ALL-TIME AWARDS" />}
+            {achievementsEnabled && (
+              <div className="sm:mr-8">
+                <AwardsPanel awards={awards} title="ALL-TIME AWARDS" />
+              </div>
+            )}
             {achievementsEnabled && <PlayerLeaderboard players={players} />}
 
             {(biggestScore || fastestBuzz || longestStreak) && (
@@ -148,7 +158,7 @@ export default function Stats() {
                 <div className="space-y-2">
                   {biggestScore && (
                     <Panel padding="sm" className="flex items-center justify-between gap-3">
-                      <span className="shrink-0 text-sm text-slate-400">⚡ Biggest single score</span>
+                      <span className="shrink-0 text-sm text-slate-400"><Icon name="bolt" /> Biggest single score</span>
                       <span className="truncate text-right text-sm text-slate-200">
                         +{biggestScore.points} — {biggestScore.teamName} on "{biggestScore.roundTitle}" ({biggestScore.gameName})
                       </span>
@@ -156,7 +166,7 @@ export default function Stats() {
                   )}
                   {fastestBuzz && (
                     <Panel padding="sm" className="flex items-center justify-between gap-3">
-                      <span className="shrink-0 text-sm text-slate-400">🔔 Fastest buzz</span>
+                      <span className="shrink-0 text-sm text-slate-400"><Icon name="bell" /> Fastest buzz</span>
                       <span className="truncate text-right text-sm text-slate-200">
                         {(fastestBuzz.ms / 1000).toFixed(2)}s — {fastestBuzz.name} ({fastestBuzz.teamName}) in {fastestBuzz.gameName}
                       </span>
@@ -164,7 +174,7 @@ export default function Stats() {
                   )}
                   {longestStreak && (
                     <Panel padding="sm" className="flex items-center justify-between gap-3">
-                      <span className="shrink-0 text-sm text-slate-400">🔥 Longest streak</span>
+                      <span className="shrink-0 text-sm text-slate-400"><Icon name="flame" /> Longest streak</span>
                       <span className="truncate text-right text-sm text-slate-200">
                         {longestStreak.count} in a row — {longestStreak.teamName} in {longestStreak.gameName}
                       </span>

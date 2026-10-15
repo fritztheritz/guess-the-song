@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Icon } from './Icon'
 
 interface Props {
   open: boolean
@@ -19,7 +20,7 @@ export default function HostTools({ open, onToggle, summary, children }: Props) 
         aria-expanded={open}
         className="flex w-full items-center justify-between gap-3 px-4 py-2 text-xs uppercase tracking-widest text-slate-400 hover:text-slate-200"
       >
-        <span>🧰 Host tools{summary ? <span className="ml-2 normal-case tracking-normal text-scoreboard-amber">{summary}</span> : null}</span>
+        <span><Icon name="toolbox" /> Host tools{summary ? <span className="ml-2 normal-case tracking-normal text-scoreboard-amber">{summary}</span> : null}</span>
         <span aria-hidden>{open ? '▾' : '▸'}</span>
       </button>
       {open && <div className="space-y-3 border-t border-arena-700 px-3 py-3">{children}</div>}

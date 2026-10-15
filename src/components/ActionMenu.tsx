@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { Icon } from './Icon'
+import { withIcons } from '../lib/with-icons'
 
 export interface MenuItem {
   key: string
@@ -75,7 +77,7 @@ export default function ActionMenu({ label, items, className = '' }: { label: Re
                 onClick={() => setOpen(false)}
                 className={itemClass}
               >
-                {item.label}
+                {withIcons(item.label)}
               </Link>
             ) : (
               <button
@@ -90,8 +92,8 @@ export default function ActionMenu({ label, items, className = '' }: { label: Re
                 }}
                 className={itemClass}
               >
-                {item.label}
-                {item.checked && <span aria-hidden>✓</span>}
+                {withIcons(item.label)}
+                {item.checked && <span aria-hidden><Icon name="check" /></span>}
               </button>
             ),
           )}

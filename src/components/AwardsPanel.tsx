@@ -1,6 +1,7 @@
 import type { Award } from '../lib/achievements'
 import Panel from './ui/Panel'
 
+import { withIcons } from '../lib/with-icons'
 // One card per award — the team's own color on the title so it reads at a glance who won what.
 export default function AwardsPanel({ awards, title = 'AWARDS' }: { awards: Award[]; title?: string }) {
   if (awards.length === 0) return null
@@ -16,7 +17,7 @@ export default function AwardsPanel({ awards, title = 'AWARDS' }: { awards: Awar
             style={{ borderLeftColor: a.color, borderLeftWidth: 4 }}
           >
             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl" style={{ background: `${a.color}22` }}>
-              {a.icon}
+              {withIcons(a.icon)}
             </span>
             <div className="min-w-0">
               <div className="text-[11px] uppercase tracking-widest text-slate-500">{a.title}</div>

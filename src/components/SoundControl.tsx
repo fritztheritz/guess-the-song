@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getSoundVolume, isSoundMuted, setSoundMuted, setSoundVolume } from '../lib/sound-effects'
+import { withIcons } from '../lib/with-icons'
 
 // Replaces the mute-only icon button every presentation-style page (Host Controller, Draft
 // Presentation, Tier List / Popularity / Timeline present) used to hand-roll identically —
@@ -54,7 +55,7 @@ export default function SoundControl() {
         aria-label="Sound settings"
         aria-expanded={open}
       >
-        {icon}
+        {withIcons(icon)}
       </button>
       {open && (
         <div className="absolute right-0 top-10 z-20 w-44 space-y-2 rounded-xl border border-arena-600 bg-arena-900 p-3 shadow-2xl">

@@ -9,6 +9,8 @@ import JoinLink from './JoinLink'
 import JoinQrCode from './JoinQrCode'
 import Button from './ui/Button'
 import Panel from './ui/Panel'
+import { Icon } from './Icon'
+import { withIcons } from '../lib/with-icons'
 
 interface Vote {
   name: string
@@ -139,7 +141,7 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
     return (
       <Panel padding="md" className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="font-semibold text-slate-100">📱 Group ranking</div>
+          <div className="font-semibold text-slate-100"><Icon name="phone" /> Group ranking</div>
           <p className="text-sm text-slate-400">Everyone ranks the list on their own phone, then you see where the group put each song.</p>
         </div>
         <Button size="sm" onClick={start} disabled={list.songs.length === 0}>
@@ -153,7 +155,7 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
     <Panel padding="md" className="mb-6 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0 text-sm text-slate-200">
-          <span className="font-semibold">📱 Group ranking</span> · <span className="font-display tracking-[0.2em] text-white">{code}</span> ·{' '}
+          <span className="font-semibold"><Icon name="phone" /> Group ranking</span> · <span className="font-display tracking-[0.2em] text-white">{code}</span> ·{' '}
           <span className="text-slate-400">
             {ballots.length} of {Math.max(players.length, ballots.length)} voted
           </span>
@@ -197,7 +199,7 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
             key={p.connId}
             className={`rounded-full px-3 py-1 text-xs ${votes[p.connId] ? 'bg-scoreboard-green/15 text-scoreboard-green' : 'bg-hardwood-500/20 text-hardwood-300'}`}
           >
-            {votes[p.connId] ? '✓ ' : '📱 '}
+            {votes[p.connId] ? withIcons('✓ ') : withIcons('📱 ')}
             {voterNames.get(p.connId)}
           </span>
         ))}
@@ -205,7 +207,7 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
           .filter(([id]) => !voterNames.has(id))
           .map(([id, v]) => (
             <span key={id} className="rounded-full bg-scoreboard-green/15 px-3 py-1 text-xs text-scoreboard-green">
-              ✓ {v.name}
+              <Icon name="check" /> {v.name}
             </span>
           ))}
       </div>

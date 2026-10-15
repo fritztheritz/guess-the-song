@@ -23,6 +23,9 @@ import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import Panel from '../components/ui/Panel'
 import type { TierListSong } from '../types/tierlist'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
+import ArtPlaceholder from '../components/ArtPlaceholder'
 
 const MIN_SONGS = 3
 const MAX_SONGS = 25
@@ -316,7 +319,7 @@ export default function BlindRankingGroup() {
       <div className="mx-auto max-w-4xl px-4 pb-10 sm:px-6">
         <div className="flex items-center justify-between gap-3 py-5">
           <BackLink to={`/tierlists/${list.id}/present`}>Tier list</BackLink>
-          <h1 className="title-page">🙈 BLIND RANKING</h1>
+          <h1 className="title-page"><Icon name="eye-off" /> BLIND RANKING</h1>
           <SoundControl />
         </div>
 
@@ -370,7 +373,7 @@ export default function BlindRankingGroup() {
                         <div className="text-xs text-slate-500">Optional — people can suggest where each song goes.</div>
                       </div>
                       <Button variant="outline" size="sm" onClick={() => setPhonesOn(true)}>
-                        📱 Let phones join
+                        <Icon name="phone" /> Let phones join
                       </Button>
                     </div>
                   ) : (
@@ -388,7 +391,7 @@ export default function BlindRankingGroup() {
                         {players.length === 0 && <span className="text-xs text-slate-500">Nobody has joined yet — you can start without them.</span>}
                         {players.map((p) => (
                           <span key={p.connId} className="rounded-full px-3 py-1 text-xs" style={{ background: `${chipColor(p.name)}33`, color: chipColor(p.name) }}>
-                            📱 {p.name}
+                            <Icon name="phone" /> {p.name}
                           </span>
                         ))}
                         <button type="button" onClick={() => setPhonesOn(false)} className="ml-auto text-xs text-slate-500 hover:text-white">
@@ -413,7 +416,7 @@ export default function BlindRankingGroup() {
           <div className="sticky top-0 z-10 -mx-4 mb-4 border-b border-arena-700 bg-arena-950/90 px-4 pb-3 pt-2 backdrop-blur sm:-mx-6 sm:px-6">
             <Panel padding="sm" className="ticket flex flex-wrap items-center gap-4 px-6">
               <div key={current.id} className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-arena-800 animate-pop-in sm:h-24 sm:w-24">
-                {current.artworkUrl ? <img src={current.artworkUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-4xl text-arena-500">♪</div>}
+                {current.artworkUrl ? <img src={current.artworkUrl} alt="" className="h-full w-full object-cover" /> : <ArtPlaceholder seed={`${current.title} ${current.artist ?? ''}`} />}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs uppercase tracking-widest text-slate-500">
@@ -436,7 +439,7 @@ export default function BlindRankingGroup() {
                   </Button>
                 ) : (
                   <Button size="lg" onClick={lockIn} disabled={selected === null}>
-                    {selected === null ? 'PICK A SLOT' : `🔒 LOCK IN #${selected + 1}`}
+                    {selected === null ? 'PICK A SLOT' : withIcons(`🔒 LOCK IN #${selected + 1}`)}
                   </Button>
                 )}
                 <span className="text-center text-[11px] text-slate-500">{locked ? 'Enter for next' : '↑ ↓ to choose · Enter to lock'}</span>
@@ -460,11 +463,11 @@ export default function BlindRankingGroup() {
             {current && phonesOn && (
               <div className="flex flex-wrap items-center gap-2 text-sm text-slate-400" aria-label="Phone suggestions">
                 <span>
-                  📱 {suggestedNames.length} of {players.length} {players.length === 1 ? 'player has' : 'players have'} suggested
+                  <Icon name="phone" /> {suggestedNames.length} of {players.length} {players.length === 1 ? 'player has' : 'players have'} suggested
                 </span>
                 {!showSuggestions && suggestedNames.length > 0 && (
                   <Button variant="outline" size="sm" onClick={() => setRevealed(true)}>
-                    👀 Reveal suggestions
+                    <Icon name="eye" /> Reveal suggestions
                   </Button>
                 )}
               </div>
@@ -491,12 +494,12 @@ export default function BlindRankingGroup() {
                   </Panel>
                 )}
                 <div className="flex flex-wrap justify-center gap-3">
-                  <Button onClick={saveAsTierList}>💾 Save as tier list</Button>
+                  <Button onClick={saveAsTierList}><Icon name="save" /> Save as tier list</Button>
                   <Button variant="outline" onClick={shareImage}>
-                    🖼️ Save as image
+                    <Icon name="image" /> Save as image
                   </Button>
                   <Button variant="outline" onClick={copyResults}>
-                    📋 Copy ranking
+                    <Icon name="clipboard" /> Copy ranking
                   </Button>
                   <Button variant="outline" onClick={() => setStage('lobby')}>
                     Play again
@@ -507,7 +510,7 @@ export default function BlindRankingGroup() {
 
             <div>
               <div className="mb-1 flex justify-between text-[11px] uppercase tracking-widest text-slate-500">
-                <span>⭐ favorite</span>
+                <span><Icon name="star-solid" /> favorite</span>
                 <span>Least favorite</span>
               </div>
               <ol
@@ -567,7 +570,7 @@ export default function BlindRankingGroup() {
                         )}
                         {chips && (
                           <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
-                            {agree && <span className="marker text-sm text-scoreboard-green">🤝 {chips.length} agree</span>}
+                            {agree && <span className="marker text-sm text-scoreboard-green"><Icon name="users" /> {chips.length} agree</span>}
                             {chips.map((n) => (
                               <span key={n} className="rounded-full px-2.5 py-1 text-sm font-semibold" style={{ background: `${chipColor(n)}33`, color: chipColor(n) }}>
                                 {n}
@@ -603,12 +606,12 @@ function Podium({ songs }: { songs: TierListSong[] }) {
           <div key={song.id} className="flex w-1/3 max-w-[11rem] flex-col items-center gap-1.5 animate-pop-in" style={{ animationDelay: `${(2 - rank) * 150}ms` }}>
             {rank === 0 && <span className="sticker -mb-0.5 text-sm">Champ</span>}
             <div className="h-16 w-16 overflow-hidden rounded-xl bg-arena-800">
-              {song.artworkUrl ? <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-2xl text-arena-500">♪</div>}
+              {song.artworkUrl ? <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" /> : <ArtPlaceholder seed={`${song.title} ${song.artist ?? ''}`} />}
             </div>
             <div className="max-w-full truncate text-center font-display text-lg text-slate-100">{song.title}</div>
             <div className={`hardwood relative flex w-full items-start justify-center overflow-hidden rounded-t-xl border-2 border-b-0 border-black/40 pt-2 ${heights[rank]}`}>
               <span className="text-2xl" aria-hidden>
-                {medals[rank]}
+                {withIcons(medals[rank])}
               </span>
               <span aria-hidden className="jersey-num absolute -bottom-2 right-1 select-none text-6xl text-black/45">
                 {rank + 1}

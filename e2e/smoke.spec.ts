@@ -110,8 +110,8 @@ test('a player profile shows career totals from finished games', async ({ page }
   })
   await page.goto('players/Sam')
   await expect(page.getByRole('heading', { name: 'Sam' })).toBeVisible()
-  await expect(page.getByText('75%')).toBeVisible()
-  await expect(page.getByText('0.64s', { exact: true })).toBeVisible()
+  await expect(page.getByText('75%').first()).toBeVisible()
+  await expect(page.getByText('0.64s', { exact: true }).first()).toBeVisible()
   await expect(page.getByText('Finished Game').first()).toBeVisible()
 })
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSoundCloud } from '../state/soundcloud-context'
+import { Icon } from './Icon'
 
 export default function SoundCloudConnectPanel() {
   const { connection, isConfigured, connect, disconnect } = useSoundCloud()
@@ -49,11 +50,11 @@ export default function SoundCloudConnectPanel() {
         {connection.avatarUrl ? (
           <img src={connection.avatarUrl} alt="" className="h-10 w-10 rounded-full object-cover" />
         ) : (
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-arena-600 text-slate-300">♪</div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-arena-600 text-slate-300"><Icon name="note" /></div>
         )}
         <div>
           <div className="font-medium text-slate-100">{connection.username}</div>
-          <div className="text-xs text-teal-400">Connected ✓</div>
+          <div className="text-xs text-teal-400">Connected <Icon name="check" /></div>
         </div>
       </div>
       <button onClick={disconnect} className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-300 hover:border-scoreboard-500 hover:text-scoreboard-500">

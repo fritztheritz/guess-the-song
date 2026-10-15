@@ -16,6 +16,8 @@ import { encodeTierBallot } from '../lib/tierlist-ballot'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import { applyThemeVars } from '../lib/themes'
 import { isSoundMuted, playBuzzIn, playEject, playWrong, setSoundMuted, unlockAudio } from '../lib/sound-effects'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
 
 const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   song: '🎧 Listen up!',
@@ -43,7 +45,7 @@ const SPECTATOR_CHOICE = '__spectator__'
 function SentBanner({ text, hint }: { text: string; hint?: string }) {
   return (
     <div role="status" className="rounded-xl border-2 border-scoreboard-green bg-scoreboard-green/15 px-4 py-3 text-scoreboard-green">
-      <div className="font-display text-xl tracking-wide">✓ SENT: {text}</div>
+      <div className="font-display text-xl tracking-wide"><Icon name="check" /> SENT: {text}</div>
       {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
     </div>
   )
@@ -255,7 +257,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
     return (
       <div className="flex min-h-svh items-center justify-center court-lines px-6">
         <form onSubmit={handleCodeSubmit} className="w-full max-w-xs space-y-4 text-center">
-          <div className="text-5xl">🔔</div>
+          <div className="text-5xl"><Icon name="bell" /></div>
           <h1 className="font-display text-2xl tracking-wide text-white">JOIN A GAME</h1>
           <input
             value={codeInput}
@@ -338,7 +340,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
           aria-pressed={!soundMuted}
           className="rounded-full bg-arena-800 px-3 py-1 text-sm normal-case tracking-normal text-slate-300"
         >
-          {soundMuted ? '🔇 Sound off' : '🔊 Sound on'}
+          {soundMuted ? withIcons('🔇 Sound off') : withIcons('🔊 Sound on')}
         </button>
       </div>
 
@@ -361,7 +363,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
           </div>
           {roundState.phase === 'clue' && roundState.mode !== 'popularity' && (
             <div className="text-sm text-hardwood-300">
-              {roundState.clueText ? `“${roundState.clueText}”` : MODE_CLUE_LABEL[roundState.mode]}
+              {roundState.clueText ? `“${roundState.clueText}”` : withIcons(MODE_CLUE_LABEL[roundState.mode])}
             </div>
           )}
           {roundState.phase === 'revealed' && roundState.revealed && (
@@ -376,12 +378,12 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
           {(roundState.phase === 'intro' || roundState.phase === 'resume') && (
             <div className="text-sm text-slate-400">Get ready…</div>
           )}
-          {roundState.phase === 'halftime' && <div className="text-sm text-slate-300">🏀 Halftime — back soon</div>}
-          {roundState.mode === 'draft' && roundState.phase === 'ranking' && <div className="text-sm text-hardwood-300">📊 Time to rank the rosters</div>}
-          {roundState.phase === 'suddendeath' && <div className="text-sm text-scoreboard-500">💀 Sudden death — look at the screen</div>}
+          {roundState.phase === 'halftime' && <div className="text-sm text-slate-300"><Icon name="ball" /> Halftime — back soon</div>}
+          {roundState.mode === 'draft' && roundState.phase === 'ranking' && <div className="text-sm text-hardwood-300"><Icon name="bars" /> Time to rank the rosters</div>}
+          {roundState.phase === 'suddendeath' && <div className="text-sm text-scoreboard-500"><Icon name="skull" /> Sudden death — look at the screen</div>}
           {roundState.phase === 'final' && roundState.teams.length > 0 && (
             <div className="text-sm text-slate-300">
-              🏆 {[...roundState.teams].sort((a, b) => b.score - a.score)[0]?.name ?? '—'} wins!
+              <Icon name="trophy" /> {[...roundState.teams].sort((a, b) => b.score - a.score)[0]?.name ?? '—'} wins!
             </div>
           )}
         </div>
@@ -430,7 +432,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                       }`}
                       style={{ background: `${team.color}22`, color: team.color, borderColor: chosenTeamId === team.id ? team.color : 'transparent' }}
                     >
-                      {chosenTeamId === team.id ? '✓ ' : ''}
+                      {chosenTeamId === team.id ? withIcons('✓ ') : ''}
                       {team.avatar ? `${team.avatar} ` : ''}
                       {team.name}
                     </button>
@@ -444,7 +446,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                     selectedTeamId === SPECTATOR_CHOICE ? 'border-slate-300' : 'border-transparent bg-arena-800'
                   }`}
                 >
-                  👀 Just watching (no team)
+                  <Icon name="eye" /> Just watching (no team)
                 </button>
               )}
               <button
@@ -462,7 +464,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
           <div className="text-sm text-slate-400">
             {identity?.name} ·{' '}
             {identity?.teamId === null ? (
-              <span className="text-slate-300">👀 Just watching</span>
+              <span className="text-slate-300"><Icon name="eye" /> Just watching</span>
             ) : (
               <span style={{ color: myTeam?.color }}>
                 {myTeam?.avatar ? `${myTeam.avatar} ` : ''}
@@ -476,7 +478,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             aria-live="polite"
             className={`w-full rounded-full border px-4 py-1.5 text-sm font-semibold ${STATUS_TONE[status.tone]}`}
           >
-            {status.text}
+            {withIcons(status.text)}
           </div>
 
           {roundState?.reactions && <ReactionBar onReact={(emoji) => socketRef.current?.send({ type: 'react', emoji })} />}
@@ -501,12 +503,12 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             )
           ) : roundState?.mode === 'tierlist' ? (
             roundState.phase === 'final' || !roundState.tierlist ? (
-              <p className="text-sm text-slate-400">Voting's closed — check the screen for the group's tier list. 🏆</p>
+              <p className="text-sm text-slate-400">Voting's closed — check the screen for the group's tier list. <Icon name="trophy" /></p>
             ) : identity?.teamId === null ? (
               <p className="text-sm text-slate-400">Just watching — everyone else is tiering the songs.</p>
             ) : myConnId && roundState.tierlist.submitted.includes(myConnId) ? (
               <div role="status" className="rounded-xl border-2 border-scoreboard-green bg-scoreboard-green/15 px-5 py-4 text-scoreboard-green">
-                <div className="font-display text-xl tracking-wide">✓ TIER LIST SUBMITTED</div>
+                <div className="font-display text-xl tracking-wide"><Icon name="check" /> TIER LIST SUBMITTED</div>
                 <div className="text-xs text-slate-300">{roundState.tierlist.submitted.length} in so far</div>
               </div>
             ) : (
@@ -518,14 +520,14 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             )
           ) : roundState?.mode === 'draft' ? (
             roundState.phase === 'final' ? (
-              <p className="text-sm text-slate-400">That's the draft — check the screen for the final standings. 🏆</p>
+              <p className="text-sm text-slate-400">That's the draft — check the screen for the final standings. <Icon name="trophy" /></p>
             ) : roundState.phase !== 'ranking' ? (
               <p className="text-sm text-slate-400">Ranking opens once the draft's picks are in — hang tight.</p>
             ) : identity?.teamId === null ? (
               <p className="text-sm text-slate-400">Just watching — drafters are casting their ballots.</p>
             ) : roundState.draft?.submitted.includes(identity?.teamId ?? '') ? (
               <div role="status" className="rounded-xl border-2 border-scoreboard-green bg-scoreboard-green/15 px-5 py-4 text-scoreboard-green">
-                <div className="font-display text-xl tracking-wide">✓ BALLOT SUBMITTED</div>
+                <div className="font-display text-xl tracking-wide"><Icon name="check" /> BALLOT SUBMITTED</div>
                 <div className="text-xs text-slate-300">
                   {roundState.draft.submitted.length} of {roundState.teams.length} in
                 </div>
@@ -556,7 +558,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             <div className="w-full max-w-xs space-y-3">
               {identity?.teamId && iced.includes(identity.teamId) && (roundState.phase === 'clue' || roundState.guessStage) ? (
                 <div className="flex flex-col items-center gap-2 rounded-2xl border-4 border-scoreboard-500/60 bg-arena-800 px-6 py-8 text-slate-300">
-                  <div className="text-5xl">{roundState.suddenDeath ? '💀' : '🟥'}</div>
+                  <div className="text-5xl">{roundState.suddenDeath ? withIcons('💀') : withIcons('🟥')}</div>
                   <div className="font-display text-2xl tracking-wide text-scoreboard-500">{roundState.suddenDeath ? 'SUDDEN DEATH' : 'EJECTED'}</div>
                   <div className="text-sm">
                     {roundState.suddenDeath ? "You're not in the tiebreaker — cheer on the finalists." : 'The ref has seen enough — sit this one out.'}
@@ -584,7 +586,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                             borderColor: modeGuessSubmitted === tier.name ? tier.color : 'transparent',
                           }}
                         >
-                          {modeGuessSubmitted === tier.name ? '✓ ' : ''}
+                          {modeGuessSubmitted === tier.name ? withIcons('✓ ') : ''}
                           {tier.name}
                         </button>
                       ))}
@@ -677,7 +679,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                         className="min-h-14 rounded-xl border-2 border-arena-600 bg-arena-800 px-2 py-4 font-display text-lg font-semibold text-white"
                         style={{ borderColor: modeGuessSubmitted === m ? '#f59e0b' : undefined }}
                       >
-                        {modeGuessSubmitted === m ? '✓ ' : ''}
+                        {modeGuessSubmitted === m ? withIcons('✓ ') : ''}
                         {m}
                       </button>
                     ))}
@@ -685,14 +687,14 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
                   {modeGuessSubmitted && <SentBanner text={modeGuessSubmitted} />}
                 </>
               ) : roundState.phase === 'revealed' ? (
-                <p className="text-sm text-slate-400">⏳ Time's up — check the screen for the answer.</p>
+                <p className="text-sm text-slate-400"><Icon name="hourglass" /> Time's up — check the screen for the answer.</p>
               ) : null}
             </div>
           ) : buzzState === 'locked' && winner ? (
             winner.connId === myConnId ? (
               <div className="flex w-full max-w-xs flex-col items-center gap-4">
                 <div className="flex h-40 w-40 flex-col items-center justify-center rounded-full bg-scoreboard-green text-arena-950 shadow-2xl">
-                  <div className="text-4xl">✅</div>
+                  <div className="text-4xl"><Icon name="check-circle" /></div>
                   <div className="mt-1 font-display text-xl">YOU GOT IT!</div>
                 </div>
                 {/* Lets the host read the answer instead of everyone shouting across the
@@ -737,18 +739,18 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
               </div>
             ) : (
               <div className="flex h-56 w-56 flex-col items-center justify-center rounded-full border-4 border-arena-600 bg-arena-800 text-slate-400">
-                <div className="text-3xl">🔒</div>
+                <div className="text-3xl"><Icon name="lock" /></div>
                 <div className="mt-1 px-4 text-sm">{winner.name} buzzed first</div>
               </div>
             )
           ) : identity?.teamId && iced.includes(identity.teamId) ? (
             <div className="flex h-56 w-56 flex-col items-center justify-center rounded-full border-4 border-arena-700 bg-arena-800 text-slate-500">
-              <div className="text-3xl">🚫</div>
+              <div className="text-3xl"><Icon name="ban" /></div>
               <div className="mt-1 px-6 text-sm">Your team already tried this one — sit tight</div>
             </div>
           ) : identity?.teamId === null ? (
             <div className="flex h-56 w-56 flex-col items-center justify-center rounded-full border-4 border-arena-700 bg-arena-800 text-slate-500">
-              <div className="text-3xl">👀</div>
+              <div className="text-3xl"><Icon name="eye" /></div>
               <div className="mt-1 px-6 text-sm">Just watching — no buzzing in, enjoy the show</div>
             </div>
           ) : (

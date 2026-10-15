@@ -20,6 +20,9 @@ import { SCORING } from '../lib/scoring'
 import { underdogBonusFor } from '../lib/awards'
 import TextInput from '../components/ui/TextInput'
 import { useStoredEntity } from '../lib/use-stored-entity'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
+import ArtPlaceholder from '../components/ArtPlaceholder'
 
 // Fixed, not host-editable — same "fixed slots" convention as Tier Guess/Year's points
 // (see SCORING in lib/scoring.ts).
@@ -335,7 +338,7 @@ export default function PopularityPresent() {
               className="flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60"
             >
               <span className={`h-2 w-2 rounded-full ${buzzerConnected ? 'bg-scoreboard-green' : 'bg-slate-600'}`} />
-              🔔 {game.buzzerRoomCode} ({buzzRoster.length})
+              <Icon name="bell" /> {game.buzzerRoomCode} ({buzzRoster.length})
             </button>
           )}
           <SoundControl />
@@ -356,7 +359,7 @@ export default function PopularityPresent() {
                 className="flex w-96 max-w-[80vw] items-center justify-between rounded-xl border border-arena-600 bg-arena-800/70 px-5 py-3"
               >
                 <span className="font-display text-xl" style={{ color: team.color }}>
-                  {i === 0 ? '🏆 ' : ''}
+                  {i === 0 ? withIcons('🏆 ') : ''}
                   {team.avatar ? `${team.avatar} ` : ''}
                   {team.name}
                 </span>
@@ -389,7 +392,7 @@ export default function PopularityPresent() {
                       solved.track.artworkUrl ? (
                         <img src={solved.track.artworkUrl} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-arena-500">♪</div>
+                        <ArtPlaceholder seed={`${solved.track.title} ${solved.track.artist ?? ''}`} />
                       )
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-sm text-arena-600">?</div>
@@ -427,7 +430,7 @@ export default function PopularityPresent() {
                 )}
                 {progress!.streak && progress!.streak.count >= 2 && (
                   <div className="text-xs font-semibold text-scoreboard-amber">
-                    🔥 {game.teams.find((t) => t.id === progress!.streak!.teamId)?.name} is on a {progress!.streak.count}-rank streak
+                    <Icon name="flame" /> {game.teams.find((t) => t.id === progress!.streak!.teamId)?.name} is on a {progress!.streak.count}-rank streak
                   </div>
                 )}
               </div>
@@ -436,11 +439,11 @@ export default function PopularityPresent() {
                 <div className={`rounded-lg px-3 py-2 text-sm font-semibold ${lastResult.correct ? 'bg-scoreboard-green/15 text-scoreboard-green' : 'bg-scoreboard-500/15 text-scoreboard-500'}`}>
                   {lastResult.timedOut
                     ? `${lastResult.teamName}: ⏱ out of time`
-                    : `${lastResult.teamName}: "${lastResult.title}" — ${
+                    : withIcons(`${lastResult.teamName}: "${lastResult.title}" — ${
                         lastResult.correct
                           ? `✓ Correct! (+${POPULARITY_POINTS + (lastResult.bonus ?? 0) + (lastResult.underdog ?? 0)}${lastResult.bonus ? ` incl. 🔥 +${lastResult.bonus} streak` : ''}${lastResult.underdog ? ` incl. 🐕 +${lastResult.underdog} underdog` : ''})`
                           : '✗ Wrong'
-                      }`}
+                      }`)}
                 </div>
               )}
 

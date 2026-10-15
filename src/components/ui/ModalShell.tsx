@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Icon } from '../Icon'
 
 // The full-screen picker/import modals (ImportSoundCloudModal, ImportSpotifyModal,
 // NewDraftSessionModal, AnswerKeyModal, GamePickerModal, ImportFromTierListModal,
@@ -34,7 +35,7 @@ export default function ModalShell({
             {subtitle && <p className="text-sm text-slate-400">{subtitle}</p>}
           </div>
           <button onClick={onClose} className="rounded-full p-2 text-slate-400 hover:bg-arena-700 hover:text-white" aria-label="Close">
-            ✕
+            <Icon name="x" />
           </button>
         </div>
         {children}

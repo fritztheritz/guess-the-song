@@ -3,6 +3,8 @@ import type { Team } from '../types'
 import type { BuzzerPlayer } from '../lib/buzzer/protocol'
 import JoinQrCode from './JoinQrCode'
 import { joinUrl } from '../lib/buzzer/join-url'
+import { Icon } from './Icon'
+import { withIcons } from '../lib/with-icons'
 
 // Host-only panel: shows the room code players type into /buzz, and who's connected on
 // which team. Doesn't touch buzz state itself — HostController owns that (open/close tied
@@ -50,7 +52,7 @@ export default function BuzzerPanel({
             <JoinQrCode code={code} size={140} />
           </div>
           <button onClick={copyLink} className="mt-2 text-xs text-slate-500 underline hover:text-slate-300">
-            {copied ? '✓ Copied' : 'Copy join link'}
+            {copied ? withIcons('✓ Copied') : 'Copy join link'}
           </button>
         </div>
 
@@ -69,7 +71,7 @@ export default function BuzzerPanel({
                   <div className="text-xs font-medium" style={{ color: team.color }}>
                     {team.avatar ? `${team.avatar} ` : ''}
                     {team.name}
-                    {iced.includes(team.id) && <span className="ml-1.5 text-slate-500">🚫 iced this clue</span>}
+                    {iced.includes(team.id) && <span className="ml-1.5 text-slate-500"><Icon name="ban" /> iced this clue</span>}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {members.map((p) => (
@@ -87,7 +89,7 @@ export default function BuzzerPanel({
             if (spectators.length === 0) return null
             return (
               <div>
-                <div className="text-xs font-medium text-slate-400">👀 Spectators ({spectators.length})</div>
+                <div className="text-xs font-medium text-slate-400"><Icon name="eye" /> Spectators ({spectators.length})</div>
                 <div className="flex flex-wrap gap-1.5">
                   {spectators.map((p) => (
                     <span key={p.connId} className="rounded-full bg-arena-700 px-2.5 py-1 text-xs text-slate-200">

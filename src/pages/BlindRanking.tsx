@@ -21,6 +21,9 @@ import Button from '../components/ui/Button'
 import EmptyState from '../components/ui/EmptyState'
 import Panel from '../components/ui/Panel'
 import type { TierListSong } from '../types/tierlist'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
+import ArtPlaceholder from '../components/ArtPlaceholder'
 
 const MAX_SONGS = 20
 const MIN_SONGS = 3
@@ -229,7 +232,7 @@ export default function BlindRanking() {
       <div className="mx-auto max-w-4xl px-6 py-8">
         <div className="mb-6 flex items-center justify-between gap-3">
           <BackLink to={`/tierlists/${list.id}/present`}>Tier list</BackLink>
-          <h1 className="title-page">🙈 BLIND RANKING</h1>
+          <h1 className="title-page"><Icon name="eye-off" /> BLIND RANKING</h1>
           <SoundControl />
         </div>
 
@@ -256,7 +259,7 @@ export default function BlindRanking() {
                 {players.length === 0 && <span className="text-xs text-slate-500">Nobody has joined yet.</span>}
                 {players.map((p) => (
                   <span key={p.connId} className="rounded-full bg-hardwood-500/20 px-3 py-1 text-xs text-hardwood-300">
-                    📱 {p.name}
+                    <Icon name="phone" /> {p.name}
                   </span>
                 ))}
               </div>
@@ -276,7 +279,7 @@ export default function BlindRanking() {
               Song {index + 1} of {total}
             </div>
             <div className="mx-auto h-56 w-56 overflow-hidden rounded-3xl bg-arena-800 shadow-2xl animate-pop-in" key={current.id}>
-              {current.artworkUrl ? <img src={current.artworkUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-6xl text-arena-500">♪</div>}
+              {current.artworkUrl ? <img src={current.artworkUrl} alt="" className="h-full w-full object-cover" /> : <ArtPlaceholder seed={`${current.title} ${current.artist ?? ''}`} />}
             </div>
             <div>
               <div className="font-display text-5xl text-white">{current.title}</div>
@@ -292,7 +295,7 @@ export default function BlindRanking() {
                 const done = (picks[playerKey(p.name)]?.slots[index] ?? 0) > 0
                 return (
                   <span key={p.connId} className={`rounded-full px-4 py-1.5 text-lg ${done ? 'bg-scoreboard-green/15 text-scoreboard-green' : 'bg-arena-800 text-slate-500'}`}>
-                    {done ? '🔒 ' : ''}
+                    {done ? withIcons('🔒 ') : ''}
                     {p.name}
                   </span>
                 )
@@ -384,7 +387,7 @@ export default function BlindRanking() {
             </section>
 
             <div className="flex flex-wrap justify-center gap-3">
-              <Button onClick={copyResults}>📋 Copy results</Button>
+              <Button onClick={copyResults}><Icon name="clipboard" /> Copy results</Button>
               <Button variant="outline" onClick={() => window.location.reload()}>
                 Play again
               </Button>

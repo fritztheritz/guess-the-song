@@ -14,6 +14,9 @@ import JoinQrCode from '../components/JoinQrCode'
 import { joinUrl } from '../lib/buzzer/join-url'
 import ProgressRing from '../components/ProgressRing'
 import { PopReveal } from '../components/Reveal'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
+import ArtPlaceholder from '../components/ArtPlaceholder'
 
 const DRAFT_STORAGE_KEY = 'gts.draftboards.v1'
 
@@ -142,7 +145,7 @@ export default function DraftPresentation() {
               {lastPick.song.artworkUrl ? (
                 <img src={lastPick.song.artworkUrl} alt="" className="h-full w-full object-cover" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center text-5xl text-arena-500">♪</div>
+                <ArtPlaceholder seed={`${lastPick.song.title} ${lastPick.song.artist ?? ''}`} />
               )}
             </div>
             <div>
@@ -185,12 +188,12 @@ export default function DraftPresentation() {
           </div>
         ) : session.phase === 'listening' ? (
           <div className="text-center">
-            <div className="font-display text-5xl tracking-widest text-hardwood-400">🎧 LISTENING TIME</div>
+            <div className="font-display text-5xl tracking-widest text-hardwood-400"><Icon name="headphones" /> LISTENING TIME</div>
             <p className="mt-2 text-slate-400">Picks are locked — spin through what everyone drafted.</p>
           </div>
         ) : session.phase === 'ranking' ? (
           <div className="text-center">
-            <div className="font-display text-5xl tracking-widest text-hardwood-400">📊 RANKING IN PROGRESS</div>
+            <div className="font-display text-5xl tracking-widest text-hardwood-400"><Icon name="bars" /> RANKING IN PROGRESS</div>
             <p className="mt-2 text-slate-400">
               {session.rankings.length} of {session.drafters.length} ballots submitted
             </p>
@@ -211,7 +214,7 @@ export default function DraftPresentation() {
                 const done = session.rankings.some((r) => r.drafterId === d.id)
                 return (
                   <span key={d.id} className={`rounded-full px-4 py-1.5 text-lg ${done ? 'bg-scoreboard-green/15 text-scoreboard-green' : 'bg-arena-800 text-slate-500'}`}>
-                    {done ? '✓ ' : ''}
+                    {done ? withIcons('✓ ') : ''}
                     {d.avatar ? `${d.avatar} ` : ''}
                     {d.name}
                   </span>

@@ -18,6 +18,7 @@ import { useConfirm } from '../state/confirm-context'
 import { useToast } from '../state/toast-context'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import { useStoredEntity } from '../lib/use-stored-entity'
+import { Icon } from '../components/Icon'
 
 export default function TierListBuilder() {
   const { tierListId } = useParams()
@@ -152,7 +153,7 @@ export default function TierListBuilder() {
               className="mt-1 w-full bg-transparent font-display text-3xl tracking-wide text-white outline-none focus:border-b focus:border-hardwood-500"
             />
             <div className="mt-1 text-xs text-slate-500">
-              ✓ {savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'All changes saved'}
+              <Icon name="check" /> {savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'All changes saved'}
             </div>
           </div>
           <ButtonLink to={`/tierlists/${list.id}/present`} variant="primary" className="shrink-0">
@@ -215,7 +216,7 @@ export default function TierListBuilder() {
                     aria-label={`Remove ${tier.name} tier`}
                     className="shrink-0 rounded-lg px-2 py-1 text-slate-500 hover:text-scoreboard-500"
                   >
-                    ✕
+                    <Icon name="x" />
                   </button>
                 )}
               </div>
@@ -280,7 +281,7 @@ export default function TierListBuilder() {
                   <option value="artist">Artist A–Z</option>
                 </select>
                 <Button variant="outline" size="sm" onClick={() => persist(shuffleUnranked(list))} title="Randomise the order unranked songs come up in">
-                  🔀 Shuffle
+                  <Icon name="shuffle" /> Shuffle
                 </Button>
                 <Button variant="outline" size="sm" onClick={removeAllSongs} className="text-slate-400 hover:text-scoreboard-500">
                   Remove all
@@ -302,7 +303,7 @@ export default function TierListBuilder() {
                         aria-label={`Remove ${song.title}`}
                         className="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/70 text-xs text-white hover:bg-scoreboard-500 focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
                       >
-                        ✕
+                        <Icon name="x" />
                       </button>
                       <div className="relative aspect-square w-full bg-arena-700">
                         {song.artworkUrl && <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" />}

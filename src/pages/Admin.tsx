@@ -7,6 +7,8 @@ import { useToast } from '../state/toast-context'
 import { FLAG_GROUP_ORDER, FLAG_GROUPS, RECOMMENDED_FLAGS } from '../lib/feature-flags'
 import Panel from '../components/ui/Panel'
 import EmptyState from '../components/ui/EmptyState'
+import { Icon } from '../components/Icon'
+import Switch from '../components/ui/Switch'
 
 export default function Admin() {
   const { flags, setOverride, resetOverride, refresh } = useFeatureFlags()
@@ -51,7 +53,7 @@ export default function Admin() {
           <div className="space-y-6">
             <div className="flex flex-wrap items-center gap-3">
               <div className="relative min-w-[14rem] flex-1">
-                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
+                <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"><Icon name="search" /></span>
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
@@ -101,17 +103,7 @@ export default function Admin() {
                         </div>
 
                         <div className="flex shrink-0 items-center gap-3">
-                          <button
-                            onClick={() => setOverride(flag.key, !flag.enabled)}
-                            role="switch"
-                            aria-checked={flag.enabled}
-                            aria-label={`Toggle ${flag.label}`}
-                            className={`relative h-6 w-11 rounded-full transition-colors ${flag.enabled ? 'bg-hardwood-500' : 'bg-arena-600'}`}
-                          >
-                            <span
-                              className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${flag.enabled ? 'translate-x-5' : 'translate-x-0.5'}`}
-                            />
-                          </button>
+                          <Switch on={flag.enabled} onChange={(next) => setOverride(flag.key, next)} label={`Toggle ${flag.label}`} />
                           {flag.overridden && (
                             <button onClick={() => resetOverride(flag.key)} className="px-1 py-2 text-xs text-slate-500 underline hover:text-slate-300">
                               Reset

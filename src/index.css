@@ -185,6 +185,17 @@
     transform: translate(2px, 2px);
   }
 
+  /* Home's sections are numbered 01, 02… by a CSS counter. */
+  .home-sections {
+    counter-reset: home-sec;
+  }
+  .home-section {
+    counter-increment: home-sec;
+  }
+  .home-section-num::before {
+    content: counter(home-sec, decimal-leading-zero);
+  }
+
   /* Coach-on-a-clipboard handwriting, sparingly. */
   .marker {
     font-family: var(--font-marker);
@@ -437,4 +448,122 @@ select:focus-visible {
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-banner-swoop { animation: none; }
+}
+
+/* --- Court-styled controls ------------------------------------------------------------------- */
+
+/* Scrollbars: slim, square, leather-orange on navy. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hardwood-500) var(--color-arena-900);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-hardwood-500) var(--color-arena-800);
+}
+
+/* Range sliders: a dashed court line with a ball for the thumb. */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 1.6rem;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 1px;
+  background: repeating-linear-gradient(90deg, var(--color-arena-500) 0 8px, transparent 8px 12px), var(--color-arena-700);
+  border: 1px solid var(--color-arena-950);
+}
+input[type='range']::-moz-range-track {
+  height: 6px;
+  border-radius: 1px;
+  background: repeating-linear-gradient(90deg, var(--color-arena-500) 0 8px, transparent 8px 12px), var(--color-arena-700);
+  border: 1px solid var(--color-arena-950);
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  margin-top: -9px;
+  border-radius: 50%;
+  border: 2px solid #1a0a02;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 1px), #1a0a02 calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(0deg, transparent calc(50% - 1px), #1a0a02 calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+    radial-gradient(circle at 35% 30%, #ff9a52, var(--color-hardwood-500) 60%, #b8410a);
+  box-shadow: 2px 2px 0 rgb(0 0 0 / 0.5);
+}
+input[type='range']::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #1a0a02;
+  background:
+    linear-gradient(90deg, transparent calc(50% - 1px), #1a0a02 calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(0deg, transparent calc(50% - 1px), #1a0a02 calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+    radial-gradient(circle at 35% 30%, #ff9a52, var(--color-hardwood-500) 60%, #b8410a);
+  box-shadow: 2px 2px 0 rgb(0 0 0 / 0.5);
+}
+input[type='range']:focus-visible {
+  outline: 2px solid var(--color-hardwood-400);
+  outline-offset: 4px;
+}
+
+/* Per-control hover feel (not one brightness shift for everything): primary keys lift, icon-only
+   buttons tip and pop, outline pills fill from the floor up. */
+:is(button, a).bg-hardwood-500:not(:disabled):hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0 0 rgb(0 0 0 / 0.5);
+}
+button > svg:only-child,
+a > svg:only-child {
+  transition: transform 160ms cubic-bezier(0.3, 0.7, 0.3, 1.4);
+}
+button:not(:disabled):hover > svg:only-child,
+a:hover > svg:only-child {
+  transform: rotate(-8deg) scale(1.15);
+}
+.fill-up {
+  background-image: linear-gradient(to top, rgb(255 106 19 / 0.18), rgb(255 106 19 / 0.18));
+  background-repeat: no-repeat;
+  background-position: bottom;
+  background-size: 100% 0%;
+  transition: background-size 180ms ease-out, border-color 150ms, color 150ms;
+}
+.fill-up:hover {
+  background-size: 100% 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  button:not(:disabled):hover > svg:only-child,
+  a:hover > svg:only-child { transform: none; }
+  :is(button, a).bg-hardwood-500:not(:disabled):hover { transform: none; }
+}
+
+/* On the player's phone page the pointer is a ball. */
+html.cursor-ball,
+html.cursor-ball * {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='30' viewBox='0 0 30 30'%3E%3Ccircle cx='15' cy='15' r='12.5' fill='%23ff6a13' stroke='%231a0a02' stroke-width='2'/%3E%3Cpath d='M15 2.5v25M2.5 15h25M6 7c5 5 5 11 0 16M24 7c-5 5-5 11 0 16' fill='none' stroke='%231a0a02' stroke-width='1.6'/%3E%3C/svg%3E") 15 15, auto;
+}
+
+/* A hanging banner sways a degree or so; a holo card's foil sheen drifts across. */
+@keyframes rafters-sway {
+  0%, 100% { transform: rotate(-1.2deg); }
+  50% { transform: rotate(1.2deg); }
+}
+.rafters-sway {
+  animation: rafters-sway 6s ease-in-out infinite;
+}
+@keyframes sheen-drift {
+  0% { background-position: 120% 0; }
+  100% { background-position: -120% 0; }
+}
+.player-card-sheen {
+  animation: sheen-drift 4.5s ease-in-out infinite;
+  mix-blend-mode: screen;
+}
+@media (prefers-reduced-motion: reduce) {
+  .rafters-sway, .player-card-sheen { animation: none; }
 }

@@ -3,6 +3,7 @@ import { buildAnswerKeyText, downloadAnswerKey } from '../lib/answer-key'
 import type { Game } from '../types'
 import ModalShell from './ui/ModalShell'
 import Button from './ui/Button'
+import { withIcons } from '../lib/with-icons'
 
 export default function AnswerKeyModal({ game, onClose }: { game: Game; onClose: () => void }) {
   const [copied, setCopied] = useState(false)
@@ -38,7 +39,7 @@ export default function AnswerKeyModal({ game, onClose }: { game: Game; onClose:
           Download .txt
         </Button>
         <Button size="sm" onClick={copy}>
-          {copied ? 'Copied ✓' : 'Copy to clipboard'}
+          {copied ? withIcons('Copied ✓') : 'Copy to clipboard'}
         </Button>
       </div>
     </ModalShell>

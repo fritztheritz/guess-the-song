@@ -1,4 +1,6 @@
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
+import { Icon } from './Icon'
+import ArtPlaceholder from './ArtPlaceholder'
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60)
@@ -39,7 +41,7 @@ export default function TrackCard({ track, selected, onToggleSelect, onPreview, 
             selected ? 'border-hardwood-500 bg-hardwood-500 text-arena-950' : 'border-white/40 bg-black/40 text-transparent'
           }`}
         >
-          ✓
+          <Icon name="check" />
         </button>
       )}
 
@@ -47,7 +49,7 @@ export default function TrackCard({ track, selected, onToggleSelect, onPreview, 
         {track.artworkUrl ? (
           <img src={track.artworkUrl} alt="" className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-3xl text-arena-500">♪</div>
+          <ArtPlaceholder seed={`${track.title} ${track.artist ?? ''}`} />
         )}
         {canPlay && onPreview && (
           <button
@@ -69,7 +71,7 @@ export default function TrackCard({ track, selected, onToggleSelect, onPreview, 
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
           <span className="text-slate-500">{formatDuration(track.duration)}</span>
-          {track.isPrivate && <span className="rounded bg-arena-600 px-1.5 py-0.5 text-slate-300">🔒 Private</span>}
+          {track.isPrivate && <span className="rounded bg-arena-600 px-1.5 py-0.5 text-slate-300"><Icon name="lock" /> Private</span>}
           <span className={`rounded px-1.5 py-0.5 font-medium ${badge.className}`}>{badge.label}</span>
         </div>
 

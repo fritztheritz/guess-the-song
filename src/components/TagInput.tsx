@@ -1,4 +1,5 @@
 import { useState, type KeyboardEvent } from 'react'
+import { Icon } from './Icon'
 
 function normalizeTag(raw: string): string {
   return raw.trim().replace(/\s+/g, ' ')
@@ -50,7 +51,7 @@ export default function TagInput({
             aria-label={`Remove tag ${tag}`}
             className="text-slate-500 hover:text-scoreboard-500"
           >
-            ✕
+            <Icon name="x" />
           </button>
         </span>
       ))}

@@ -13,6 +13,8 @@ import Confetti from '../components/Confetti'
 import ProgressRing from '../components/ProgressRing'
 import JoinQrCode from '../components/JoinQrCode'
 import { joinUrl } from '../lib/buzzer/join-url'
+import { Icon } from '../components/Icon'
+import ArtPlaceholder from '../components/ArtPlaceholder'
 
 const TIER_STORAGE_KEY = 'gts.tierlists.v1'
 
@@ -150,7 +152,7 @@ export default function TierListDisplay() {
 
       {complete ? (
         <div className="w-full text-center">
-          <div className="font-display text-5xl tracking-widest text-hardwood-400">🏆 ALL RANKED</div>
+          <div className="font-display text-5xl tracking-widest text-hardwood-400"><Icon name="trophy" /> ALL RANKED</div>
           {topTier && (
             <p className="mt-1 text-xl text-slate-300">
               Top tier ({topTier.name}): {songsInGroup(list, topTier.id).map((s) => s.title).join(' · ')}
@@ -191,7 +193,7 @@ export default function TierListDisplay() {
                       {song.artworkUrl ? (
                         <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-2xl text-arena-500">♪</div>
+                        <ArtPlaceholder seed={`${song.title} ${song.artist ?? ''}`} />
                       )}
                     </div>
                     <div className="mt-1 line-clamp-2 text-xs font-medium leading-tight text-slate-100">{song.title}</div>

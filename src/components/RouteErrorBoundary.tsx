@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import ErrorState from './ui/ErrorState'
+import Spot from './Spot'
 
 // Last line of defence: if a page throws while rendering (or its code chunk can't load), show what
 // happened and a way out instead of a blank screen. Keyed by route in App so navigating away resets it.
@@ -18,7 +19,8 @@ export default class RouteErrorBoundary extends Component<{ children: ReactNode 
     if (!this.state.failed) return this.props.children
     return (
       <div className="min-h-svh court-lines">
-        <div className="mx-auto max-w-md px-6 py-24">
+        <div className="mx-auto max-w-md px-6 py-20">
+          <Spot name="ref" className="mx-auto mb-4 h-32 w-auto" />
           <ErrorState message="Something went wrong on this page.">
             <p className="mt-1 text-xs text-slate-400">Your games are saved on this device and aren't affected.</p>
             <div className="mt-3 flex gap-4 text-xs">

@@ -11,6 +11,7 @@ import ModeRulesCard from '../components/ModeRulesCard'
 import { rulesFor } from '../lib/mode-rules'
 import Button from '../components/ui/Button'
 import Stepper from '../components/Stepper'
+import { Icon } from '../components/Icon'
 
 const STEPS = ['Game', 'Teams', 'Rules']
 const MIN_TEAMS = 2
@@ -117,7 +118,7 @@ export default function CreateGame() {
                 mode === 'song' ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 hover:border-arena-500'
               }`}
             >
-              <div className="font-display text-lg tracking-wide text-white">🎵 Guess the Song</div>
+              <div className="font-display text-lg tracking-wide text-white"><Icon name="note" /> Guess the Song</div>
               <div className="text-xs text-slate-500">Play SoundCloud clips</div>
             </button>
             <button
@@ -127,7 +128,7 @@ export default function CreateGame() {
                 mode === 'lyric' ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 hover:border-arena-500'
               }`}
             >
-              <div className="font-display text-lg tracking-wide text-white">📝 Guess the Lyric</div>
+              <div className="font-display text-lg tracking-wide text-white"><Icon name="clipboard" /> Guess the Lyric</div>
               <div className="text-xs text-slate-500">Type in lyrics & hints</div>
             </button>
             <button
@@ -137,7 +138,7 @@ export default function CreateGame() {
                 mode === 'year' ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 hover:border-arena-500'
               }`}
             >
-              <div className="font-display text-lg tracking-wide text-white">📅 Guess the Year</div>
+              <div className="font-display text-lg tracking-wide text-white"><Icon name="calendar" /> Guess the Year</div>
               <div className="text-xs text-slate-500">Play a clip, then guess the release year, then the month</div>
             </button>
             {tierListsEnabled && (
@@ -148,7 +149,7 @@ export default function CreateGame() {
                   mode === 'higherlower' ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 hover:border-arena-500'
                 }`}
               >
-                <div className="font-display text-lg tracking-wide text-white">↕️ Higher or Lower</div>
+                <div className="font-display text-lg tracking-wide text-white"><Icon name="arrows-v" /> Higher or Lower</div>
                 <div className="text-xs text-slate-500">Is the next song ranked higher or lower than the last? Built from a tier list</div>
               </button>
             )}
@@ -160,7 +161,7 @@ export default function CreateGame() {
                   mode === 'tierguess' ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 hover:border-arena-500'
                 }`}
               >
-                <div className="font-display text-lg tracking-wide text-white">🎯 Guess the Ranking</div>
+                <div className="font-display text-lg tracking-wide text-white"><Icon name="target" /> Guess the Ranking</div>
                 <div className="text-xs text-slate-500">Built from one of your tier lists — guess where each song landed</div>
               </button>
             )}
@@ -202,7 +203,7 @@ export default function CreateGame() {
                 className="ml-1 rounded-full border border-arena-600 px-3 py-2 text-xs sm:py-1 text-slate-300 hover:border-hardwood-500 hover:text-hardwood-400"
                 title="Give every team a random name and mascot"
               >
-                🎲 Randomize
+                <Icon name="dice" /> Randomize
               </button>
             </div>
           </div>
@@ -231,7 +232,7 @@ export default function CreateGame() {
                     aria-label="Fill from a saved team"
                     className="shrink-0 rounded-lg border border-arena-600 px-2 py-1.5 text-sm text-slate-400 hover:border-hardwood-500 hover:text-hardwood-400"
                   >
-                    ★
+                    <Icon name="star-solid" />
                   </button>
                 )}
                 {teams.length > MIN_TEAMS && (
@@ -241,7 +242,7 @@ export default function CreateGame() {
                     aria-label={`Remove ${team.name}`}
                     className="shrink-0 rounded-lg px-2 py-1 text-slate-500 hover:text-scoreboard-500"
                   >
-                    ✕
+                    <Icon name="x" />
                   </button>
                 )}
                 {stylePickerIndex === i && (
@@ -322,7 +323,7 @@ export default function CreateGame() {
           )}
           {duplicateTeamName && (
             <p className="mt-2 text-xs text-scoreboard-amber">
-              ⚠️ Two teams are both named "{duplicateTeamName}" — that'll look confusing on the scoreboard, and Stats merges teams with
+              <Icon name="warn" /> Two teams are both named "{duplicateTeamName}" — that'll look confusing on the scoreboard, and Stats merges teams with
               the same name together across games.
             </p>
           )}
@@ -341,7 +342,7 @@ export default function CreateGame() {
               className="mt-1 h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
             />
             <span>
-              <span className="block text-sm font-semibold text-slate-200">🎁 Earn power-ups as you play</span>
+              <span className="block text-sm font-semibold text-slate-200"><Icon name="gift" /> Earn power-ups as you play</span>
               <span className="block text-xs text-slate-500">
                 Teams start with none and earn a random Double, Steal, or Freeze for every second scored possession in a row. Off =
                 everyone gets a fixed stock up front.
@@ -359,7 +360,7 @@ export default function CreateGame() {
               className="mt-1 h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
             />
             <span>
-              <span className="block text-sm font-semibold text-slate-200">🐕 Underdog catch-up</span>
+              <span className="block text-sm font-semibold text-slate-200"><Icon name="trend" /> Underdog catch-up</span>
               <span className="block text-xs text-slate-500">
                 A team trailing by 8+ scores a bonus point on a correct answer, and the first time one falls 12+ behind it's gifted a
                 free Steal (when Power-Ups is on). Off by default.

@@ -40,6 +40,8 @@ import BuilderSection from '../components/BuilderSection'
 import ModeRulesCard from '../components/ModeRulesCard'
 import Button from '../components/ui/Button'
 import { useToast } from '../state/toast-context'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
 
 const MIN_TEAMS = 2
 const MAX_TEAMS = 8
@@ -402,7 +404,7 @@ export default function GameBuilder() {
           <span className="hidden text-xs text-slate-500 sm:inline" role="status">
             {game.rounds.length} {game.rounds.length === 1 ? 'possession' : 'possessions'} · {game.teams.length} teams ·{' '}
             <span className="text-scoreboard-green">
-              ✓ {savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'All changes saved'}
+              <Icon name="check" /> {savedAt ? `Saved ${new Date(savedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'All changes saved'}
             </span>
           </span>
         </div>
@@ -518,9 +520,9 @@ export default function GameBuilder() {
                 <div className="flex gap-0.5">
                   <button onClick={(e) => { e.stopPropagation(); duplicateRound(round) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-slate-200" title="Duplicate">⧉</button>
                   {suddenDeathEnabled && (
-                    <button onClick={(e) => { e.stopPropagation(); reserveRound(round) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-hardwood-400" title="Hold in reserve for a sudden-death tiebreaker" aria-label={`Hold "${round.title || 'this round'}" in reserve for a tiebreaker`}>🥇</button>
+                    <button onClick={(e) => { e.stopPropagation(); reserveRound(round) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-hardwood-400" title="Hold in reserve for a sudden-death tiebreaker" aria-label={`Hold "${round.title || 'this round'}" in reserve for a tiebreaker`}><Icon name="medal-1" /></button>
                   )}
-                  <button onClick={(e) => { e.stopPropagation(); removeRound(round.id) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-scoreboard-500" title="Delete">✕</button>
+                  <button onClick={(e) => { e.stopPropagation(); removeRound(round.id) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-scoreboard-500" title="Delete"><Icon name="x" /></button>
                 </div>
               </div>
             </div>
@@ -528,12 +530,12 @@ export default function GameBuilder() {
 
           {suddenDeathEnabled && (game.tiebreakerRounds?.length ?? 0) > 0 && (
             <div className="mt-3 rounded-lg border border-arena-700 p-2">
-              <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-slate-500">🥇 Tiebreaker reserve</div>
+              <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-slate-500"><Icon name="medal-1" /> Tiebreaker reserve</div>
               {(game.tiebreakerRounds ?? []).map((r) => (
                 <div key={r.id} className="flex items-center gap-2 py-0.5 text-xs text-slate-300">
                   <span className="min-w-0 flex-1 truncate">{r.title || 'Untitled'}</span>
                   <button onClick={() => restoreReserve(r)} className="text-slate-500 hover:text-slate-200" title="Put back in the game">↩</button>
-                  <button onClick={() => deleteReserve(r)} className="text-slate-500 hover:text-scoreboard-500" title="Delete">✕</button>
+                  <button onClick={() => deleteReserve(r)} className="text-slate-500 hover:text-scoreboard-500" title="Delete"><Icon name="x" /></button>
                 </div>
               ))}
             </div>
@@ -635,7 +637,7 @@ export default function GameBuilder() {
                 onChange={(e) => persist({ ...game, halftimeEnabled: e.target.checked })}
                 className="h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
               />
-              🏀 Halftime break
+              <Icon name="ball" /> Halftime break
             </label>
             <p className="mt-1 text-xs text-slate-500">Pause for a score check partway through (needs at least 4 possessions).</p>
             {(
@@ -647,7 +649,7 @@ export default function GameBuilder() {
                     onChange={(e) => persist({ ...game, catchUp: e.target.checked })}
                     className="h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
                   />
-                  🐕 Underdog catch-up
+                  <Icon name="trend" /> Underdog catch-up
                 </label>
                 <p className="mt-1 text-xs text-slate-500">Trailing by 8+ earns a bonus point on a correct answer; falling 12+ behind gifts a free Steal (needs Power-Ups).</p>
               </>
@@ -663,7 +665,7 @@ export default function GameBuilder() {
                   onChange={(e) => persist({ ...game, earnedPowerUps: e.target.checked })}
                   className="h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
                 />
-                🎁 Earn power-ups from streaks
+                <Icon name="gift" /> Earn power-ups from streaks
               </label>
               {game.earnedPowerUps ? (
                 <p className="text-xs text-slate-500">
@@ -674,7 +676,7 @@ export default function GameBuilder() {
                   <div className="flex flex-wrap gap-3">
                     {POWER_UP_KINDS.map((kind: PowerUpKind) => (
                       <label key={kind} className="flex items-center gap-1.5 text-sm text-slate-300">
-                        {kind === 'double' ? '2x Double' : kind === 'steal' ? '🥷 Steal' : '🧊 Freeze'}
+                        {kind === 'double' ? '2x Double' : kind === 'steal' ? withIcons('🥷 Steal') : withIcons('🧊 Freeze')}
                         <input
                           type="number"
                           min={0}
@@ -723,7 +725,7 @@ export default function GameBuilder() {
                       aria-label={`Remove ${team.name}`}
                       className="shrink-0 text-xs text-slate-500 hover:text-scoreboard-500"
                     >
-                      ✕
+                      <Icon name="x" />
                     </button>
                   )}
                   {colorPickerTeamId === team.id && (
@@ -829,11 +831,11 @@ export default function GameBuilder() {
                   />
                   <div className="mt-1 flex items-center gap-2 text-xs">
                     {isHL ? (
-                      <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">↕️ Higher or Lower</span>
+                      <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400"><Icon name="arrows-v" /> Higher or Lower</span>
                     ) : isTierGuess ? (
-                      <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">🎯 Tier Guess</span>
+                      <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400"><Icon name="target" /> Tier Guess</span>
                     ) : isYear ? (
-                      <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">📅 Guess the Year</span>
+                      <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400"><Icon name="calendar" /> Guess the Year</span>
                     ) : selectedRound.source === 'soundcloud' ? (
                       <span className="rounded bg-hardwood-500/15 px-2 py-0.5 text-hardwood-400">SoundCloud</span>
                     ) : selectedRound.source === 'spotify' ? (
@@ -843,9 +845,9 @@ export default function GameBuilder() {
                       <span className="rounded bg-arena-600 px-2 py-0.5 text-slate-300">Local audio</span>
                     )}
                     {selectedRound.source === 'lyric' && (
-                      <span className="rounded bg-arena-600 px-2 py-0.5 text-slate-300">📝 Lyric round</span>
+                      <span className="rounded bg-arena-600 px-2 py-0.5 text-slate-300"><Icon name="clipboard" /> Lyric round</span>
                     )}
-                    {selectedRound.isPrivate && <span className="rounded bg-arena-600 px-2 py-0.5 text-slate-300">🔒 Private</span>}
+                    {selectedRound.isPrivate && <span className="rounded bg-arena-600 px-2 py-0.5 text-slate-300"><Icon name="lock" /> Private</span>}
                     {selectedRound.soundcloudUrl && (
                       <a href={selectedRound.soundcloudUrl} target="_blank" rel="noreferrer" className="text-slate-500 hover:text-hardwood-400">
                         View on SoundCloud ↗
@@ -865,7 +867,7 @@ export default function GameBuilder() {
                         onChange={(e) => updateRound({ ...selectedRound, wager: e.target.checked })}
                         className="accent-hardwood-500"
                       />
-                      ⭐ Wager round (host picks one team to bet points on, live)
+                      <Icon name="star-solid" /> Wager round (host picks one team to bet points on, live)
                     </label>
                   )}
                 </div>

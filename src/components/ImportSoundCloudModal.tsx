@@ -25,6 +25,8 @@ import ModalShell from './ui/ModalShell'
 import TextInput from './ui/TextInput'
 import Button from './ui/Button'
 import ErrorState from './ui/ErrorState'
+import { Icon } from './Icon'
+import { withIcons } from '../lib/with-icons'
 
 type Tab = 'mine' | 'liked' | 'playlists' | 'search' | 'paste'
 
@@ -374,7 +376,7 @@ export default function ImportSoundCloudModal({
                           </p>
                         </>
                       ) : (
-                        <p className="mb-2 font-medium text-teal-400">TRACK FOUND ✓</p>
+                        <p className="mb-2 font-medium text-teal-400">TRACK FOUND <Icon name="check" /></p>
                       )}
                       <div className="mx-auto max-w-[220px]">
                         <TrackCard
@@ -413,7 +415,7 @@ export default function ImportSoundCloudModal({
                               className="flex items-center gap-2 rounded-full border border-arena-600 bg-arena-800 py-1 pl-1 pr-3 text-sm text-slate-200 hover:border-hardwood-500"
                             >
                               <span className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-arena-700 text-xs text-arena-500">
-                                {artist.avatarUrl ? <img src={artist.avatarUrl} alt="" className="h-full w-full object-cover" /> : '♪'}
+                                {artist.avatarUrl ? <img src={artist.avatarUrl} alt="" className="h-full w-full object-cover" /> : withIcons('♪')}
                               </span>
                               {artist.username}
                             </button>
@@ -446,7 +448,7 @@ export default function ImportSoundCloudModal({
                           </p>
                         </>
                       ) : (
-                        <p className="mb-2 font-medium text-teal-400">TRACK FOUND ✓</p>
+                        <p className="mb-2 font-medium text-teal-400">TRACK FOUND <Icon name="check" /></p>
                       )}
                       <div className="mx-auto max-w-[220px]">
                         <TrackCard track={resolvedTrack} onPreview={() => togglePreview(resolvedTrack)} isPreviewing={previewingId === resolvedTrack.soundcloudTrackId} />
@@ -509,7 +511,7 @@ export default function ImportSoundCloudModal({
                   {filteredTracks.length > 0 && (
                     <div className="mb-4 flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
                       <div className="flex items-center gap-1.5 text-sm text-slate-400">
-                        <span aria-hidden="true">🎲</span>
+                        <span aria-hidden="true"><Icon name="dice" /></span>
                         <input
                           type="number"
                           min={1}

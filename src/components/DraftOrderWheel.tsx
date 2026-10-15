@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { Icon } from './Icon'
+import { withIcons } from '../lib/with-icons'
 
 interface WheelEntry {
   index: number
@@ -110,7 +112,7 @@ export default function DraftOrderWheel({
         </p>
 
         <div className="relative mx-auto" style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}>
-          <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1 text-2xl">🔻</div>
+          <div className="absolute left-1/2 top-0 z-10 -translate-x-1/2 -translate-y-1 text-2xl"><Icon name="triangle-down" /></div>
           <canvas
             ref={canvasRef}
             width={WHEEL_SIZE}
@@ -147,7 +149,7 @@ export default function DraftOrderWheel({
               disabled={spinning}
               className="flex-[2] rounded-full bg-hardwood-500 py-2 font-semibold text-arena-950 disabled:cursor-not-allowed disabled:opacity-40 hover:bg-hardwood-400"
             >
-              {spinning ? 'SPINNING…' : order.length === 0 ? '🎡 SPIN' : '🎡 SPIN NEXT'}
+              {spinning ? 'SPINNING…' : order.length === 0 ? withIcons('🎡 SPIN') : withIcons('🎡 SPIN NEXT')}
             </button>
           )}
         </div>

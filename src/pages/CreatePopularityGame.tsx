@@ -18,6 +18,8 @@ import { SkeletonArtistGrid } from '../components/skeletons'
 import TextInput from '../components/ui/TextInput'
 import Button from '../components/ui/Button'
 import Panel from '../components/ui/Panel'
+import { Icon } from '../components/Icon'
+import ArtPlaceholder from '../components/ArtPlaceholder'
 
 const TURN_TIMER_OPTIONS = [15, 30, 45, 60]
 
@@ -142,7 +144,7 @@ export default function CreatePopularityGame() {
     <div className="min-h-svh court-lines px-6 py-16">
       <div className="mx-auto max-w-2xl space-y-8">
         <div className="text-center">
-          <div className="mb-2 text-4xl">📈</div>
+          <div className="mb-2 text-4xl"><Icon name="trend" /></div>
           <h1 className="title-page">GUESS THE POPULARITY</h1>
           <p className="mt-2 text-sm text-slate-400">Pick an artist, then guess which song holds each of their top 10 spots.</p>
         </div>
@@ -182,7 +184,7 @@ export default function CreatePopularityGame() {
                       {a.imageUrl ? (
                         <img src={a.imageUrl} alt="" className="h-full w-full object-cover" />
                       ) : (
-                        <div className="flex h-full w-full items-center justify-center text-2xl text-arena-500">♪</div>
+                        <ArtPlaceholder seed={a.name} />
                       )}
                     </div>
                     <div className="truncate text-sm font-semibold text-slate-100">{a.name}</div>
@@ -214,7 +216,7 @@ export default function CreatePopularityGame() {
                 {artist.imageUrl ? (
                   <img src={artist.imageUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-2xl text-arena-500">♪</div>
+                  <ArtPlaceholder seed={artist.name} />
                 )}
               </div>
               <div>
@@ -281,7 +283,7 @@ export default function CreatePopularityGame() {
                         className="shrink-0 rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
                         aria-label={`Remove ${team.name}`}
                       >
-                        ✕
+                        <Icon name="x" />
                       </button>
                     )}
                   </div>
@@ -292,7 +294,7 @@ export default function CreatePopularityGame() {
               </button>
               {duplicateTeamName && (
                 <p className="mt-2 text-xs text-scoreboard-amber">
-                  ⚠️ Two teams are both named "{duplicateTeamName}" — that'll look confusing on the scoreboard, and Stats merges
+                  <Icon name="warn" /> Two teams are both named "{duplicateTeamName}" — that'll look confusing on the scoreboard, and Stats merges
                   teams with the same name together across games.
                 </p>
               )}
@@ -306,7 +308,7 @@ export default function CreatePopularityGame() {
                 className="mt-1 h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
               />
               <span>
-                <span className="block text-sm font-semibold text-slate-200">🐕 Underdog catch-up</span>
+                <span className="block text-sm font-semibold text-slate-200"><Icon name="trend" /> Underdog catch-up</span>
                 <span className="block text-xs text-slate-500">A team trailing by 8+ scores a bonus point on a correct answer. Off by default.</span>
               </span>
             </label>

@@ -18,6 +18,8 @@ import { isBuzzerConfigured } from '../lib/buzzer/config'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import { downloadTierListImage } from '../lib/tierlist-image'
 import { useStoredEntity } from '../lib/use-stored-entity'
+import { Icon } from '../components/Icon'
+import ArtPlaceholder from '../components/ArtPlaceholder'
 
 // Sentinel for "currently dragging over the Unranked pool" — distinct from tier ids
 // (real uuids) and from `null` (no drag in progress), so the two are never confused.
@@ -103,7 +105,7 @@ function SongTile({
       {song.artworkUrl ? (
         <img src={song.artworkUrl} alt="" draggable={false} className="h-full w-full object-cover" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-2xl text-arena-500">♪</div>
+        <ArtPlaceholder seed={`${song.title} ${song.artist ?? ''}`} />
       )}
       {!comfy && (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-black/70 px-1.5 py-1 text-[10px] leading-tight text-white">
@@ -621,7 +623,7 @@ export default function TierListPresent() {
           </div>
         ) : allRanked ? (
           <div className="mb-6 rounded-2xl border border-hardwood-500/40 bg-hardwood-500/10 p-5 text-center">
-            <div className="font-display text-3xl tracking-wide text-hardwood-400">🏆 ALL RANKED</div>
+            <div className="font-display text-3xl tracking-wide text-hardwood-400"><Icon name="trophy" /> ALL RANKED</div>
             {topTier && (
               <p className="mt-1 text-sm text-slate-300">
                 Top tier ({topTier.name}): {songsInGroup(list, topTier.id).map((s) => s.title).join(' · ')}
@@ -629,10 +631,10 @@ export default function TierListPresent() {
             )}
             <div className="mt-4 flex flex-wrap justify-center gap-3">
               <Button onClick={copyResults} className="inline-flex items-center gap-2">
-                <span aria-hidden>📋</span> Copy results
+                <span aria-hidden><Icon name="clipboard" /></span> Copy results
               </Button>
               <Button variant="outline" onClick={() => downloadTierListImage(list)} className="inline-flex items-center gap-2">
-                <span aria-hidden>🖼</span> Save image
+                <span aria-hidden><Icon name="image" /></span> Save image
               </Button>
             </div>
             <p className="mt-3 text-xs text-slate-500">Still tweaking? Keep dragging below — everything is saved as you go.</p>
@@ -645,7 +647,7 @@ export default function TierListPresent() {
                   {upNext.artworkUrl ? (
                     <img src={upNext.artworkUrl} alt="" className="h-full w-full object-cover" />
                   ) : (
-                    <div className="flex h-full w-full items-center justify-center text-3xl text-arena-500">♪</div>
+                    <ArtPlaceholder seed={`${upNext.title} ${upNext.artist ?? ''}`} />
                   )}
                 </div>
                 <div className="min-w-0">
@@ -726,7 +728,7 @@ export default function TierListPresent() {
               Unranked ({unranked.length})
             </div>
             <div className="flex flex-wrap items-start gap-3">
-              {unranked.length === 0 && <div className="flex items-center px-2 text-xs text-slate-600">Everything's ranked 🎉</div>}
+              {unranked.length === 0 && <div className="flex items-center px-2 text-xs text-slate-600">Everything's ranked <Icon name="sparkle" /></div>}
               {unranked.map((song, i) => tile(song, unranked, i, UNRANKED_ZONE, null))}
             </div>
           </DropZone>

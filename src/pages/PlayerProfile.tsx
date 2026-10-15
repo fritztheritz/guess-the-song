@@ -8,6 +8,8 @@ import EmptyState from '../components/ui/EmptyState'
 import ButtonLink from '../components/ui/ButtonLink'
 import Panel from '../components/ui/Panel'
 import { PlayerTrend } from '../components/StatsCharts'
+import { withIcons } from '../lib/with-icons'
+import PlayerCard from '../components/PlayerCard'
 
 function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -40,13 +42,16 @@ export default function PlayerProfile() {
           </div>
         ) : (
           <div className="mt-2 space-y-8">
-            <div>
-              <h1 className="font-display text-4xl tracking-wide" style={{ color: profile.color }}>
-                {profile.name}
-              </h1>
-              <p className="text-sm text-slate-400">
-                #{profile.rank} of {profile.ofPlayers} on the player leaderboard · usually plays for {profile.favoriteTeam}
-              </p>
+            <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
+              <PlayerCard profile={profile} />
+              <div>
+                <h1 className="font-display text-5xl tracking-wide sm:text-6xl" style={{ color: profile.color }}>
+                  {profile.name}
+                </h1>
+                <p className="text-sm text-slate-400">
+                  #{profile.rank} of {profile.ofPlayers} on the player leaderboard · usually plays for {profile.favoriteTeam}
+                </p>
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -82,7 +87,7 @@ export default function PlayerProfile() {
                   <Panel key={l.gameId} padding="sm" className="flex items-center justify-between gap-3">
                     <span className="min-w-0">
                       <span className="block truncate text-slate-100">
-                        {l.teamWon ? '🏆 ' : ''}
+                        {l.teamWon ? withIcons('🏆 ') : ''}
                         {l.gameName}
                       </span>
                       <span className="text-xs text-slate-500">

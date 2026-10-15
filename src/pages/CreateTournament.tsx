@@ -4,6 +4,7 @@ import { createEmptyTournament } from '../types/tournament'
 import { saveTournament } from '../lib/storage/tournament-repository'
 import TextInput from '../components/ui/TextInput'
 import Button from '../components/ui/Button'
+import { Icon } from '../components/Icon'
 
 export default function CreateTournament() {
   const navigate = useNavigate()
@@ -19,7 +20,7 @@ export default function CreateTournament() {
     <div className="min-h-svh court-lines flex items-center justify-center px-6 py-16">
       <form onSubmit={handleSubmit} className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="mb-2 text-4xl">🏆</div>
+          <div className="mb-2 text-4xl"><Icon name="trophy" /></div>
           <h1 className="title-page">NAME YOUR TOURNAMENT</h1>
           <p className="mt-2 text-sm text-slate-400">Chain a few existing games together with one running leaderboard.</p>
         </div>

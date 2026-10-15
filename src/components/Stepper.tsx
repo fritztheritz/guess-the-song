@@ -1,3 +1,5 @@
+import { withIcons } from '../lib/with-icons'
+
 // Progress through a multi-step form: numbered dots joined by a line. Steps already reached can be clicked to
 // go back; the current one is marked for screen readers.
 export default function Stepper({ steps, current, onGo }: { steps: string[]; current: number; onGo?: (step: number) => void }) {
@@ -13,7 +15,7 @@ export default function Stepper({ steps, current, onGo }: { steps: string[]; cur
             }`}
             aria-hidden
           >
-            {done ? '✓' : i + 1}
+            {done ? withIcons('✓') : i + 1}
           </span>
         )
         return (

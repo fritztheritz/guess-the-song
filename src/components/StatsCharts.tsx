@@ -1,5 +1,7 @@
 import type { WeekBucket, WinRate } from '../lib/stats-charts'
 import type { PlayerGameLine } from '../lib/player-profile'
+import { Icon } from './Icon'
+import { withIcons } from '../lib/with-icons'
 
 // Small, dependency-free charts for Stats and player profiles. Each carries a text alternative
 // (title / aria-label) so the numbers aren't only conveyed by shape and colour.
@@ -48,7 +50,7 @@ export function ActivityStrip({ weeks }: { weeks: WeekBucket[] }) {
       <h2 className="mb-1 title-section">GAME NIGHTS</h2>
       <p className="mb-3 text-xs text-slate-500">
         {total} finished {total === 1 ? 'game' : 'games'} in the last {weeks.length} weeks
-        {streak > 1 ? ` · ${streak}-week streak 🔥` : ''}
+        {streak > 1 ? withIcons(` · ${streak}-week streak 🔥`) : ''}
       </p>
       <div className="flex gap-1.5" role="img" aria-label={`Games finished per week over the last ${weeks.length} weeks: ${weeks.map((w) => w.count).join(', ')}`}>
         {weeks.map((w) => {
@@ -78,11 +80,11 @@ export function PlayerTrend({ lines }: { lines: PlayerGameLine[] }) {
   return (
     <section>
       <h2 className="mb-1 title-section">POINTS PER GAME</h2>
-      <p className="mb-3 text-xs text-slate-500">Last {ordered.length} games, oldest to newest. 🏆 = their team won.</p>
+      <p className="mb-3 text-xs text-slate-500">Last {ordered.length} games, oldest to newest. <Icon name="trophy" /> = their team won.</p>
       <div className="flex items-end gap-2 rounded-xl border border-arena-700 bg-arena-900/50 px-4 pb-3 pt-6" role="img" aria-label={`Points per game: ${ordered.map((l) => l.points).join(', ')}`}>
         {ordered.map((l) => (
           <div key={l.gameId} className="flex min-w-0 flex-1 flex-col items-center gap-1" title={`${l.gameName}: ${l.points} pts`}>
-            <span className="text-[10px] text-slate-400">{l.teamWon ? '🏆' : ''}</span>
+            <span className="text-[10px] text-slate-400">{l.teamWon ? withIcons('🏆') : ''}</span>
             <div className="flex h-24 w-full items-end">
               <div className={`w-full rounded-t ${l.teamWon ? 'bg-hardwood-400' : 'bg-hardwood-500/60'}`} style={{ height: `${Math.max(4, (l.points / max) * 100)}%` }} />
             </div>

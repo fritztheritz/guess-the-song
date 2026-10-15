@@ -65,6 +65,9 @@ import { BuzzerSocket, type SocketStatus } from '../lib/buzzer/buzzer-socket'
 import ConnectionBanner from '../components/ConnectionBanner'
 import { generateRoomCode, isBuzzerConfigured } from '../lib/buzzer/config'
 import type { BuzzState, BuzzerPlayer, BuzzerWinner, PhoneRoundState } from '../lib/buzzer/protocol'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
+import BoxScore from '../components/BoxScore'
 
 type Phase = 'resume' | 'intro' | 'clue' | 'revealed' | 'final' | 'halftime' | 'suddendeath'
 
@@ -952,7 +955,7 @@ export default function HostController({ gameId }: { gameId: string }) {
             title={`Eject ${team.name} from this possession (just for laughs)`}
             className="flex items-center gap-1 rounded-full border border-scoreboard-500/40 bg-scoreboard-500/10 px-2.5 py-1 text-xs text-slate-300 enabled:hover:border-scoreboard-500 enabled:hover:text-white disabled:opacity-40"
           >
-            🟥 <span style={{ color: team.color }}>{team.name}</span>
+            <Icon name="red-card" /> <span style={{ color: team.color }}>{team.name}</span>
           </button>
         ))}
       </div>
@@ -994,7 +997,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 aria-pressed={armed === 'steal'}
                 className={btn(armed === 'steal')}
               >
-                🥷 ×{left('steal')}
+                <Icon name="bolt" /> ×{left('steal')}
               </button>
               <button
                 onClick={() => (freezeActive ? cancelFreeze(team.id) : setFreezePickerFor(freezePickerFor === team.id ? null : team.id))}
@@ -1003,7 +1006,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 aria-pressed={freezeActive}
                 className={btn(freezeActive)}
               >
-                🧊 ×{left('freeze')}
+                <Icon name="snow" /> ×{left('freeze')}
               </button>
               {freezePickerFor === team.id && !freezeActive && (
                 <div className="absolute bottom-full left-0 z-30 mb-1 w-40 space-y-1 rounded-lg border border-arena-600 bg-arena-900 p-2 text-left shadow-2xl">
@@ -1017,7 +1020,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                         className="block w-full truncate rounded px-2 py-1 text-left text-xs hover:bg-arena-700"
                         style={{ color: t.color }}
                       >
-                        🧊 {t.name}
+                        <Icon name="snow" /> {t.name}
                       </button>
                     ))}
                 </div>
@@ -1058,7 +1061,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                   title={`${b.label} (${b.key})`}
                   className="flex items-center gap-1.5 rounded-full border border-arena-600 bg-arena-800 px-2.5 py-1 text-xs text-slate-200 hover:border-hardwood-500"
                 >
-                  <span className="text-base">{b.icon}</span>
+                  <span className="text-base">{withIcons(b.icon)}</span>
                   <span>{b.label}</span>
                   <kbd className="rounded bg-arena-700 px-1 font-mono text-[10px] text-slate-300">{b.key}</kbd>
                 </button>
@@ -1184,7 +1187,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 className="rounded-full px-2.5 py-1 text-xs font-semibold"
                 style={{ background: `${team?.color ?? '#888'}22`, color: team?.color }}
               >
-                {(isTierGuess && tierGuessStage === 'position' && isExactPosition(g.text)) || (isYear && yearGuessStage === 'month' && isExactMonth(g.text)) ? '🎯 ' : ''}{g.name}: {g.text}
+                {(isTierGuess && tierGuessStage === 'position' && isExactPosition(g.text)) || (isYear && yearGuessStage === 'month' && isExactMonth(g.text)) ? withIcons('🎯 ') : ''}{g.name}: {g.text}
               </span>
             )
           })}
@@ -1661,14 +1664,14 @@ export default function HostController({ gameId }: { gameId: string }) {
       {earnBanner && (
         <div className="pointer-events-none absolute inset-x-0 top-3 z-40 flex justify-center">
           <div key={earnBanner.key} className="animate-pop-in rounded-full border border-scoreboard-amber/60 bg-arena-900/95 px-6 py-2 text-lg font-semibold text-scoreboard-amber shadow-xl">
-            {earnBanner.icon} {earnBanner.text}
+            {withIcons(earnBanner.icon)} {withIcons(earnBanner.text)}
           </div>
         </div>
       )}
       {ejectBanner && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center overflow-hidden bg-scoreboard-500/10">
           <div key={ejectBanner.key} className="animate-eject-stamp max-w-xl rounded-2xl border-4 border-scoreboard-500 bg-arena-950/90 px-10 py-6 text-center shadow-2xl shadow-scoreboard-500/40">
-            <div className="text-6xl">🟥🧑‍⚖️</div>
+            <div className="text-6xl"><Icon name="red-card" /><Icon name="whistle" /></div>
             <div className="font-display text-7xl tracking-widest text-scoreboard-500">EJECTED!</div>
             <div className="mt-2 text-xl font-semibold" style={{ color: ejectBanner.team.color }}>
               {ejectBanner.phrase}
@@ -1688,7 +1691,7 @@ export default function HostController({ gameId }: { gameId: string }) {
             <span
               className={`h-2 w-2 rounded-full ${buzzState === 'open' ? 'animate-pulse bg-scoreboard-green' : buzzState === 'locked' ? 'bg-scoreboard-amber' : 'bg-slate-600'}`}
             />
-            🔔 {game.buzzerRoomCode} ({buzzRoster.length})
+            <Icon name="bell" /> {game.buzzerRoomCode} ({buzzRoster.length})
           </button>
         )}
         {publicConnected && (
@@ -1696,12 +1699,12 @@ export default function HostController({ gameId }: { gameId: string }) {
             onClick={() => setPeekMode((v) => !v)}
             className={`rounded-full px-3 py-1.5 text-sm ${peekMode ? 'bg-hardwood-500 text-arena-950' : 'bg-black/40 text-slate-300 hover:bg-black/60'}`}
           >
-            {peekMode ? '🔓 Peek: ON' : '🔒 Peek: OFF'}
+            {peekMode ? '🔓 Peek: ON' : withIcons('🔒 Peek: OFF')}
           </button>
         )}
         <button onClick={openPublicDisplay} aria-label="Open the public display" className="rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
-          🖥️<span className="hidden sm:inline"> Public Display</span>
-          {publicConnected ? ' ✓' : ''}
+          <Icon name="monitor" /><span className="hidden sm:inline"> Public Display</span>
+          {publicConnected ? withIcons(' ✓') : ''}
         </button>
         {soundboardEnabled && trayVisible && (
           <button
@@ -1710,7 +1713,7 @@ export default function HostController({ gameId }: { gameId: string }) {
             aria-label="Soundboard and host tools"
             title="Soundboard and host tools (Z X C V B N play sounds)"
           >
-            🎛️
+            <Icon name="toolbox" />
           </button>
         )}
         <SoundControl />
@@ -1736,7 +1739,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
       {showCheatSheet && (
         <div className="fixed bottom-4 left-4 z-20 max-w-xs rounded-xl border border-hardwood-500/50 bg-black/80 px-4 py-3 text-left shadow-xl">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-hardwood-400">🔒 Host only</div>
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-hardwood-400"><Icon name="lock" /> Host only</div>
           <div className="text-sm text-hardwood-100">{cheatSheetText()}</div>
         </div>
       )}
@@ -1779,7 +1782,7 @@ export default function HostController({ gameId }: { gameId: string }) {
       {phase === 'intro' && (
         <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-pop-in">
           <div className="font-display text-5xl tracking-wide text-hardwood-400">{game.name}</div>
-          <div className="text-6xl">🏀</div>
+          <div className="text-6xl"><Icon name="ball" /></div>
           <div className="flex gap-8 font-display text-2xl text-slate-300">
             <div>{game.rounds.length} {isLyric ? 'LYRICS' : isTierGuess ? 'SONGS' : 'TRACKS'}</div>
             <div>{game.teams.length} TEAMS</div>
@@ -1798,7 +1801,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         <div className="flex min-h-0 flex-1 flex-col items-center justify-between gap-4 px-4 pb-6 pt-16 sm:px-6 sm:pb-8">
           <div className="flex w-full items-center justify-between gap-2 font-display text-base tracking-widest text-slate-400 sm:text-lg">
             <span>{game.name.toUpperCase()}</span>
-            <span>{game.suddenDeath ? '💀 SUDDEN DEATH' : `POSSESSION ${possessionIndex + 1} OF ${game.rounds.length}`}</span>
+            <span>{game.suddenDeath ? withIcons('💀 SUDDEN DEATH') : `POSSESSION ${possessionIndex + 1} OF ${game.rounds.length}`}</span>
           </div>
 
           {stageStepper()}
@@ -1806,7 +1809,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-6 overflow-y-auto text-center">
             {round.wager && !wagerTeamId ? (
               <>
-                <div className="text-xs uppercase tracking-[0.3em] text-scoreboard-amber">⭐ Wager Round</div>
+                <div className="text-xs uppercase tracking-[0.3em] text-scoreboard-amber"><Icon name="star-solid" /> Wager Round</div>
                 <div className="font-display text-3xl tracking-wide text-white">WHO'S WAGERING?</div>
                 <div className="grid w-full max-w-lg grid-cols-2 gap-2 sm:grid-cols-3">
                   {game.teams.map((team) => (
@@ -1959,7 +1962,7 @@ export default function HostController({ gameId }: { gameId: string }) {
               <>
                 {round.wager && wagerTeamId && (
                   <div className="rounded-full bg-scoreboard-amber/15 px-4 py-1.5 text-sm font-semibold text-scoreboard-amber">
-                    ⭐ {game.teams.find((t) => t.id === wagerTeamId)?.name} wagering {wagerAmount} pts
+                    <Icon name="star-solid" /> {game.teams.find((t) => t.id === wagerTeamId)?.name} wagering {wagerAmount} pts
                   </div>
                 )}
 
@@ -1994,7 +1997,7 @@ export default function HostController({ gameId }: { gameId: string }) {
               <>
                 {round.wager && wagerTeamId && (
                   <div className="rounded-full bg-scoreboard-amber/15 px-4 py-1.5 text-sm font-semibold text-scoreboard-amber">
-                    ⭐ {game.teams.find((t) => t.id === wagerTeamId)?.name} wagering {wagerAmount} pts
+                    <Icon name="star-solid" /> {game.teams.find((t) => t.id === wagerTeamId)?.name} wagering {wagerAmount} pts
                   </div>
                 )}
                 <ShotClockDigit seconds={shotClock} />
@@ -2023,14 +2026,14 @@ export default function HostController({ gameId }: { gameId: string }) {
             {!isGuess && !round.wager && buzzWinner && (
               <div className="w-full max-w-sm space-y-2 rounded-xl border border-scoreboard-amber/40 bg-scoreboard-amber/10 p-4">
                 <div className="text-sm font-semibold text-scoreboard-amber">
-                  🔔 {buzzWinner.name} ({game.teams.find((t) => t.id === buzzWinner.teamId)?.name ?? '—'}) buzzed in!
+                  <Icon name="bell" /> {buzzWinner.name} ({game.teams.find((t) => t.id === buzzWinner.teamId)?.name ?? '—'}) buzzed in!
                 </div>
                 {buzzGuess?.connId === buzzWinner.connId && (
                   <div className="rounded-lg bg-black/30 px-3 py-2 text-sm italic text-slate-200">"{buzzGuess.text}"</div>
                 )}
                 {buzzerConnected && !buzzWinner.connId.startsWith('local:') && !buzzRoster.some((p) => p.connId === buzzWinner.connId || (p.name === buzzWinner.name && p.teamId === buzzWinner.teamId)) && (
                   <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-scoreboard-500/15 px-3 py-2 text-xs text-scoreboard-500">
-                    <span>📡 {buzzWinner.name}'s phone disconnected.</span>
+                    <span><Icon name="wifi-off" /> {buzzWinner.name}'s phone disconnected.</span>
                     <button onClick={reopenBuzzers} className="font-semibold underline hover:text-white">
                       Reopen buzzers (no penalty)
                     </button>
@@ -2041,13 +2044,13 @@ export default function HostController({ gameId }: { gameId: string }) {
                     onClick={markBuzzCorrect}
                     className="flex-1 rounded-xl border border-scoreboard-green bg-scoreboard-green/15 py-2.5 font-semibold text-scoreboard-green hover:bg-scoreboard-green/25"
                   >
-                    ✓ Correct (+{round.points[clueIndex]})
+                    <Icon name="check" /> Correct (+{round.points[clueIndex]})
                   </button>
                   <button
                     onClick={markBuzzWrong}
                     className="flex-1 rounded-xl border border-scoreboard-500 bg-scoreboard-500/15 py-2.5 font-semibold text-scoreboard-500 hover:bg-scoreboard-500/25"
                   >
-                    ✗ Wrong — reopen
+                    <Icon name="x" /> Wrong — reopen
                   </button>
                 </div>
               </div>
@@ -2190,7 +2193,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                   <div className="truncate text-sm text-slate-300">{round.higherLower.ref.title}</div>
                   <div className="font-display text-2xl text-slate-300">#{round.higherLower.ref.rank}</div>
                 </div>
-                <div className="font-display text-3xl text-hardwood-400">{correctAnswer(round.higherLower) === 'higher' ? '⬆️' : '⬇️'}</div>
+                <div className="font-display text-3xl text-hardwood-400">{correctAnswer(round.higherLower) === 'higher' ? withIcons('⬆️') : withIcons('⬇️')}</div>
                 <div className="w-40 space-y-1 animate-pop-in">
                   <div className="mx-auto h-28 w-28 overflow-hidden rounded-xl bg-arena-800 shadow-2xl">
                     <ArtworkFill url={round.artworkUrl} />
@@ -2283,7 +2286,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
           {buzzWinner && (
             <div className="relative z-10 rounded-full bg-scoreboard-amber/15 px-4 py-1.5 text-sm font-semibold text-scoreboard-amber">
-              🔔 {buzzWinner.name} ({game.teams.find((t) => t.id === buzzWinner.teamId)?.name ?? '—'}) buzzed in first
+              <Icon name="bell" /> {buzzWinner.name} ({game.teams.find((t) => t.id === buzzWinner.teamId)?.name ?? '—'}) buzzed in first
             </div>
           )}
 
@@ -2351,20 +2354,20 @@ export default function HostController({ gameId }: { gameId: string }) {
               ) : (
                 <div className="relative z-10 w-full max-w-sm space-y-2">
                   <div className="text-sm uppercase tracking-widest text-slate-400">
-                    ⭐ {team.name} wagered {wagerAmount} — got it?
+                    <Icon name="star-solid" /> {team.name} wagered {wagerAmount} — got it?
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => award(team, wagerAmount ?? 0)}
                       className="flex-1 rounded-xl border border-scoreboard-green bg-scoreboard-green/15 py-3 font-semibold text-scoreboard-green hover:bg-scoreboard-green/25"
                     >
-                      ✓ Correct (+{wagerAmount})
+                      <Icon name="check" /> Correct (+{wagerAmount})
                     </button>
                     <button
                       onClick={() => award(team, -(wagerAmount ?? 0))}
                       className="flex-1 rounded-xl border border-scoreboard-500 bg-scoreboard-500/15 py-3 font-semibold text-scoreboard-500 hover:bg-scoreboard-500/25"
                     >
-                      ✗ Missed (–{wagerAmount})
+                      <Icon name="x" /> Missed (–{wagerAmount})
                     </button>
                   </div>
                 </div>
@@ -2373,7 +2376,7 @@ export default function HostController({ gameId }: { gameId: string }) {
           ) : lastAward ? (
             <div className="relative z-10 space-y-1">
               <div className="font-display text-5xl text-scoreboard-green">+{lastAward.points}</div>
-              <div className="text-sm uppercase tracking-widest text-slate-400">🏀 Bucket!</div>
+              <div className="text-sm uppercase tracking-widest text-slate-400"><Icon name="ball" /> Bucket!</div>
               {undoAwardButton()}
             </div>
           ) : (
@@ -2423,7 +2426,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
       {phase === 'halftime' && (
         <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-pop-in">
-          <div className="text-6xl">🏀</div>
+          <div className="text-6xl"><Icon name="ball" /></div>
           <div className="font-display text-5xl tracking-widest text-hardwood-400">HALFTIME</div>
           <p className="max-w-md text-slate-400">{halftimePrompt}</p>
           <Scoreboard teams={game.teams} moves={boardMoves} />
@@ -2438,7 +2441,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
       {phase === 'suddendeath' && (
         <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-pop-in">
-          <div className="text-6xl">💀</div>
+          <div className="text-6xl"><Icon name="skull" /></div>
           <div className="font-display text-5xl tracking-widest text-scoreboard-500">SUDDEN DEATH</div>
           <p className="max-w-md text-slate-400">
             Tied at the top with no reserve round left. Ask your own tiebreaker question — whoever nails it first takes the win.
@@ -2465,10 +2468,11 @@ export default function HostController({ gameId }: { gameId: string }) {
       )}
 
       {phase === 'final' && (
-        <div className="flex flex-1 flex-col items-center justify-center gap-8 text-center">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-8 overflow-y-auto px-6 py-8 text-center">
           <Confetti />
           <div className="font-display text-5xl tracking-widest text-hardwood-400">FINAL SCORE</div>
           <FinalPodium teams={game.teams} moves={boardMoves} />
+          <BoxScore game={game} />
           <div className="font-display text-lg tracking-widest text-slate-500">GAME OVER</div>
 
           {(recapRef.current.correctCount > 0 || recapRef.current.noScoreCount > 0 || recapRef.current.fastestBuzz) && (
@@ -2476,13 +2480,13 @@ export default function HostController({ gameId }: { gameId: string }) {
               <div className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500">Recap</div>
               {sortedFinal.length > 1 && sortedFinal[0].score !== sortedFinal[1].score && (
                 <div className="flex justify-between text-slate-300">
-                  <span>🔥 Winning margin</span>
+                  <span><Icon name="flame" /> Winning margin</span>
                   <span>{sortedFinal[0].score - sortedFinal[1].score} pts</span>
                 </div>
               )}
               {recapRef.current.biggest && (
                 <div className="flex justify-between gap-3 text-slate-300">
-                  <span className="text-left">⚡ Biggest score</span>
+                  <span className="text-left"><Icon name="bolt" /> Biggest score</span>
                   <span className="truncate text-right">
                     +{recapRef.current.biggest.points} — {recapRef.current.biggest.teamName} on "{recapRef.current.biggest.roundTitle}"
                   </span>
@@ -2490,7 +2494,7 @@ export default function HostController({ gameId }: { gameId: string }) {
               )}
               {recapRef.current.fastestBuzz && (
                 <div className="flex justify-between gap-3 text-slate-300">
-                  <span className="text-left">🔔 Fastest buzz</span>
+                  <span className="text-left"><Icon name="bell" /> Fastest buzz</span>
                   <span className="truncate text-right">
                     {(recapRef.current.fastestBuzz.ms / 1000).toFixed(2)}s — {recapRef.current.fastestBuzz.name} (
                     {game.teams.find((t) => t.id === recapRef.current.fastestBuzz?.teamId)?.name ?? '—'})
@@ -2501,7 +2505,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 const mvp = [...(game.playerStats ?? [])].sort((a, b) => b.points - a.points)[0]
                 return mvp && mvp.points > 0 ? (
                   <div className="flex justify-between gap-3 text-slate-300">
-                    <span className="text-left">⭐ MVP</span>
+                    <span className="text-left"><Icon name="star-solid" /> MVP</span>
                     <span className="truncate text-right">
                       {mvp.name} ({mvp.teamName}) — {mvp.points} pts
                     </span>
@@ -2509,7 +2513,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 ) : null
               })()}
               <div className="flex justify-between text-slate-300">
-                <span>🏀 Buckets</span>
+                <span><Icon name="ball" /> Buckets</span>
                 <span>
                   {recapRef.current.correctCount} scored
                   {recapRef.current.noScoreCount > 0 ? ` · ${recapRef.current.noScoreCount} no-score` : ''}
@@ -2523,10 +2527,10 @@ export default function HostController({ gameId }: { gameId: string }) {
               PLAY AGAIN
             </button>
             <button onClick={() => setRematchOpen(true)} className="rounded-full border border-hardwood-500 px-6 py-2.5 font-semibold text-hardwood-400 hover:bg-hardwood-500/10">
-              🔁 REMATCH
+              <Icon name="refresh" /> REMATCH
             </button>
             <button onClick={handleDownloadRecap} className="rounded-full border border-arena-500 px-6 py-2.5 text-slate-200 hover:border-hardwood-500">
-              📤 SAVE RECAP CARD
+              <Icon name="share" /> SAVE RECAP CARD
             </button>
             {(game.history?.length ?? 0) > 0 && (
               <button onClick={() => navigate(`/games/${gameId}/replay`)} className="rounded-full border border-arena-500 px-6 py-2.5 text-slate-200 hover:border-hardwood-500">

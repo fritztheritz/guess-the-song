@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { withIcons } from '../lib/with-icons'
 import { rulesFor } from '../lib/mode-rules'
 import type { Game } from '../types'
 import ModalShell from './ui/ModalShell'
@@ -33,7 +34,7 @@ export default function GamePickerModal({
               >
                 <div>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-xs">{rulesFor(game.mode).icon}</span>
+                    <span className="text-xs">{withIcons(rulesFor(game.mode).icon)}</span>
                     <div className="font-semibold text-slate-100">{game.name}</div>
                   </div>
                   <div className="text-xs text-slate-500">

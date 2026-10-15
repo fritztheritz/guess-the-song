@@ -1,4 +1,5 @@
 import type { Team } from '../types'
+import { withIcons } from '../lib/with-icons'
 
 interface Props {
   title: string
@@ -18,7 +19,7 @@ interface Props {
 export default function CreditGrid({ title, teams, credited, onToggle, isBlocked, blockedMark, submittedIds }: Props) {
   return (
     <div>
-      <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">{title}</div>
+      <div className="mb-1.5 text-sm uppercase tracking-widest text-slate-400">{withIcons(title)}</div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {teams.map((team) => (
           <button
@@ -30,9 +31,9 @@ export default function CreditGrid({ title, teams, credited, onToggle, isBlocked
             }`}
             style={{ color: team.color }}
           >
-            {credited.has(team.id) ? '✓ ' : ''}
-            {blockedMark?.(team.id)}
-            {submittedIds?.has(team.id) ? '✍️ ' : ''}
+            {credited.has(team.id) ? withIcons('✓ ') : ''}
+            {withIcons(blockedMark?.(team.id))}
+            {submittedIds?.has(team.id) ? withIcons('✍️ ') : ''}
             {team.name}
           </button>
         ))}

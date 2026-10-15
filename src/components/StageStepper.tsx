@@ -1,3 +1,5 @@
+import { withIcons } from '../lib/with-icons'
+
 interface Props {
   steps: string[]
   /** Index of the step in progress. */
@@ -17,7 +19,7 @@ export default function StageStepper({ steps, current, className = '' }: Props) 
               i === current ? 'bg-hardwood-500 font-semibold text-arena-950' : i < current ? 'bg-arena-700 text-slate-300' : 'border border-arena-700 text-slate-500'
             }`}
           >
-            {i < current ? '✓ ' : ''}
+            {i < current ? withIcons('✓ ') : ''}
             {label}
           </span>
           {i < steps.length - 1 && <span className="text-slate-600">›</span>}

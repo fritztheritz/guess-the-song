@@ -19,6 +19,9 @@ import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
 import { summarizeDraftBoard } from '../lib/draft-summary'
 import { useStoredEntity } from '../lib/use-stored-entity'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
+import ArtPlaceholder from '../components/ArtPlaceholder'
 
 const PHASE_LABEL: Record<DraftSession['phase'], string> = {
   drafting: '🎧 Drafting',
@@ -246,14 +249,14 @@ export default function DraftBoardHome() {
                         {session.drafters.length} drafters · {session.picksPerDrafter} picks each
                       </div>
                     </div>
-                    <span className="shrink-0 text-sm text-slate-400">{PHASE_LABEL[session.phase]}</span>
+                    <span className="shrink-0 text-sm text-slate-400">{withIcons(PHASE_LABEL[session.phase])}</span>
                   </Link>
                   <button
                     onClick={() => deleteSession(session)}
                     aria-label={`Delete ${session.name}`}
                     className="shrink-0 rounded-full p-1.5 text-slate-500 opacity-0 hover:text-scoreboard-500 focus:opacity-100 group-hover:opacity-100"
                   >
-                    ✕
+                    <Icon name="x" />
                   </button>
                 </Panel>
               ))}
@@ -298,7 +301,7 @@ export default function DraftBoardHome() {
               <div className="mt-3 space-y-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="relative min-w-[12rem] flex-1">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500">🔍</span>
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"><Icon name="search" /></span>
                     <input
                       value={poolQuery}
                       onChange={(e) => setPoolQuery(e.target.value)}
@@ -334,7 +337,7 @@ export default function DraftBoardHome() {
                             {song.artworkUrl ? (
                               <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
                             ) : (
-                              <div className="flex h-full w-full items-center justify-center text-lg text-arena-500">♪</div>
+                              <ArtPlaceholder seed={`${song.title} ${song.artist ?? ''}`} />
                             )}
                           </div>
                           <div className="min-w-0 flex-1">
@@ -357,7 +360,7 @@ export default function DraftBoardHome() {
                               aria-label={`Remove ${song.title}`}
                               className="shrink-0 rounded-full p-1.5 text-xs text-slate-500 opacity-0 hover:text-scoreboard-500 focus:opacity-100 group-hover:opacity-100"
                             >
-                              ✕
+                              <Icon name="x" />
                             </button>
                           )}
                         </li>

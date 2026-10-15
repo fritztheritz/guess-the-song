@@ -1,6 +1,7 @@
 import type { PlayerRow } from '../lib/achievements'
 import { Link } from 'react-router-dom'
 import Panel from './ui/Panel'
+import { withIcons } from '../lib/with-icons'
 
 // Phone players ranked by points — only present once games have been played with Phone
 // Buzz-In, since that's the only place a score can be pinned on an individual.
@@ -14,7 +15,7 @@ export default function PlayerLeaderboard({ players }: { players: PlayerRow[] })
         {players.slice(0, 10).map((p, i) => (
           <Panel key={p.name} padding="sm" className="flex items-center justify-between gap-3">
             <span className="min-w-0 truncate font-medium" style={{ color: p.color }}>
-              {i === 0 ? '⭐ ' : ''}
+              {i === 0 ? withIcons('⭐ ') : ''}
               <Link to={`/players/${encodeURIComponent(p.name)}`} className="hover:underline" title={`${p.name}'s profile`}>
                 {p.name}
               </Link>

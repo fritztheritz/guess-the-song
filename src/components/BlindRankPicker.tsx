@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Icon } from './Icon'
 import type { PhoneRoundState } from '../lib/buzzer/protocol'
 import { playerKey } from '../lib/blind-rank'
 import { PhoneBanner, PhoneSongCard } from './PhoneParts'
 import { tileClass } from './phone-tiles'
+import { withIcons } from '../lib/with-icons'
 
 type Blind = NonNullable<PhoneRoundState['blind']>
 interface Pick {
@@ -59,7 +61,7 @@ export default function BlindRankPicker({
     const match = blind.results.matches.find((m) => playerKey(m.name) === playerKey(myName))
     return (
       <div className="w-full max-w-xs space-y-4 text-left">
-        <PhoneBanner tone="accent" title="🙈 ALL PLACED">
+        <PhoneBanner tone="accent" title={withIcons("🙈 ALL PLACED")}>
           {match?.closest ? (
             <>
               Your closest match: <span className="font-semibold text-white">{match.closest}</span>
@@ -91,7 +93,7 @@ export default function BlindRankPicker({
       <PhoneSongCard title={blind.song.title} artist={blind.song.artist} artworkUrl={blind.song.artworkUrl} />
 
       {mine ? (
-        <PhoneBanner title={`🔒 LOCKED IN AT #${mine.slot}`}>No take-backs — waiting for the next song.</PhoneBanner>
+        <PhoneBanner title={<><Icon name="lock" /> LOCKED IN AT #{mine.slot}</>}>No take-backs — waiting for the next song.</PhoneBanner>
       ) : (
         <>
           <p className="text-sm text-slate-300">Where does it rank? 1 = your favorite. Pick carefully — it's final.</p>

@@ -9,6 +9,7 @@ import { listSeasons } from '../lib/storage/season-repository'
 import { listPopularityGames } from '../lib/storage/popularity-repository'
 import { listTimelineGames } from '../lib/storage/timeline-repository'
 import { useFeatureFlag } from '../state/feature-flags-context'
+import { withIcons } from '../lib/with-icons'
 
 // ⌘K / Ctrl+K (or "/" on Home) opens a jump-anywhere box: pages, "new …" actions and everything you've saved,
 // matched by name. Content is read from storage each time it opens, so it's never stale.
@@ -149,7 +150,7 @@ export default function CommandPalette() {
               className={`flex cursor-pointer items-center gap-3 px-4 py-2.5 text-sm ${i === clamped ? 'bg-hardwood-500/15 text-white' : 'text-slate-300'}`}
             >
               <span aria-hidden className="w-6 text-center">
-                {cmd.icon}
+                {withIcons(cmd.icon)}
               </span>
               <span className="min-w-0 flex-1 truncate">{cmd.label}</span>
               <span className="shrink-0 text-xs text-slate-500">{cmd.kind}</span>

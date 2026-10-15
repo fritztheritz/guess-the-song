@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSpotify } from '../state/spotify-context'
+import { Icon } from './Icon'
 
 export default function SpotifyConnectPanel() {
   const { connection, isConfigured, connect, disconnect } = useSpotify()
@@ -48,10 +49,10 @@ export default function SpotifyConnectPanel() {
   return (
     <div className="flex items-center justify-between rounded-xl border border-arena-600 bg-arena-800/60 p-3">
       <div className="flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1DB954] text-black">♫</div>
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#1DB954] text-black"><Icon name="note" /></div>
         <div>
           <div className="font-medium text-slate-100">{connection.displayName || connection.spotifyUserId}</div>
-          <div className="text-xs text-teal-400">Connected ✓</div>
+          <div className="text-xs text-teal-400">Connected <Icon name="check" /></div>
         </div>
       </div>
       <button onClick={disconnect} className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-300 hover:border-scoreboard-500 hover:text-scoreboard-500">

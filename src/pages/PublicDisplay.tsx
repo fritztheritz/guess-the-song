@@ -16,6 +16,8 @@ import Scoreboard from '../components/Scoreboard'
 import Spinner from '../components/Spinner'
 import Confetti from '../components/Confetti'
 import JoinQrCode from '../components/JoinQrCode'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -116,7 +118,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
   if (!snapshot) {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-arena-950 court-lines text-center text-white">
-        <div className="text-5xl">🏀</div>
+        <div className="text-5xl"><Icon name="ball" /></div>
         <div className="font-display text-2xl tracking-wide text-hardwood-400">Waiting for host…</div>
         <p className="text-sm text-slate-500">Keep this window open — it'll follow along automatically.</p>
       </div>
@@ -142,10 +144,10 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
         {(phase === 'resume' || phase === 'intro') && (
           <div className="flex flex-1 flex-col items-center justify-center gap-8 px-8 text-center animate-pop-in">
             <div>
-              <div className="text-6xl">🏀</div>
+              <div className="text-6xl"><Icon name="ball" /></div>
               <div className="mt-2 font-display text-6xl tracking-wide text-hardwood-400">{game.name}</div>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-sm text-slate-300">
-                <span className="rounded-full border border-arena-600 px-3 py-1">{modeLabel}</span>
+                <span className="rounded-full border border-arena-600 px-3 py-1">{withIcons(modeLabel)}</span>
                 <span className="rounded-full border border-arena-600 px-3 py-1">
                   {game.rounds.length} possession{game.rounds.length === 1 ? '' : 's'}
                 </span>
@@ -181,7 +183,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
             <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-6 overflow-y-auto text-center">
               {round.wager && !wager ? (
                 <>
-                  <div className="text-xs uppercase tracking-[0.3em] text-scoreboard-amber">⭐ Wager Round</div>
+                  <div className="text-xs uppercase tracking-[0.3em] text-scoreboard-amber"><Icon name="star-solid" /> Wager Round</div>
                   <div className="font-display text-3xl tracking-wide text-white">THE HOST IS SETTING UP A WAGER…</div>
                 </>
               ) : isLyric ? (
@@ -224,7 +226,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                   <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Guess the ranking</div>
                   <div className="font-display text-3xl tracking-wide text-white">WHAT TIER IS IT IN?</div>
                   <div className="h-40 w-40 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
-                    <ArtworkFill url={round.artworkUrl} />
+                    <ArtworkFill url={round.artworkUrl} seed={`${round.title} ${round.artist}`} />
                   </div>
                   <div>
                     <div className="font-display text-2xl text-white">{round.title}</div>
@@ -252,7 +254,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                     <div className="font-display text-4xl text-slate-600">VS</div>
                     <div className="w-52 space-y-1">
                       <div className="mx-auto h-36 w-36 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
-                        <ArtworkFill url={round.artworkUrl} />
+                        <ArtworkFill url={round.artworkUrl} seed={`${round.title} ${round.artist}`} />
                       </div>
                       <div className="truncate font-display text-xl text-white">{round.title}</div>
                       <div className="truncate text-sm text-slate-500">{round.artist}</div>
@@ -265,7 +267,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                 <>
                   {wager && (
                     <div className="rounded-full bg-scoreboard-amber/15 px-4 py-1.5 text-sm font-semibold text-scoreboard-amber">
-                      ⭐ {wager.teamName} wagering {wager.amount} pts
+                      <Icon name="star-solid" /> {wager.teamName} wagering {wager.amount} pts
                     </div>
                   )}
                   {snapshot.playing && (
@@ -276,7 +278,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                   )}
                   <div className="font-display text-3xl tracking-wide text-white">WHAT YEAR IS IT FROM?</div>
                   <div className="h-40 w-40 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
-                    <ArtworkFill url={round.artworkUrl} />
+                    <ArtworkFill url={round.artworkUrl} seed={`${round.title} ${round.artist}`} />
                   </div>
                   <div>
                     <div className="font-display text-2xl text-white">{round.title}</div>
@@ -287,14 +289,14 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                 <>
                   {wager && (
                     <div className="rounded-full bg-scoreboard-amber/15 px-4 py-1.5 text-sm font-semibold text-scoreboard-amber">
-                      ⭐ {wager.teamName} wagering {wager.amount} pts
+                      <Icon name="star-solid" /> {wager.teamName} wagering {wager.amount} pts
                     </div>
                   )}
                   <ShotClockDigit seconds={remaining} />
                   <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Shot Clock</div>
                   <div className="font-display text-3xl tracking-wide text-white">WHAT'S THE TRACK?</div>
                   <div className="flex h-40 w-40 items-center justify-center rounded-2xl border-2 border-dashed border-arena-600 bg-arena-800 text-5xl text-arena-600">
-                    {snapshot.playing ? '♪' : '?'}
+                    {snapshot.playing ? withIcons('♪') : '?'}
                   </div>
                   <div className="font-display text-2xl text-hardwood-400">{round.clipDurations[clueIndex]} SECONDS</div>
                 </>
@@ -321,7 +323,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
             ) : isTierGuess ? (
               <>
                 <div className="relative z-10 h-32 w-32 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
-                  <ArtworkFill url={round.artworkUrl} />
+                  <ArtworkFill url={round.artworkUrl} seed={`${round.title} ${round.artist}`} />
                 </div>
                 <div className="relative z-10">
                   <div className="font-display text-2xl text-white">{round.title}</div>
@@ -383,10 +385,10 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
                     <div className="truncate text-lg text-slate-300">{round.higherLower.ref.title}</div>
                     <div className="font-display text-3xl text-slate-300">#{round.higherLower.ref.rank}</div>
                   </div>
-                  <div className="font-display text-5xl text-hardwood-400">{correctAnswer(round.higherLower) === 'higher' ? '⬆️' : '⬇️'}</div>
+                  <div className="font-display text-5xl text-hardwood-400">{correctAnswer(round.higherLower) === 'higher' ? withIcons('⬆️') : withIcons('⬇️')}</div>
                   <div className="w-52 space-y-1 animate-pop-in">
                     <div className="mx-auto h-36 w-36 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl">
-                      <ArtworkFill url={round.artworkUrl} />
+                      <ArtworkFill url={round.artworkUrl} seed={`${round.title} ${round.artist}`} />
                     </div>
                     <div className="truncate font-display text-xl text-white">{round.title}</div>
                     <div className="font-display text-6xl text-hardwood-400">
@@ -405,7 +407,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
             ) : isYear ? (
               <>
                 <div className="relative z-10 h-32 w-32 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
-                  <ArtworkFill url={round.artworkUrl} />
+                  <ArtworkFill url={round.artworkUrl} seed={`${round.title} ${round.artist}`} />
                 </div>
                 <div className="relative z-10">
                   <div className="font-display text-2xl text-white">{round.title}</div>
@@ -441,7 +443,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
             ) : (
               <>
                 <div className="relative z-10 h-40 w-40 shrink-0 overflow-hidden rounded-2xl bg-arena-800 shadow-2xl animate-pop-in">
-                  <ArtworkFill url={round.artworkUrl} />
+                  <ArtworkFill url={round.artworkUrl} seed={`${round.title} ${round.artist}`} />
                 </div>
                 <div className="relative z-10">
                   <div className="font-display text-3xl text-white">{round.title}</div>
@@ -456,7 +458,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
 
         {phase === 'halftime' && (
           <div className="flex flex-1 flex-col items-center justify-center gap-6 text-center animate-pop-in">
-            <div className="text-6xl">{snapshot.suddenDeath ? '💀' : '🏀'}</div>
+            <div className="text-6xl">{snapshot.suddenDeath ? withIcons('💀') : withIcons('🏀')}</div>
             <div className="font-display text-5xl tracking-widest text-hardwood-400">{snapshot.suddenDeath ? 'SUDDEN DEATH' : 'HALFTIME'}</div>
             {snapshot.halftimePrompt && <p className="max-w-md text-slate-400">{snapshot.halftimePrompt}</p>}
             <Scoreboard teams={game.teams} moves={snapshot.rankMoves} />
@@ -488,7 +490,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
       </div>
       {game.buzzerRoomCode && (phase === 'clue' || phase === 'revealed') && (
         <div className="fixed bottom-3 left-3 z-20 rounded-full bg-black/40 px-3 py-1.5 text-xs text-slate-400">
-          📱 Join: <span className="font-display tracking-[0.2em] text-slate-200">{game.buzzerRoomCode}</span>
+          <Icon name="phone" /> Join: <span className="font-display tracking-[0.2em] text-slate-200">{game.buzzerRoomCode}</span>
         </div>
       )}
       <button
@@ -497,7 +499,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
           bigScreen ? 'bg-hardwood-500 text-arena-950' : 'bg-black/40 text-slate-400 hover:bg-black/60'
         }`}
       >
-        {bigScreen ? '🔍 Big screen: ON' : '🔍 Big screen'}
+        {bigScreen ? withIcons('🔍 Big screen: ON') : withIcons('🔍 Big screen')}
       </button>
     </div>
   )

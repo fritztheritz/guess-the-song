@@ -17,7 +17,7 @@ function readClosed(): Record<string, boolean> {
 // count — so a long library doesn't force scrolling past everything to reach what you want. The
 // open/closed choice is remembered. A search in progress keeps sections open (`forceOpen`) so
 // matches are never hidden.
-export default function HomeSection({ id, title, count, forceOpen, children }: { id: string; title: string; count: number; forceOpen?: boolean; children: ReactNode }) {
+export default function HomeSection({ id, title, count, forceOpen, inset, children }: { id: string; title: string; count: number; forceOpen?: boolean; inset?: 'left' | 'right'; children: ReactNode }) {
   const [closed, setClosed] = useState(() => readClosed()[id] ?? false)
   const toggle = () => {
     const next = !closed
@@ -39,8 +39,10 @@ export default function HomeSection({ id, title, count, forceOpen, children }: {
   }, [id])
   const open = forceOpen || !closed
   return (
-    <div id={`home-${id}`} className="mt-12 scroll-mt-6">
-      <h2 className="mb-4">
+    <div id={`home-${id}`} className={`home-section relative mt-16 scroll-mt-6 ${inset === 'left' ? 'lg:mr-24' : inset === 'right' ? 'lg:ml-24' : ''}`}>
+      {/* A big outlined section number, counted by CSS, bleeding into the margin like a jersey. */}
+      <span aria-hidden className="home-section-num jersey-num pointer-events-none absolute left-0 top-0 select-none text-[3.4rem] text-hardwood-500/60" />
+      <h2 className="mb-4 pl-[4.25rem] pt-1">
         <button
           onClick={toggle}
           aria-expanded={open}

@@ -10,6 +10,7 @@ import ErrorState from '../components/ui/ErrorState'
 import Button from '../components/ui/Button'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import type { ImportableSpotifyTrack } from '../lib/spotify/spotify-tracks'
+import { Icon } from '../components/Icon'
 
 function Choice({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
   return (
@@ -54,7 +55,7 @@ export default function QuickGame() {
     <div className="flex min-h-svh items-center justify-center court-lines px-6 py-16">
       <div className="w-full max-w-md space-y-8">
         <div className="text-center">
-          <div className="mb-2 text-4xl">⚡</div>
+          <div className="mb-2 text-4xl"><Icon name="bolt" /></div>
           <h1 className="title-page">QUICK GAME</h1>
           <p className="mt-2 text-sm text-slate-400">Pick some tracks and we'll set up the rest — random songs, clip starts and team names.</p>
         </div>

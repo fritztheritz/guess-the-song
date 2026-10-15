@@ -13,6 +13,8 @@ import TextInput from '../components/ui/TextInput'
 import Button from '../components/ui/Button'
 import ErrorState from '../components/ui/ErrorState'
 import Panel from '../components/ui/Panel'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
 
 const MIN_SONGS = 8
 const MAX_SONGS = 40
@@ -147,7 +149,7 @@ export default function CreateTimelineGame() {
     <div className="min-h-svh court-lines px-6 py-16">
       <div className="mx-auto max-w-2xl space-y-8">
         <div className="text-center">
-          <div className="mb-2 text-4xl">🕰️</div>
+          <div className="mb-2 text-4xl"><Icon name="clock" /></div>
           <h1 className="title-page">GUESS THE TIMELINE</h1>
           <p className="mt-2 text-sm text-slate-400">
             Build a deck of songs, then teams take turns slotting each mystery song into the right place by release year.
@@ -218,7 +220,7 @@ export default function CreateTimelineGame() {
                           <div className="truncate text-xs text-slate-500">{t.artist}</div>
                         </div>
                         <span className="shrink-0 text-xs text-slate-400">{t.releaseYear ?? 'no year'}</span>
-                        <span className="w-14 shrink-0 text-right text-xs font-semibold text-hardwood-400">{isPicked ? '✓ Added' : '+ Add'}</span>
+                        <span className="w-14 shrink-0 text-right text-xs font-semibold text-hardwood-400">{isPicked ? withIcons('✓ Added') : '+ Add'}</span>
                       </button>
                     )
                   })}
@@ -256,7 +258,7 @@ export default function CreateTimelineGame() {
                       className="max-w-full truncate rounded-full border border-arena-600 px-2.5 py-1 text-xs text-slate-300 hover:border-scoreboard-500"
                       title="Remove"
                     >
-                      {s.title} · {s.year} ✕
+                      {s.title} · {s.year} <Icon name="x" />
                     </button>
                   ))}
                 </div>
@@ -313,7 +315,7 @@ export default function CreateTimelineGame() {
                         className="shrink-0 rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
                         aria-label={`Remove ${team.name}`}
                       >
-                        ✕
+                        <Icon name="x" />
                       </button>
                     )}
                   </div>
@@ -324,7 +326,7 @@ export default function CreateTimelineGame() {
               </button>
               {duplicateTeamName && (
                 <p className="mt-2 text-xs text-scoreboard-amber">
-                  ⚠️ Two teams are both named "{duplicateTeamName}" — that'll look confusing on the scoreboard, and Stats merges
+                  <Icon name="warn" /> Two teams are both named "{duplicateTeamName}" — that'll look confusing on the scoreboard, and Stats merges
                   teams with the same name together across games.
                 </p>
               )}
@@ -338,7 +340,7 @@ export default function CreateTimelineGame() {
                 className="mt-1 h-4 w-4 rounded border-arena-600 bg-arena-800 accent-hardwood-500"
               />
               <span>
-                <span className="block text-sm font-semibold text-slate-200">🐕 Underdog catch-up</span>
+                <span className="block text-sm font-semibold text-slate-200"><Icon name="trend" /> Underdog catch-up</span>
                 <span className="block text-xs text-slate-500">A team trailing by 8+ scores a bonus point on a correct answer. Off by default.</span>
               </span>
             </label>

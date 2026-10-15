@@ -7,6 +7,8 @@ import EmptyState from '../components/ui/EmptyState'
 import ButtonLink from '../components/ui/ButtonLink'
 import Panel from '../components/ui/Panel'
 import ScoreLines from '../components/ScoreLines'
+import { Icon } from '../components/Icon'
+import BoxScore from '../components/BoxScore'
 
 // How a finished game unfolded: the score race, the moments that mattered, and every possession in
 // order with what each team gained. Built from Game.history, which is logged as the game is played.
@@ -44,6 +46,8 @@ export default function GameReplay() {
                 Replay · {history.length} possession{history.length === 1 ? '' : 's'}
               </p>
             </div>
+
+            <BoxScore game={game} className="max-w-none" />
 
             <Panel padding="md">
               <ScoreLines series={series} />
@@ -92,7 +96,7 @@ export default function GameReplay() {
                   return (
                     <Panel padding="sm" className="flex items-center justify-between gap-3">
                       <Link to={`/players/${encodeURIComponent(mvp.name)}`} className="font-semibold text-slate-100 hover:underline">
-                        ⭐ {mvp.name} <span className="text-xs font-normal text-slate-500">{mvp.teamName}</span>
+                        <Icon name="star-solid" /> {mvp.name} <span className="text-xs font-normal text-slate-500">{mvp.teamName}</span>
                       </Link>
                       <span className="text-sm text-slate-400">
                         {mvp.points} pts · {mvp.correct} right

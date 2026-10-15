@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import SegDigits from './SegDigits'
 import type { PhoneRoundState } from '../lib/buzzer/protocol'
+import { withIcons } from '../lib/with-icons'
 
 type PopularityState = NonNullable<PhoneRoundState['popularity']>
 
@@ -54,7 +55,7 @@ export default function PopularityPicker({
         >
           {state.lastResult.timedOut
             ? `${state.lastResult.teamName}: ⏱ out of time`
-            : `${state.lastResult.teamName}: "${state.lastResult.title}" ${state.lastResult.correct ? '✓' : '✗'}`}
+            : withIcons(`${state.lastResult.teamName}: "${state.lastResult.title}" ${state.lastResult.correct ? '✓' : '✗'}`)}
         </div>
       )}
 

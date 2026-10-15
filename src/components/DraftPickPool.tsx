@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { DraftPoolSong, Drafter } from '../types/draft'
 import EmptyState from './ui/EmptyState'
+import { Icon } from './Icon'
+import ArtPlaceholder from './ArtPlaceholder'
 
 type View = 'list' | 'grid'
 type Sort = 'added' | 'title' | 'artist'
@@ -28,7 +30,7 @@ function Thumb({ song, size }: { song: DraftPoolSong; size: string }) {
       {song.artworkUrl ? (
         <img src={song.artworkUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-lg text-arena-500">♪</div>
+        <ArtPlaceholder seed={`${song.title} ${song.artist ?? ''}`} />
       )}
     </div>
   )
@@ -99,7 +101,7 @@ export default function DraftPickPool({
           />
           {query && (
             <button onClick={() => setQuery('')} aria-label="Clear filter" className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
-              ✕
+              <Icon name="x" />
             </button>
           )}
         </div>
@@ -164,7 +166,7 @@ export default function DraftPickPool({
                     Listen ↗
                   </a>
                 )}
-                {selectedId === song.id && <span className="shrink-0 text-hardwood-400">✓</span>}
+                {selectedId === song.id && <span className="shrink-0 text-hardwood-400"><Icon name="check" /></span>}
               </button>
             </li>
           ))}
@@ -184,7 +186,7 @@ export default function DraftPickPool({
                 {song.artworkUrl ? (
                   <img src={song.artworkUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-3xl text-arena-500">♪</div>
+                  <ArtPlaceholder seed={`${song.title} ${song.artist ?? ''}`} />
                 )}
               </div>
               <div className="p-2.5">

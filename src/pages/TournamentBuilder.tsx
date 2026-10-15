@@ -12,6 +12,8 @@ import Spinner from '../components/Spinner'
 import Panel from '../components/ui/Panel'
 import Button from '../components/ui/Button'
 import { useStoredEntity } from '../lib/use-stored-entity'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
 
 export default function TournamentBuilder() {
   const { tournamentId } = useParams()
@@ -111,7 +113,7 @@ export default function TournamentBuilder() {
               {standings.map((s, i) => (
                 <div key={s.name} className="flex items-center justify-between rounded-lg bg-arena-700/40 px-4 py-2">
                   <span className="font-medium" style={{ color: s.color }}>
-                    {i === 0 ? '🏆 ' : ''}
+                    {i === 0 ? withIcons('🏆 ') : ''}
                     {s.name}
                     <span className="ml-2 text-xs text-slate-500">
                       {s.gamesPlayed} game{s.gamesPlayed === 1 ? '' : 's'}
@@ -158,7 +160,7 @@ export default function TournamentBuilder() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs">{rulesFor(game.mode).icon}</span>
+                      <span className="text-xs">{withIcons(rulesFor(game.mode).icon)}</span>
                       <div className="truncate font-semibold text-slate-100">{game.name}</div>
                     </div>
                     <div className="text-sm text-slate-500">
@@ -184,7 +186,7 @@ export default function TournamentBuilder() {
                       aria-label={`Remove ${game.name} from tournament`}
                       className="rounded-lg px-2 text-slate-500 hover:text-scoreboard-500"
                     >
-                      ✕
+                      <Icon name="x" />
                     </button>
                   </div>
                 </Panel>

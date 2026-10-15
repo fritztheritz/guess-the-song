@@ -15,6 +15,8 @@ import Button from '../components/ui/Button'
 import { SCORING } from '../lib/scoring'
 import { underdogBonusFor } from '../lib/awards'
 import { useStoredEntity } from '../lib/use-stored-entity'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
 
 // Fixed, not host-editable — same "fixed slots" convention as Guess the Popularity.
 const TIMELINE_POINTS = SCORING.timeline
@@ -242,7 +244,7 @@ export default function TimelinePresent() {
             {sortedFinal.map((team, i) => (
               <div key={team.id} className="flex w-96 max-w-[80vw] items-center justify-between rounded-xl border border-arena-600 bg-arena-800/70 px-5 py-3">
                 <span className="font-display text-xl" style={{ color: team.color }}>
-                  {i === 0 ? '🏆 ' : ''}
+                  {i === 0 ? withIcons('🏆 ') : ''}
                   {team.avatar ? `${team.avatar} ` : ''}
                   {team.name}
                 </span>
@@ -252,7 +254,7 @@ export default function TimelinePresent() {
           </div>
           {prog.bestStreak && prog.bestStreak.count >= 2 && (
             <div className="text-sm font-semibold text-scoreboard-amber">
-              🔥 Best streak: {bestStreakTeam?.name} with {prog.bestStreak.count} in a row
+              <Icon name="flame" /> Best streak: {bestStreakTeam?.name} with {prog.bestStreak.count} in a row
             </div>
           )}
           {renderTimeline(false)}
@@ -289,7 +291,7 @@ export default function TimelinePresent() {
                   </div>
                 )}
                 {(prog.streaks?.[currentTeam.id] ?? 0) >= 2 && (
-                  <div className="text-xs font-semibold text-scoreboard-amber">🔥 {prog.streaks![currentTeam.id]} in a row</div>
+                  <div className="text-xs font-semibold text-scoreboard-amber"><Icon name="flame" /> {prog.streaks![currentTeam.id]} in a row</div>
                 )}
               </div>
 
@@ -312,11 +314,11 @@ export default function TimelinePresent() {
                 <div className={`rounded-lg px-3 py-2 text-sm font-semibold ${lastResult.correct ? 'bg-scoreboard-green/15 text-scoreboard-green' : 'bg-scoreboard-500/15 text-scoreboard-500'}`}>
                   {lastResult.timedOut
                     ? `${lastResult.teamName}: ⏱ out of time — next team's turn`
-                    : `${lastResult.teamName}: "${lastResult.title}" was ${lastResult.year} — ${
+                    : withIcons(`${lastResult.teamName}: "${lastResult.title}" was ${lastResult.year} — ${
                         lastResult.correct
                           ? `✓ Correct! (+${TIMELINE_POINTS + (lastResult.bonus ?? 0) + (lastResult.underdog ?? 0)}${lastResult.bonus ? ` incl. 🔥 +${lastResult.bonus} streak` : ''}${lastResult.underdog ? ` incl. 🐕 +${lastResult.underdog} underdog` : ''})`
                           : '✗ Wrong spot'
-                      }`}
+                      }`)}
                 </div>
               )}
             </div>

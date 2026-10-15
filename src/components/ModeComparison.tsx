@@ -1,6 +1,7 @@
 import { MODE_RULES, balanceSpread, type RuleMode } from '../lib/mode-rules'
+import { withIcons } from '../lib/with-icons'
 
-const tick = (on: boolean) => (on ? '✓' : '—')
+const tick = (on: boolean) => (on ? withIcons('✓') : '—')
 
 // Every mode side by side: what each supports and the most a team can bank in one possession — the
 // table behind the balance check in lib/mode-rules.test.ts.
@@ -27,7 +28,7 @@ export default function ModeComparison() {
             return (
               <tr key={m} className="border-t border-arena-700">
                 <td className="px-3 py-2">
-                  {r.icon} {r.label}
+                  {withIcons(r.icon)} {r.label}
                 </td>
                 <td className="px-2 py-2 font-semibold text-white">{r.maxPerPossession}</td>
                 <td className="px-2 py-2">{r.scorers === 'many' ? 'Several' : 'One'}</td>

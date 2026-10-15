@@ -29,6 +29,8 @@ import RosterStrip from '../components/RosterStrip'
 import DraftPickPool from '../components/DraftPickPool'
 import FinalPodium from '../components/FinalPodium'
 import NowPlayingBar from '../components/NowPlayingBar'
+import { Icon } from '../components/Icon'
+import { withIcons } from '../lib/with-icons'
 
 function CreatePlaylistModal({
   defaultTitle,
@@ -57,13 +59,13 @@ function CreatePlaylistModal({
           onClick={() => setSharing('private')}
           className={`flex-1 rounded-md py-1.5 ${sharing === 'private' ? 'bg-arena-700 text-white' : 'text-slate-400'}`}
         >
-          🔒 Private
+          <Icon name="lock" /> Private
         </button>
         <button
           onClick={() => setSharing('public')}
           className={`flex-1 rounded-md py-1.5 ${sharing === 'public' ? 'bg-arena-700 text-white' : 'text-slate-400'}`}
         >
-          🌐 Public
+          <Icon name="globe" /> Public
         </button>
       </div>
       <p className="mt-1.5 text-[11px] text-slate-500">
@@ -82,7 +84,7 @@ function CreatePlaylistModal({
           disabled={creating || !title.trim()}
           className="flex-[2] rounded-full bg-[#ff5500] py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-[#ff7733]"
         >
-          {creating ? 'Creating…' : '🎵 Create Playlist'}
+          {creating ? 'Creating…' : withIcons('🎵 Create Playlist')}
         </button>
       </div>
     </DialogShell>
@@ -497,7 +499,7 @@ export default function DraftSessionRoom() {
             onClick={openPresentation}
             className="shrink-0 rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-300 hover:border-hardwood-500"
           >
-            🖥️ Present
+            <Icon name="monitor" /> Present
           </button>
         </div>
 
@@ -527,7 +529,7 @@ export default function DraftSessionRoom() {
         {session.phase === 'listening' && (
           <div className="space-y-6">
             <div className="relative rounded-xl border border-hardwood-500 bg-hardwood-500/10 px-5 py-4 text-center">
-              <div className="font-display text-3xl tracking-widest text-hardwood-400">🎧 LISTENING TIME!</div>
+              <div className="font-display text-3xl tracking-widest text-hardwood-400"><Icon name="headphones" /> LISTENING TIME!</div>
               <p className="mt-1 text-sm text-slate-400">Everyone's picks are in. Give the whole draft a listen before ranking.</p>
               <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
                 {soundcloudPlaylistsEnabled && soundcloud.connection && listenQueue.length > 0 && (
@@ -621,7 +623,7 @@ export default function DraftSessionRoom() {
                       key={d.id}
                       className={`rounded-full px-2.5 py-0.5 text-xs ${done ? 'bg-scoreboard-green/15 text-scoreboard-green' : d.id === nextRanker.id ? 'bg-hardwood-500/20 text-hardwood-300' : 'bg-arena-800 text-slate-500'}`}
                     >
-                      {done ? '✓ ' : d.id === nextRanker.id ? '✎ ' : ''}
+                      {done ? withIcons('✓ ') : d.id === nextRanker.id ? '✎ ' : ''}
                       {d.name}
                     </span>
                   )
@@ -642,7 +644,7 @@ export default function DraftSessionRoom() {
                 {!session.buzzerRoomCode ? (
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <div className="font-semibold text-slate-100">📱 Vote from phones</div>
+                      <div className="font-semibold text-slate-100"><Icon name="phone" /> Vote from phones</div>
                       <p className="text-sm text-slate-400">Each drafter ranks the others privately on their own phone — nobody sees anyone else's ballot.</p>
                     </div>
                     <Button size="sm" onClick={startPhoneVoting}>
@@ -680,7 +682,7 @@ export default function DraftSessionRoom() {
                               voted ? 'bg-scoreboard-green/15 text-scoreboard-green' : joined ? 'bg-hardwood-500/20 text-hardwood-300' : 'bg-arena-800 text-slate-500'
                             }`}
                           >
-                            {voted ? '✓ Voted' : joined ? '📱 Connected' : '○ Not joined'} · {d.name}
+                            {voted ? withIcons('✓ Voted') : joined ? withIcons('📱 Connected') : '○ Not joined'} · {d.name}
                           </span>
                         )
                       })}
@@ -763,10 +765,10 @@ export default function DraftSessionRoom() {
             <div className="flex flex-col items-center gap-2">
               <div className="flex flex-wrap items-center justify-center gap-2">
                 <Button variant="outline" onClick={handleShareResults} disabled={sharing}>
-                  {sharing ? 'Generating link…' : '🔗 Share Results'}
+                  {sharing ? 'Generating link…' : withIcons('🔗 Share Results')}
                 </Button>
                 <Button variant="outline" onClick={copyResultsText}>
-                  📋 Copy results
+                  <Icon name="clipboard" /> Copy results
                 </Button>
               </div>
               {shareUrl && (

@@ -9,6 +9,7 @@ import {
   type CustomTheme,
   type ThemeSelection,
 } from '../lib/themes'
+import { Icon } from './Icon'
 
 // Applies live as you pick (so you see the venue skin on this very modal) and saves each
 // choice immediately — there's no separate "apply" step to forget.
@@ -55,7 +56,7 @@ export default function ThemePicker({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className={`mt-3 rounded-xl border-2 p-3 ${selection.id === 'custom' ? 'border-hardwood-500' : 'border-arena-600'}`}>
-          <div className="mb-2 text-sm font-semibold text-slate-200">🎨 Custom</div>
+          <div className="mb-2 text-sm font-semibold text-slate-200"><Icon name="palette" /> Custom</div>
           <div className="flex flex-wrap items-center gap-4 text-sm text-slate-300">
             <label className="flex items-center gap-2">
               Background

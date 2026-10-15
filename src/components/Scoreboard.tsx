@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Team } from '../types'
 import MoveTag from './MoveTag'
 import SegDigits from './SegDigits'
+import { Icon } from './Icon'
 
 const COUNT_MS = 600
 
@@ -66,7 +67,7 @@ function TeamScoreCard({ team, compact, move }: { team: Team; compact: boolean; 
     >
       {onFire && (
         <span className="absolute -right-2 -top-2 rounded-full bg-scoreboard-amber px-1.5 py-0.5 text-[10px] font-bold leading-none text-arena-950 shadow" title={`${team.streak} scored in a row`}>
-          🔥{team.streak}
+          <Icon name="flame" />{team.streak}
         </span>
       )}
       {delta && (

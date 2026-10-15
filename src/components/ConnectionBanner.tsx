@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { SocketStatus } from '../lib/buzzer/buzzer-socket'
+import { withIcons } from '../lib/with-icons'
 
 const SLOW_MS = 8000
 
@@ -30,9 +31,9 @@ export default function ConnectionBanner({ status, className = '' }: { status: S
       } ${className}`}
     >
       {slow
-        ? "⚠️ Can't reach the room server — check your internet connection (still trying)…"
+        ? withIcons("⚠️ Can't reach the room server — check your internet connection (still trying)…")
         : reconnecting
-          ? '⚠️ Connection lost — reconnecting…'
+          ? withIcons('⚠️ Connection lost — reconnecting…')
           : 'Connecting…'}
     </div>
   )

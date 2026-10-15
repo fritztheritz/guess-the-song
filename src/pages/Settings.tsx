@@ -2,12 +2,14 @@ import { useState, type ReactNode } from 'react'
 import BackLink from '../components/BackLink'
 import ThemePicker from '../components/ThemePicker'
 import Panel from '../components/ui/Panel'
+import Switch from '../components/ui/Switch'
 import ButtonLink from '../components/ui/ButtonLink'
 import Button from '../components/ui/Button'
 import { getSoundVolume, isSoundMuted, setSoundMuted, setSoundVolume, playCorrect, playHorn } from '../lib/sound-effects'
 import { getArenaFx, getKeepAwake, setArenaFx, setKeepAwake } from '../lib/settings'
 import { THEME_PRESETS, getStoredTheme } from '../lib/themes'
 import { useFeatureFlag } from '../state/feature-flags-context'
+import { Icon } from '../components/Icon'
 
 function Row({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
@@ -21,20 +23,7 @@ function Row({ title, hint, children }: { title: string; hint?: string; children
   )
 }
 
-function Toggle({ on, onChange, label }: { on: boolean; onChange: (next: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      onClick={() => onChange(!on)}
-      className={`relative h-6 w-11 rounded-full transition-colors ${on ? 'bg-hardwood-500' : 'bg-arena-600'}`}
-    >
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all ${on ? 'left-[22px]' : 'left-0.5'}`} />
-    </button>
-  )
-}
+const Toggle = Switch
 
 // One home for the per-device preferences that used to be scattered (a sound button on each screen, a theme
 // button on Home, flags on their own page). Everything here applies immediately and lives on this device only.
@@ -126,7 +115,7 @@ export default function Settings() {
               {themesEnabled && (
                 <Row title="Venue theme" hint={`Currently ${themeName}.`}>
                   <Button variant="outline" size="sm" onClick={() => setThemeOpen(true)}>
-                    🎨 Change theme
+                    <Icon name="palette" /> Change theme
                   </Button>
                 </Row>
               )}

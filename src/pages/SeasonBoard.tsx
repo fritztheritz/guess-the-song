@@ -12,6 +12,8 @@ import Spinner from '../components/Spinner'
 import EmptyState from '../components/ui/EmptyState'
 import Panel from '../components/ui/Panel'
 import { useStoredEntity } from '../lib/use-stored-entity'
+import { withIcons } from '../lib/with-icons'
+import RaftersBanner from '../components/RaftersBanner'
 
 export default function SeasonBoard() {
   const { seasonId } = useParams()
@@ -54,8 +56,17 @@ export default function SeasonBoard() {
 
   return (
     <div className="min-h-svh court-lines px-6 py-10">
-      <div className="mx-auto max-w-3xl space-y-8">
-        <div className="flex items-center gap-3">
+      <div className="relative mx-auto max-w-3xl space-y-8">
+        {standings.length > 0 && (
+          <RaftersBanner
+            team={standings[0].name}
+            color={standings[0].color}
+            season={season.name}
+            className="-top-10"
+            detail={`${standings[0].totalScore} pts · ${standings[0].gamesPlayed} game${standings[0].gamesPlayed === 1 ? '' : 's'}`}
+          />
+        )}
+        <div className={`flex items-start gap-3 ${standings.length > 0 ? 'min-h-48 pr-36 sm:pr-48' : ''}`}>
           <Link to="/" className="text-2xl text-hardwood-400 hover:text-hardwood-300">
             ←
           </Link>
@@ -83,7 +94,7 @@ export default function SeasonBoard() {
               {standings.map((s, i) => (
                 <div key={s.name} className="flex items-center justify-between rounded-lg bg-arena-700/40 px-4 py-2">
                   <span className="font-medium" style={{ color: s.color }}>
-                    {i === 0 ? '🏆 ' : ''}
+                    {i === 0 ? withIcons('🏆 ') : ''}
                     {s.name}
                     <span className="ml-2 text-xs text-slate-500">
                       {s.gamesPlayed} game{s.gamesPlayed === 1 ? '' : 's'}
@@ -109,7 +120,7 @@ export default function SeasonBoard() {
                 <Panel key={game.id} padding="sm" className="flex items-center gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs">{rulesFor(game.mode).icon}</span>
+                      <span className="text-xs">{withIcons(rulesFor(game.mode).icon)}</span>
                       <div className="truncate font-semibold text-slate-100">{game.name}</div>
                     </div>
                     <div className="text-sm text-slate-500">

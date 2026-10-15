@@ -17,6 +17,8 @@ import ModalShell from './ui/ModalShell'
 import TextInput from './ui/TextInput'
 import Button from './ui/Button'
 import ErrorState from './ui/ErrorState'
+import { Icon } from './Icon'
+import ArtPlaceholder from './ArtPlaceholder'
 
 function errorMessage(err: unknown): string {
   if (err instanceof SpotifyNotConnectedError) return 'Connect Spotify to search tracks.'
@@ -263,7 +265,7 @@ export default function ImportSpotifyModal({
                             {p.imageUrl ? (
                               <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
                             ) : (
-                              <div className="flex h-full w-full items-center justify-center text-3xl text-arena-500">♪</div>
+                              <ArtPlaceholder seed={p.name} />
                             )}
                           </div>
                           <div className="p-3">
@@ -301,7 +303,7 @@ export default function ImportSpotifyModal({
                         {artistMatch.imageUrl ? (
                           <img src={artistMatch.imageUrl} alt="" className="h-full w-full object-cover" />
                         ) : (
-                          <div className="flex h-full w-full items-center justify-center text-lg text-arena-500">♪</div>
+                          <ArtPlaceholder seed={artistMatch.name} />
                         )}
                       </div>
                       <div>
@@ -336,13 +338,13 @@ export default function ImportSpotifyModal({
                             isSelected ? 'border-hardwood-500 bg-hardwood-500 text-arena-950' : 'border-white/40 bg-black/40 text-transparent'
                           }`}
                         >
-                          ✓
+                          <Icon name="check" />
                         </span>
                         <div className="aspect-square w-full bg-arena-700">
                           {track.artworkUrl ? (
                             <img src={track.artworkUrl} alt="" className="h-full w-full object-cover" />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center text-3xl text-arena-500">♪</div>
+                            <ArtPlaceholder seed={`${track.title} ${track.artist ?? ''}`} />
                           )}
                         </div>
                         <div className="flex flex-1 flex-col gap-1 p-3">

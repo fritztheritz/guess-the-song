@@ -7,7 +7,7 @@ export type ButtonSize = 'sm' | 'md' | 'lg'
 // CTAs, shrink-0, etc.) that don't belong in a shared default.
 export const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary: 'bg-hardwood-500 text-arena-950 hover:bg-hardwood-400',
-  outline: 'border border-arena-500 text-slate-200 hover:border-hardwood-500',
+  outline: 'fill-up border border-arena-500 text-slate-200 hover:border-hardwood-500',
   'accent-outline': 'border border-hardwood-500 text-hardwood-400 hover:bg-hardwood-500/10',
   danger: 'bg-scoreboard-500 text-arena-950 hover:bg-scoreboard-400',
 }

@@ -1,6 +1,8 @@
 import type { Team } from '../types'
 import MoveTag from './MoveTag'
 import SegDigits from './SegDigits'
+import { Icon } from './Icon'
+import { withIcons } from '../lib/with-icons'
 
 const PLACE = [
   { height: 'h-36', medal: '🥇' },
@@ -32,13 +34,13 @@ export default function FinalPodium({ teams, moves }: { teams: Team[]; moves?: R
                 {team.name}
                 <MoveTag move={moves?.[team.id] ?? 0} />
               </div>
-              {(team.streak ?? 0) >= 2 && <div className="text-xs">🔥{team.streak}</div>}
+              {(team.streak ?? 0) >= 2 && <div className="text-xs"><Icon name="flame" />{team.streak}</div>}
               <div
                 className={`hardwood relative flex w-full flex-col items-center justify-start overflow-hidden rounded-t-xl border-2 border-b-0 border-black/40 pt-3 ${style.height}`}
                 style={{ borderTopColor: team.color, borderTopWidth: 5 }}
               >
                 <div className="text-2xl" aria-hidden>
-                  {style.medal}
+                  {withIcons(style.medal)}
                 </div>
                 <span aria-hidden className="jersey-num absolute -bottom-2 left-1 select-none text-6xl text-black/45">
                   {rank + 1}
