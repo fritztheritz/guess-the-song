@@ -1678,7 +1678,7 @@ export default function HostController({ gameId }: { gameId: string }) {
   }
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-arena-950 court-lines text-white">
+    <div className="fixed inset-0 flex flex-col court-lines text-white">
       {streakBurst && <Confetti key={streakBurst} />}
       {earnBanner && (
         <div className="pointer-events-none absolute inset-x-0 top-3 z-40 flex justify-center">

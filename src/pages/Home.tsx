@@ -607,7 +607,7 @@ export default function Home() {
               <button
                 key={tag}
                 onClick={() => toggleTag(tag)}
-                className={`rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-full px-3.5 py-2 text-xs font-medium transition-colors ${
                   activeTags.includes(tag)
                     ? 'bg-hardwood-500 text-arena-950'
                     : 'border border-arena-600 text-slate-300 hover:border-hardwood-500'
@@ -630,7 +630,7 @@ export default function Home() {
               <button
                 key={sec.id}
                 onClick={() => window.dispatchEvent(new CustomEvent(HOME_JUMP_EVENT, { detail: sec.id }))}
-                className="rounded-full border border-arena-600 px-3 py-1 text-xs font-medium text-slate-300 odd:-rotate-1 even:rotate-1 hover:rotate-0 hover:border-hardwood-500 hover:text-white"
+                className="rounded-full border border-arena-600 px-3.5 py-2 text-xs font-medium text-slate-300 odd:-rotate-1 even:rotate-1 hover:rotate-0 hover:border-hardwood-500 hover:text-white"
               >
                 {sec.label} <span className="text-slate-500">{sec.count}</span>
               </button>

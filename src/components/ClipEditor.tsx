@@ -131,14 +131,14 @@ export default function ClipEditor({ round, onChange }: { round: SongRound; onCh
                 max={60}
                 value={clueDuration}
                 onChange={(e) => updateDuration(i, Number(e.target.value))}
-                className="w-9 rounded bg-transparent text-center font-display text-lg text-hardwood-400 outline-none focus:ring-1 focus:ring-hardwood-500"
+                className="w-12 rounded-md border border-arena-600 bg-arena-900 py-0.5 text-center font-display text-xl text-hardwood-400 outline-none focus:border-hardwood-500"
                 aria-label={`Clue ${i + 1} duration in seconds`}
               />
-              <span className="text-xs text-slate-500">s</span>
+              <span className="text-xs text-slate-500">sec</span>
               <button
                 onClick={() => preview(i)}
                 disabled={playingIndex !== null}
-                className="ml-1 shrink-0 text-hardwood-400 hover:text-hardwood-300 disabled:opacity-40"
+                className="ml-1 flex size-8 shrink-0 items-center justify-center rounded-full border border-arena-600 text-hardwood-400 hover:border-hardwood-500 disabled:opacity-40"
                 aria-label={playingIndex === i ? 'Stop preview' : `Preview clue ${i + 1}`}
               >
                 {playingIndex === i ? '■' : '▶'}
@@ -151,7 +151,7 @@ export default function ClipEditor({ round, onChange }: { round: SongRound; onCh
                 max={99}
                 value={round.points[i]}
                 onChange={(e) => updatePoints(i, Number(e.target.value))}
-                className="w-7 rounded bg-transparent text-center text-xs text-slate-400 outline-none focus:ring-1 focus:ring-hardwood-500"
+                className="w-12 rounded-md border border-arena-600 bg-arena-900 py-0.5 text-center text-sm text-slate-200 outline-none focus:border-hardwood-500"
                 aria-label={`Clue ${i + 1} points`}
               />
               <span className="text-xs text-slate-500">pts</span>

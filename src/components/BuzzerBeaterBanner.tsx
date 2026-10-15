@@ -3,7 +3,7 @@
 export default function BuzzerBeaterBanner() {
   return (
     <>
-      <div className="pointer-events-none absolute inset-0 bg-hardwood-500/20 animate-buzzer-flash" />
+      <div className="pointer-events-none fixed inset-0 z-30 bg-hardwood-500/20 animate-buzzer-flash" />
       <div className="pointer-events-none absolute inset-x-0 top-[18%] z-20 overflow-hidden" aria-hidden>
         <div className="animate-banner-swoop mx-[-6%] bg-hardwood-500 py-3 text-center font-display text-5xl tracking-[0.2em] text-white shadow-xl sm:text-7xl">
           BUZZER BEATER

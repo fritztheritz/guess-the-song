@@ -418,7 +418,7 @@ export default function WhosePick() {
                     </div>
                     <div className="flex items-center gap-3">
                       <Counter label="teams" value={teams.length} min={2} max={4} onChange={changeTeamCount} />
-                      <button type="button" onClick={() => setTeams(makeTeams(teams.length))} className="text-xs text-slate-400 underline hover:text-white">
+                      <button type="button" onClick={() => setTeams(makeTeams(teams.length))} className="px-1 py-2.5 text-xs text-slate-400 underline hover:text-white">
                         Shuffle names
                       </button>
                     </div>

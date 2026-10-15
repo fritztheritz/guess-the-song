@@ -42,6 +42,7 @@ import Button from '../components/ui/Button'
 import { useToast } from '../state/toast-context'
 import { Icon } from '../components/Icon'
 import { withIcons } from '../lib/with-icons'
+import ArtPlaceholder from '../components/ArtPlaceholder'
 
 const MIN_TEAMS = 2
 const MAX_TEAMS = 8
@@ -474,7 +475,7 @@ export default function GameBuilder() {
                 setDragOverIndex(null)
               }}
               onClick={() => setSelectedRoundId(round.id)}
-              className={`group mb-2 flex cursor-grab items-center gap-2 rounded-lg border p-2 transition-colors active:cursor-grabbing ${
+              className={`group mb-2 flex cursor-grab flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border p-2 transition-colors active:cursor-grabbing ${
                 draggingIndex === i
                   ? 'border-hardwood-500 opacity-30'
                   : dragOverIndex === i && draggingIndex !== null
@@ -486,7 +487,7 @@ export default function GameBuilder() {
             >
               <span className="w-5 text-center text-xs text-slate-500">{i + 1}</span>
               <div className="h-10 w-10 shrink-0 overflow-hidden rounded bg-arena-700">
-                {round.artworkUrl && <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                {round.artworkUrl ? <img src={round.artworkUrl} alt="" className="h-full w-full object-cover" /> : <ArtPlaceholder seed={`${round.title} ${round.artist}`} />}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm text-slate-100">{round.title}</div>
@@ -496,33 +497,33 @@ export default function GameBuilder() {
                   these (plus drag itself) were the only way to reorder or remove a round,
                   which made both silently unreachable on a phone/tablet. The ▲▼ pair is
                   also the keyboard-usable alternative to drag for anyone not using a mouse. */}
-              <div className="flex shrink-0 flex-col gap-0.5">
+              <div className="flex w-full shrink-0 justify-end gap-x-1 border-t border-arena-700/60 pt-1">
                 <div className="flex gap-0.5">
                   <button
                     disabled={i === 0}
                     onClick={(e) => { e.stopPropagation(); reorder(i, i - 1) }}
-                    className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-slate-200 disabled:opacity-20 disabled:hover:text-slate-500"
+                    className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 hover:text-slate-200 disabled:opacity-20 disabled:hover:text-slate-500"
                     title="Move up"
                     aria-label={`Move "${round.title || 'this round'}" up`}
                   >
-                    ▲
+                    <Icon name="arrow-up" />
                   </button>
                   <button
                     disabled={i === game.rounds.length - 1}
                     onClick={(e) => { e.stopPropagation(); reorder(i, i + 1) }}
-                    className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-slate-200 disabled:opacity-20 disabled:hover:text-slate-500"
+                    className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 hover:text-slate-200 disabled:opacity-20 disabled:hover:text-slate-500"
                     title="Move down"
                     aria-label={`Move "${round.title || 'this round'}" down`}
                   >
-                    ▼
+                    <Icon name="arrow-down" />
                   </button>
                 </div>
                 <div className="flex gap-0.5">
-                  <button onClick={(e) => { e.stopPropagation(); duplicateRound(round) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-slate-200" title="Duplicate">⧉</button>
+                  <button onClick={(e) => { e.stopPropagation(); duplicateRound(round) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 hover:text-slate-200" title="Duplicate" aria-label="Duplicate"><Icon name="clipboard" /></button>
                   {suddenDeathEnabled && (
-                    <button onClick={(e) => { e.stopPropagation(); reserveRound(round) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-hardwood-400" title="Hold in reserve for a sudden-death tiebreaker" aria-label={`Hold "${round.title || 'this round'}" in reserve for a tiebreaker`}><Icon name="medal-1" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); reserveRound(round) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 hover:text-hardwood-400" title="Hold in reserve for a sudden-death tiebreaker" aria-label={`Hold "${round.title || 'this round'}" in reserve for a tiebreaker`}><Icon name="medal-1" /></button>
                   )}
-                  <button onClick={(e) => { e.stopPropagation(); removeRound(round.id) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 md:h-auto md:w-auto hover:text-scoreboard-500" title="Delete"><Icon name="x" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); removeRound(round.id) }} className="flex h-8 w-8 items-center justify-center rounded text-xs text-slate-500 hover:text-scoreboard-500" title="Delete"><Icon name="x" /></button>
                 </div>
               </div>
             </div>
@@ -816,7 +817,7 @@ export default function GameBuilder() {
             <div className="mx-auto max-w-2xl space-y-6">
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="h-20 w-20 shrink-0 sm:h-28 sm:w-28 overflow-hidden rounded-xl bg-arena-700 shadow-lg">
-                  {selectedRound.artworkUrl && <img src={selectedRound.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                  {selectedRound.artworkUrl ? <img src={selectedRound.artworkUrl} alt="" className="h-full w-full object-cover" /> : <ArtPlaceholder seed={`${selectedRound.title} ${selectedRound.artist}`} />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <input

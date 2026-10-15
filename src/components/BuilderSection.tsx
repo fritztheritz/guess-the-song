@@ -38,7 +38,7 @@ export default function BuilderSection({ id, title, summary, defaultClosed = fal
       <button
         onClick={toggle}
         aria-expanded={!closed}
-        className="flex w-full items-center justify-between gap-2 py-1 text-left text-xs font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-300"
+        className="flex w-full items-center justify-between gap-2 py-2.5 text-left text-xs font-semibold uppercase tracking-widest text-slate-500 hover:text-slate-300"
       >
         <span>{title}</span>
         <span className="flex items-center gap-2">

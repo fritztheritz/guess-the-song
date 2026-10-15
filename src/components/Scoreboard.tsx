@@ -60,7 +60,7 @@ function TeamScoreCard({ team, compact, move }: { team: Team; compact: boolean; 
 
   return (
     <div
-      className={`relative ${compact ? 'min-w-[110px]' : 'min-w-[140px]'} flex-1 rounded-xl border border-arena-600 bg-arena-800/80 px-5 py-3 text-center shadow-lg shadow-black/30 ${
+      className={`relative ${compact ? 'min-w-[150px]' : 'min-w-[150px]'} flex-1 rounded-xl border border-arena-600 bg-arena-800/80 px-5 py-3 text-center shadow-lg shadow-black/30 ${
         justScored ? 'animate-score-pop' : ''
       }`}
       style={{ borderBottomColor: team.color, borderBottomWidth: 3, '--pop-color': team.color } as React.CSSProperties}
@@ -82,7 +82,7 @@ function TeamScoreCard({ team, compact, move }: { team: Team; compact: boolean; 
           {delta.amount}
         </span>
       )}
-      <div className="truncate text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+      <div className={`truncate text-xs font-semibold uppercase text-slate-400 ${compact ? 'tracking-[0.1em]' : 'tracking-[0.2em]'}`}>
         {team.avatar ? `${team.avatar} ` : ''}
         {team.name}
         <MoveTag move={move} />

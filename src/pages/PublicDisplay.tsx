@@ -121,7 +121,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
 
   if (!snapshot) {
     return (
-      <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-arena-950 court-lines text-center text-white">
+      <div className="flex min-h-svh flex-col items-center justify-center gap-3 court-lines text-center text-white">
         <div className="text-5xl"><Icon name="ball" /></div>
         <div className="font-display text-2xl tracking-wide text-hardwood-400">Waiting for host…</div>
         <p className="text-sm text-slate-500">Keep this window open — it'll follow along automatically.</p>
@@ -139,7 +139,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
   const toGo = Math.max(0, game.rounds.length - snapshot.possessionIndex)
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-arena-950">
+    <div className="fixed inset-0 overflow-hidden">
       <ReactionLayer reactions={reactions} />
       <StickerLayer stickers={stickers} />
       <div

@@ -163,7 +163,7 @@ export default function TierListDisplay() {
         upNext && (
           <div className="flex items-center gap-5 rounded-2xl border border-arena-600 bg-arena-800/70 p-4">
             <div className="h-28 w-28 shrink-0 overflow-hidden rounded-xl bg-arena-700 shadow-lg">
-              {upNext.artworkUrl ? <img src={upNext.artworkUrl} alt="" className="h-full w-full object-cover" /> : null}
+              {upNext.artworkUrl ? <img src={upNext.artworkUrl} alt="" className="h-full w-full object-cover" /> : <ArtPlaceholder seed={`${upNext.title} ${upNext.artist}`} />}
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.3em] text-slate-500">Up next · {unranked.length} to go</div>

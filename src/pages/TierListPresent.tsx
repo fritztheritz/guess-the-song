@@ -556,15 +556,15 @@ export default function TierListPresent() {
   return (
     <div className="min-h-svh court-lines">
       <div className="sticky top-0 z-20 border-b border-arena-700 bg-arena-950/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-4 py-3 sm:gap-3 sm:px-6">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-3 gap-y-2 px-4 py-3 sm:px-6">
+          <div className="flex min-w-0 basis-full items-center gap-3 sm:basis-0 sm:flex-1">
             <ProgressRing value={ranked} max={list.songs.length} size={44} label="songs ranked" />
             <div className="min-w-0">
               <BackLink to={`/tierlists/${list.id}/edit`}>Edit</BackLink>
               <h1 className="truncate font-display text-2xl leading-tight tracking-wide text-white">{list.name}</h1>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <SoundControl />
             <Button
               variant="outline"

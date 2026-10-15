@@ -210,7 +210,9 @@
 }
 
 .animate-buzzer-flash {
-  animation: buzzer-flash 900ms ease-out;
+  /* `forwards`: the keyframes end at opacity 0, so the flash must stay gone — without it the overlay snapped back to full strength. */
+  animation: buzzer-flash 900ms ease-out forwards;
+  opacity: 0;
 }
 
 @keyframes pop-in {

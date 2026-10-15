@@ -16,7 +16,7 @@ export default function PlayerLeaderboard({ players }: { players: PlayerRow[] })
           <Panel key={p.name} padding="sm" className="flex items-center justify-between gap-3">
             <span className="min-w-0 truncate font-medium" style={{ color: p.color }}>
               {i === 0 ? withIcons('⭐ ') : ''}
-              <Link to={`/players/${encodeURIComponent(p.name)}`} className="hover:underline" title={`${p.name}'s profile`}>
+              <Link to={`/players/${encodeURIComponent(p.name)}`} className="inline-block py-2 -my-2 hover:underline" title={`${p.name}'s profile`}>
                 {p.name}
               </Link>
               <span className="ml-2 text-xs text-slate-500">

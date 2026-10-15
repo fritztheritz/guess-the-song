@@ -94,7 +94,7 @@ export default function QuickGame() {
 
         <p className="text-center text-xs text-slate-500">
           Want lyrics, years or a tier list instead?{' '}
-          <Link to="/new" className="text-hardwood-400 underline">
+          <Link to="/new" className="inline-block py-2 text-hardwood-400 underline">
             Create a full game
           </Link>
         </p>

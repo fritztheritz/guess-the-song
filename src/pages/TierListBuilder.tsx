@@ -19,6 +19,7 @@ import { useToast } from '../state/toast-context'
 import type { ImportableTrack } from '../lib/soundcloud/soundcloud-tracks'
 import { useStoredEntity } from '../lib/use-stored-entity'
 import { Icon } from '../components/Icon'
+import ArtPlaceholder from '../components/ArtPlaceholder'
 
 export default function TierListBuilder() {
   const { tierListId } = useParams()
@@ -306,7 +307,7 @@ export default function TierListBuilder() {
                         <Icon name="x" />
                       </button>
                       <div className="relative aspect-square w-full bg-arena-700">
-                        {song.artworkUrl && <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" />}
+                        {song.artworkUrl ? <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" /> : <ArtPlaceholder seed={`${song.title} ${song.artist}`} />}
                         {(() => {
                           const tier = list.tiers.find((t) => t.id === song.tierId)
                           return tier ? (
