@@ -16,7 +16,7 @@ export default function RaftersBanner({ team, color, season, detail, className =
             <span className="font-display text-2xl leading-[0.95] tracking-wide [overflow-wrap:anywhere]">{team}</span>
             <span aria-hidden className="my-0.5 h-0.5 w-8 bg-[#050a1c]/60" />
             <span className="font-display text-sm leading-tight tracking-wider">{season}</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">{detail}</span>
+            <span className="text-xs font-bold uppercase tracking-widest opacity-70">{detail}</span>
           </div>
         </div>
       </div>

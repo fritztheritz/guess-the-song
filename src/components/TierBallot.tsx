@@ -78,7 +78,7 @@ export default function TierBallot({ state, onSubmit }: { state: TierlistState; 
                   <span className="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-bold text-arena-950" style={{ background: chosen.color }}>
                     {chosen.name}
                   </span>
-                  <span className="shrink-0 text-[11px] text-slate-500">Change</span>
+                  <span className="shrink-0 text-xs text-slate-500">Change</span>
                 </button>
               </li>
             )

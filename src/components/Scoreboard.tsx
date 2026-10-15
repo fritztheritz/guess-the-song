@@ -66,7 +66,7 @@ function TeamScoreCard({ team, compact, move }: { team: Team; compact: boolean; 
       style={{ borderBottomColor: team.color, borderBottomWidth: 3, '--pop-color': team.color } as React.CSSProperties}
     >
       {onFire && (
-        <span className="absolute -right-2 -top-2 rounded-full bg-scoreboard-amber px-1.5 py-0.5 text-[10px] font-bold leading-none text-arena-950 shadow" title={`${team.streak} scored in a row`}>
+        <span className="absolute -right-2 -top-2 rounded-full bg-scoreboard-amber px-1.5 py-0.5 text-xs font-bold leading-none text-arena-950 shadow" title={`${team.streak} scored in a row`}>
           <Icon name="flame" />{team.streak}
         </span>
       )}

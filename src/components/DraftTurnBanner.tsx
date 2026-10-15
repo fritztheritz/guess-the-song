@@ -19,7 +19,7 @@ export default function DraftTurnBanner({ round, rounds, pickNumber, totalPicks,
       <div className="flex items-center gap-3">
         <ProgressRing value={pickNumber} max={totalPicks} size={46} />
         <div className="min-w-0 flex-1 text-center">
-          <div className="text-[11px] uppercase tracking-[0.3em] text-slate-400">
+          <div className="text-xs uppercase tracking-[0.3em] text-slate-400">
             Round {round} of {rounds} · Pick {pickNumber + 1} of {totalPicks}
           </div>
           <div className="truncate font-display text-2xl tracking-wide" style={{ color: drafter.color }}>

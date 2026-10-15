@@ -20,6 +20,8 @@ import { Icon } from '../components/Icon'
 import { withIcons } from '../lib/with-icons'
 import StickerBar from '../components/StickerBar'
 import WhosePickPicker from '../components/WhosePickPicker'
+import ExtrasTray from '../components/ExtrasTray'
+import Spinner from '../components/Spinner'
 
 const MODE_CLUE_LABEL: Record<PhoneRoundState['mode'], string> = {
   song: '🎧 Listen up!',
@@ -362,7 +364,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
           can play with no shared TV/laptop at all — visible even before joining/buzzing. */}
       {roundState && (
         <div className="mb-3 w-full max-w-xs rounded-xl border border-arena-700 bg-arena-800/60 p-3 text-left">
-          <div className="mb-1 text-[11px] uppercase tracking-widest text-slate-500">
+          <div className="mb-1 text-xs uppercase tracking-widest text-slate-500">
             {roundState.gameName}
             {roundState.mode === 'popularity' ? (
               roundState.phase === 'clue' && roundState.popularity ? (
@@ -414,7 +416,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
       {!connected && !identity ? (
         <div className="w-full max-w-xs">
           {!connected && teams.length === 0 ? (
-            <p className="text-sm text-slate-400">Connecting…</p>
+            <div role="status" className="flex items-center justify-center gap-3 text-sm text-slate-400"><Spinner className="h-5 w-5 border-2" /> Connecting…</div>
           ) : (
             <div className="space-y-4">
               <label className="block text-left">
@@ -492,9 +494,13 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
             {withIcons(status.text)}
           </div>
 
-          {roundState?.reactions && <ReactionBar onReact={(emoji) => socketRef.current?.send({ type: 'react', emoji })} />}
-          {roundState?.stickers && identity?.teamId && (
-            <StickerBar teams={teams} myTeamId={identity.teamId} onSend={(sticker, targetTeamId) => socketRef.current?.send({ type: 'sticker', sticker, targetTeamId })} />
+          {(roundState?.reactions || (roundState?.stickers && identity?.teamId)) && (
+            <ExtrasTray>
+              {roundState?.reactions && <ReactionBar onReact={(emoji) => socketRef.current?.send({ type: 'react', emoji })} />}
+              {roundState?.stickers && identity?.teamId && (
+                <StickerBar teams={teams} myTeamId={identity.teamId} onSend={(sticker, targetTeamId) => socketRef.current?.send({ type: 'sticker', sticker, targetTeamId })} />
+              )}
+            </ExtrasTray>
           )}
 
           {roundState?.mode === 'whosepick' ? (
@@ -784,7 +790,7 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
               onClick={handleBuzz}
               disabled={buzzState !== 'open' || socketStatus !== 'open'}
               aria-label={buzzState === 'open' ? 'Buzz in' : 'Waiting for the buzzer to open'}
-              className={`group relative flex size-[min(16rem,68vw)] flex-col items-center justify-center overflow-hidden rounded-full bg-hardwood-500 font-display text-6xl tracking-wide text-white shadow-2xl transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-arena-700 disabled:text-slate-500 disabled:shadow-none ${
+              className={`group relative flex size-[min(15rem,62vw)] flex-col items-center justify-center overflow-hidden rounded-full bg-hardwood-500 font-display text-6xl tracking-wide text-white shadow-2xl transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-arena-700 disabled:text-slate-500 disabled:shadow-none ${
                 buzzState === 'open' && socketStatus === 'open' ? 'ring-8 ring-hardwood-500/30' : ''
               }`}
               style={buzzState === 'open' ? { backgroundImage: 'radial-gradient(circle at 34% 28%, rgb(255 255 255 / 0.3), transparent 52%), radial-gradient(circle at 70% 80%, rgb(0 0 0 / 0.28), transparent 60%)' } : undefined}

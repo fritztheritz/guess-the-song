@@ -157,7 +157,7 @@ export default function CommandPalette() {
             </li>
           ))}
         </ul>
-        <div className="flex gap-4 border-t border-arena-700 px-4 py-2 text-[11px] text-slate-500">
+        <div className="flex gap-4 border-t border-arena-700 px-4 py-2 text-xs text-slate-500">
           <span>↑↓ choose</span>
           <span>↵ open</span>
           <span>esc close</span>

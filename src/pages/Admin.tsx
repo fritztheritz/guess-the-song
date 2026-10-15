@@ -84,14 +84,14 @@ export default function Admin() {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="font-medium text-slate-100">{flag.label}</span>
-                            <code className="rounded bg-arena-900 px-1.5 py-0.5 text-[11px] text-slate-500">{flag.key}</code>
+                            <code className="rounded bg-arena-900 px-1.5 py-0.5 text-xs text-slate-500">{flag.key}</code>
                             {RECOMMENDED_FLAGS.has(flag.key) && (
-                              <span className="rounded-full bg-scoreboard-green/15 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-scoreboard-green">
+                              <span className="rounded-full bg-scoreboard-green/15 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-scoreboard-green">
                                 Recommended
                               </span>
                             )}
                             {flag.overridden && (
-                              <span className="rounded-full bg-hardwood-500/20 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-hardwood-400">
+                              <span className="rounded-full bg-hardwood-500/20 px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-hardwood-400">
                                 Overridden
                               </span>
                             )}

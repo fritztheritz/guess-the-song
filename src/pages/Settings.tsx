@@ -6,7 +6,7 @@ import Switch from '../components/ui/Switch'
 import ButtonLink from '../components/ui/ButtonLink'
 import Button from '../components/ui/Button'
 import { getSoundVolume, isSoundMuted, setSoundMuted, setSoundVolume, playCorrect, playHorn } from '../lib/sound-effects'
-import { getArenaFx, getKeepAwake, setArenaFx, setKeepAwake } from '../lib/settings'
+import { getArenaFx, getCalm, getKeepAwake, setArenaFx, setCalm, setKeepAwake } from '../lib/settings'
 import { THEME_PRESETS, getStoredTheme } from '../lib/themes'
 import { useFeatureFlag } from '../state/feature-flags-context'
 import { Icon } from '../components/Icon'
@@ -33,6 +33,7 @@ export default function Settings() {
   const [volume, setVolume] = useState(() => getSoundVolume())
   const [arenaFx, setArenaFxState] = useState(() => getArenaFx())
   const [keepAwake, setKeepAwakeState] = useState(() => getKeepAwake())
+  const [calm, setCalmState] = useState(() => getCalm())
   const [themeOpen, setThemeOpen] = useState(false)
   const [themeId, setThemeId] = useState(() => getStoredTheme().id)
   const themeName = THEME_PRESETS.find((p) => p.id === themeId)?.name ?? (themeId === 'custom' ? 'Custom' : 'Default')
@@ -102,6 +103,16 @@ export default function Settings() {
               SCREEN
             </h2>
             <Panel padding="md" className="divide-y divide-arena-700 py-1">
+              <Row title="Reduce effects" hint="Turns off the page wipe, title slams, screen shakes and confetti. Your device's reduced-motion setting is always respected too.">
+                <Toggle
+                  label="Reduce effects"
+                  on={calm}
+                  onChange={(on) => {
+                    setCalm(on)
+                    setCalmState(on)
+                  }}
+                />
+              </Row>
               <Row title="Keep the screen awake during games" hint="Stops phones and TVs from sleeping mid-game. Turn off to save battery.">
                 <Toggle
                   label="Keep the screen awake"

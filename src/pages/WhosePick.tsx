@@ -377,7 +377,7 @@ export default function WhosePick() {
       <div className="mx-auto max-w-4xl px-4 pb-10 sm:px-6">
         <div className="flex items-center justify-between gap-3 py-5">
           <BackLink to={`/tierlists/${list.id}/present`}>Tier list</BackLink>
-          <h1 className="title-page">
+          <h1 className="title-page text-center">
             <Icon name="eye" /> WHOSE PICK?
           </h1>
           <SoundControl />
@@ -473,7 +473,7 @@ export default function WhosePick() {
                     </div>
                     <div className="text-right">
                       <div className="font-display text-4xl text-hardwood-400">{Object.keys(claims).length}</div>
-                      <div className="text-[11px] uppercase tracking-widest text-slate-500">songs claimed</div>
+                      <div className="text-xs uppercase tracking-widest text-slate-500">songs claimed</div>
                     </div>
                   </div>
                   <ConnectionBanner status={status} />

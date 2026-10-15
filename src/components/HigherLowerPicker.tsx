@@ -10,7 +10,7 @@ function SongCard({ title, artist, artworkUrl, badge }: { title: string; artist:
     <div className="flex w-28 flex-col items-center gap-1">
       <div className="h-20 w-20 overflow-hidden rounded-xl bg-arena-700">{artworkUrl ? <img src={artworkUrl} alt="" className="h-full w-full object-cover" /> : null}</div>
       <div className="w-full truncate text-xs font-semibold text-slate-100">{title}</div>
-      <div className="w-full truncate text-[11px] text-slate-500">{artist}</div>
+      <div className="w-full truncate text-xs text-slate-500">{artist}</div>
       <div className="font-display text-xl text-hardwood-400">{badge}</div>
     </div>
   )

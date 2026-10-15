@@ -56,7 +56,7 @@ export default function DraftBallot({
                   {d.avatar ? `${d.avatar} ` : ''}
                   {d.name}
                 </div>
-                <div className="line-clamp-2 text-[11px] text-slate-500">{titles.join(' · ') || 'No picks'}</div>
+                <div className="line-clamp-2 text-xs text-slate-500">{titles.join(' · ') || 'No picks'}</div>
               </div>
               <div className="flex shrink-0 flex-col gap-1">
                 <button

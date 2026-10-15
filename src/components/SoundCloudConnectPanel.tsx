@@ -57,7 +57,7 @@ export default function SoundCloudConnectPanel() {
           <div className="text-xs text-teal-400">Connected <Icon name="check" /></div>
         </div>
       </div>
-      <button onClick={disconnect} className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-300 hover:border-scoreboard-500 hover:text-scoreboard-500">
+      <button onClick={disconnect} className="rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-300 hover:border-scoreboard-500 hover:text-scoreboard-500">
         Disconnect
       </button>
     </div>

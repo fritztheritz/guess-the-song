@@ -20,7 +20,7 @@ export default function AwardsPanel({ awards, title = 'AWARDS' }: { awards: Awar
               {withIcons(a.icon)}
             </span>
             <div className="min-w-0">
-              <div className="text-[11px] uppercase tracking-widest text-slate-500">{a.title}</div>
+              <div className="text-xs uppercase tracking-widest text-slate-500">{a.title}</div>
               <div className="truncate text-lg font-semibold" style={{ color: a.color }}>
                 {a.teamName}
               </div>

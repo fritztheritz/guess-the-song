@@ -12,7 +12,7 @@ export default function ReactionLayer({ reactions }: { reactions: FloatingReacti
           style={{ left: `${r.x}%`, '--sway': `${r.sway}px` } as React.CSSProperties}
         >
           <span className="text-5xl drop-shadow-lg">{r.emoji}</span>
-          {r.name && <span className="mt-0.5 max-w-24 truncate rounded-full bg-black/60 px-2 py-0.5 text-[11px] text-slate-200">{r.name}</span>}
+          {r.name && <span className="mt-0.5 max-w-24 truncate rounded-full bg-black/60 px-2 py-0.5 text-xs text-slate-200">{r.name}</span>}
         </div>
       ))}
     </div>

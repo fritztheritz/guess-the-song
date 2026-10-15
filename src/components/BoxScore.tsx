@@ -56,7 +56,7 @@ export default function BoxScore({ game, className = '' }: { game: Game; classNa
                       {r.avatar ? `${r.avatar} ` : ''}
                       {r.name}
                     </span>
-                    {leader && <span className="sticker ml-2 align-middle text-[11px]">W</span>}
+                    {leader && <span className="sticker ml-2 align-middle text-xs">W</span>}
                   </th>
                   {r.cells.map((c, i) => (
                     <td key={i} className={`px-2 py-2 text-center font-mono tabular-nums ${c > 0 ? 'text-slate-100' : c < 0 ? 'text-scoreboard-500' : 'text-slate-600'}`}>

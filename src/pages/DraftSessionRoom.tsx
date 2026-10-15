@@ -68,7 +68,7 @@ function CreatePlaylistModal({
           <Icon name="globe" /> Public
         </button>
       </div>
-      <p className="mt-1.5 text-[11px] text-slate-500">
+      <p className="mt-1.5 text-xs text-slate-500">
         {sharing === 'private'
           ? 'Only you can open it on SoundCloud — matches your tracks. Listening on this screen works either way.'
           : 'Anyone can find and play it on SoundCloud.'}
@@ -667,7 +667,7 @@ export default function DraftSessionRoom() {
                       </button>
                     </div>
                     <div>
-                      <div className="mb-1 text-[11px] uppercase tracking-widest text-slate-500">On a computer? Use this link</div>
+                      <div className="mb-1 text-xs uppercase tracking-widest text-slate-500">On a computer? Use this link</div>
                       <JoinLink code={session.buzzerRoomCode} />
                     </div>
                     <ConnectionBanner status={voteStatus} />

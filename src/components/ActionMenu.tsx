@@ -18,7 +18,20 @@ export interface MenuItem {
 
 // One dropdown for secondary actions, so a toolbar can keep its primary buttons and tuck the rest away.
 // Closes on outside click, Escape and selection; Escape returns focus to the trigger.
-export default function ActionMenu({ label, items, className = '' }: { label: ReactNode; items: MenuItem[]; className?: string }) {
+export default function ActionMenu({
+  label,
+  items,
+  className = '',
+  triggerClassName = 'px-3 py-1.5 text-sm',
+  align = 'right',
+}: {
+  label: ReactNode
+  items: MenuItem[]
+  className?: string
+  /** Padding/size of the trigger pill (the border, weight and colour are shared). */
+  triggerClassName?: string
+  align?: 'left' | 'right'
+}) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -56,15 +69,15 @@ export default function ActionMenu({ label, items, className = '' }: { label: Re
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-arena-500 px-3 py-1.5 text-sm font-semibold text-slate-200 hover:border-hardwood-500"
+        className={`fill-up inline-flex items-center gap-1.5 rounded-full border border-arena-500 font-semibold text-slate-200 hover:border-hardwood-500 ${triggerClassName}`}
       >
         {label}
-        <span aria-hidden className="text-[10px] text-slate-500">
+        <span aria-hidden className="text-xs text-slate-500">
           ▾
         </span>
       </button>
       {open && (
-        <div id={id} role="menu" className="absolute right-0 z-30 mt-2 w-60 overflow-hidden rounded-xl border border-arena-500 bg-arena-800 py-1 shadow-xl">
+        <div id={id} role="menu" className={`absolute ${align === 'left' ? 'left-0' : 'right-0'} z-30 mt-2 w-64 overflow-hidden rounded-xl border-2 border-arena-500 bg-arena-800 py-1 shadow-xl`}>
           {visible.map((item) =>
             item.to ? (
               <Link

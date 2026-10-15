@@ -187,7 +187,7 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
         </div>
       </div>
       <div>
-        <div className="mb-1 text-[11px] uppercase tracking-widest text-slate-500">On a computer? Use this link</div>
+        <div className="mb-1 text-xs uppercase tracking-widest text-slate-500">On a computer? Use this link</div>
         <JoinLink code={code} />
       </div>
       <ConnectionBanner status={status} />
@@ -247,7 +247,7 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
               )
             })}
           </div>
-          <p className="mt-2 text-[11px] text-slate-500">The number is the average tier (1 = top). Songs land in the tier closest to their average.</p>
+          <p className="mt-2 text-xs text-slate-500">The number is the average tier (1 = top). Songs land in the tier closest to their average.</p>
         </div>
       )}
       </>

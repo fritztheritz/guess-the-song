@@ -108,7 +108,7 @@ function SongTile({
         <ArtPlaceholder seed={`${song.title} ${song.artist ?? ''}`} />
       )}
       {!comfy && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-black/70 px-1.5 py-1 text-[10px] leading-tight text-white">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 truncate bg-black/70 px-1.5 py-1 text-xs leading-tight text-white">
           {song.title}
         </div>
       )}
@@ -168,8 +168,8 @@ function SongTile({
       </div>
       {comfy && (
         <div className="mt-1 px-0.5">
-          <div className="line-clamp-2 text-[11px] font-medium leading-tight text-slate-100">{song.title}</div>
-          <div className="truncate text-[10px] text-slate-500">{song.artist}</div>
+          <div className="line-clamp-2 text-xs font-medium leading-tight text-slate-100">{song.title}</div>
+          <div className="truncate text-xs text-slate-500">{song.artist}</div>
         </div>
       )}
 
@@ -181,7 +181,7 @@ function SongTile({
         }}
         aria-label={`Move "${song.title}"`}
         aria-expanded={menuOpen}
-        className="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/80 md:h-5 md:w-5 md:text-[10px]"
+        className="absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-xs text-white hover:bg-black/80 md:h-5 md:w-5 md:text-xs"
       >
         ⠿
       </button>
@@ -194,7 +194,7 @@ function SongTile({
             onClick={(e) => e.stopPropagation()}
             className="fixed inset-x-0 bottom-0 z-40 space-y-3 rounded-t-2xl border border-arena-600 bg-arena-900 p-4 pb-6 text-left shadow-2xl md:absolute md:inset-x-auto md:bottom-auto md:right-0 md:top-7 md:z-20 md:w-44 md:space-y-2 md:rounded-lg md:p-2"
           >
-            <div className="truncate text-xs uppercase tracking-widest text-slate-500 md:text-[10px]" title={song.title}>
+            <div className="truncate text-xs uppercase tracking-widest text-slate-500 md:text-xs" title={song.title}>
               Move “{song.title}” to…
             </div>
             <div className="flex flex-wrap gap-2 md:gap-1">
@@ -202,7 +202,7 @@ function SongTile({
                 <button
                   key={chip.id ?? '__unranked__'}
                   onClick={() => onPlace(chip.id)}
-                  className="min-w-12 rounded-full px-4 py-2.5 text-base font-semibold md:min-w-0 md:px-2 md:py-1 md:text-[11px]"
+                  className="min-w-12 rounded-full px-4 py-2.5 text-base font-semibold md:min-w-0 md:px-2 md:py-1 md:text-xs"
                   style={{ background: chip.color ? `${chip.color}33` : '#ffffff1a', color: chip.color ?? '#cbd5e1' }}
                 >
                   {chip.name}
@@ -652,7 +652,7 @@ export default function TierListPresent() {
                   )}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-[11px] uppercase tracking-[0.25em] text-slate-500">Up next · {unranked.length} to go</div>
+                  <div className="text-xs uppercase tracking-[0.25em] text-slate-500">Up next · {unranked.length} to go</div>
                   <div className="truncate font-display text-2xl text-white" title={upNext.title}>
                     {upNext.title}
                   </div>

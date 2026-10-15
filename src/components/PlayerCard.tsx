@@ -23,7 +23,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div className="border-l-2 border-black/30 pl-2">
       <div className="font-display text-2xl leading-none text-white">{value}</div>
-      <div className="text-[10px] font-bold uppercase tracking-widest text-white/60">{label}</div>
+      <div className="text-xs font-bold uppercase tracking-widest text-white/60">{label}</div>
     </div>
   )
 }

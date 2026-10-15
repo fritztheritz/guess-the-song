@@ -349,7 +349,7 @@ export default function DraftBoardHome() {
                             </div>
                           </div>
                           {takenSession && (
-                            <div className="hidden max-w-[40%] shrink-0 truncate text-[11px] sm:block" style={{ color: takenDrafter?.color }}>
+                            <div className="hidden max-w-[40%] shrink-0 truncate text-xs sm:block" style={{ color: takenDrafter?.color }}>
                               {takenDrafter?.avatar ? `${takenDrafter.avatar} ` : ''}
                               {takenDrafter?.name ?? 'Taken'} · {takenSession.name}
                             </div>

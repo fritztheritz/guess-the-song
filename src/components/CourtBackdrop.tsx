@@ -31,9 +31,12 @@ function cropFor(pathname: string): Crop {
   return CROPS.arc
 }
 
+import { isStageRoute } from '../lib/stage-route'
+
 export default function CourtBackdrop() {
   const { pathname } = useLocation()
   const { x, y, zoom } = cropFor(pathname)
+  const loud = isStageRoute(pathname) || pathname === '/'
   // The player's phone page gets a ball for a mouse pointer (only visible with a mouse — touch has no cursor).
   useEffect(() => {
     const on = pathname.split('/')[1] === 'buzz'
@@ -51,11 +54,11 @@ export default function CourtBackdrop() {
             'repeating-linear-gradient(90deg, #ff6a13 0 2px, transparent 2px 46px), linear-gradient(180deg, transparent, #050a1c 85%)',
         }}
       />
-      <svg className="absolute inset-0 h-full w-full text-white/[0.075]" viewBox="0 0 1000 940" preserveAspectRatio="xMidYMid slice">
+      <svg className={`absolute inset-0 h-full w-full transition-colors duration-700 ${loud ? 'text-white/[0.075]' : 'text-white/[0.03]'}`} viewBox="0 0 1000 940" preserveAspectRatio="xMidYMid slice">
         <g
           fill="none"
           stroke="currentColor"
-          strokeWidth="5"
+          strokeWidth={loud ? 5 : 3.5}
           strokeLinecap="round"
           style={{ transform, transition: 'transform 900ms cubic-bezier(0.5, 0, 0.2, 1)' }}
           className="motion-reduce:!transition-none"

@@ -965,7 +965,7 @@ export default function HostController({ gameId }: { gameId: string }) {
     if (!game || !ejectEnabled || game.teams.length < 2) return null
     return (
       <div className="relative z-10 flex flex-wrap items-center justify-center gap-2">
-        <span className="text-[11px] uppercase tracking-widest text-slate-500">Ref's call</span>
+        <span className="text-xs uppercase tracking-widest text-slate-500">Ref's call</span>
         {game.teams.map((team) => (
           <button
             key={team.id}
@@ -1029,7 +1029,7 @@ export default function HostController({ gameId }: { gameId: string }) {
               </button>
               {freezePickerFor === team.id && !freezeActive && (
                 <div className="absolute bottom-full left-0 z-30 mb-1 w-40 space-y-1 rounded-lg border border-arena-600 bg-arena-900 p-2 text-left shadow-2xl">
-                  <div className="text-[10px] uppercase tracking-widest text-slate-500">Freeze who?</div>
+                  <div className="text-xs uppercase tracking-widest text-slate-500">Freeze who?</div>
                   {game.teams
                     .filter((t) => t.id !== team.id)
                     .map((t) => (
@@ -1071,7 +1071,7 @@ export default function HostController({ gameId }: { gameId: string }) {
         {row}
         {soundboardEnabled && (
           <div className="relative z-10">
-            <div className="mb-1.5 text-center text-[11px] uppercase tracking-widest text-slate-500">Soundboard</div>
+            <div className="mb-1.5 text-center text-xs uppercase tracking-widest text-slate-500">Soundboard</div>
             <div className="flex flex-wrap justify-center gap-1.5">
               {SOUNDBOARD.map((b) => (
                 <button
@@ -1082,7 +1082,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                 >
                   <span className="text-base">{withIcons(b.icon)}</span>
                   <span>{b.label}</span>
-                  <kbd className="rounded bg-arena-700 px-1 font-mono text-[10px] text-slate-300">{b.key}</kbd>
+                  <kbd className="rounded bg-arena-700 px-1 font-mono text-xs text-slate-300">{b.key}</kbd>
                 </button>
               ))}
             </div>
@@ -1701,11 +1701,12 @@ export default function HostController({ gameId }: { gameId: string }) {
       {buzzerEnabled && game.buzzerRoomCode && socketStatus !== 'open' && (
         <ConnectionBanner status={socketStatus} className="absolute left-1/2 top-14 z-30 -translate-x-1/2 shadow-lg" />
       )}
-      <div className="absolute right-3 top-3 z-20 flex flex-wrap justify-end gap-1.5 sm:right-4 sm:top-4 sm:gap-2">
+      <div className="absolute right-3 top-3 z-20 flex flex-wrap items-center justify-end gap-2 sm:right-4 sm:top-4">
+        <div className="flex items-center divide-x divide-white/10 rounded-full bg-black/40 p-0.5">
         {buzzerEnabled && game.buzzerRoomCode && (
           <button
             onClick={() => setBuzzerPanelOpen(true)}
-            className="flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60"
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-slate-300 hover:bg-white/10"
           >
             <span
               className={`h-2 w-2 rounded-full ${buzzState === 'open' ? 'animate-pulse bg-scoreboard-green' : buzzState === 'locked' ? 'bg-scoreboard-amber' : 'bg-slate-600'}`}
@@ -1716,34 +1717,37 @@ export default function HostController({ gameId }: { gameId: string }) {
         {publicConnected && (
           <button
             onClick={() => setPeekMode((v) => !v)}
-            className={`rounded-full px-3 py-1.5 text-sm ${peekMode ? 'bg-hardwood-500 text-arena-950' : 'bg-black/40 text-slate-300 hover:bg-black/60'}`}
+            className={`rounded-full px-3 py-1.5 text-sm ${peekMode ? 'bg-hardwood-500 text-arena-950' : 'text-slate-300 hover:bg-white/10'}`}
           >
             {peekMode ? '🔓 Peek: ON' : withIcons('🔒 Peek: OFF')}
           </button>
         )}
-        <button onClick={openPublicDisplay} aria-label="Open the public display" className="rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
+        <button onClick={openPublicDisplay} aria-label="Open the public display" className="rounded-full px-3 py-1.5 text-sm text-slate-300 hover:bg-white/10">
           <Icon name="monitor" /><span className="hidden sm:inline"> Public Display</span>
           {publicConnected ? withIcons(' ✓') : ''}
         </button>
         {soundboardEnabled && trayVisible && (
           <button
             onClick={toggleTools}
-            className={`rounded-full px-3 py-1.5 text-sm ${toolsOpen ? 'bg-hardwood-500 text-arena-950' : 'bg-black/40 text-slate-300 hover:bg-black/60'}`}
+            className={`rounded-full px-3 py-1.5 text-sm ${toolsOpen ? 'bg-hardwood-500 text-arena-950' : 'text-slate-300 hover:bg-white/10'}`}
             aria-label="Soundboard and host tools"
             title="Soundboard and host tools (Z X C V B N play sounds)"
           >
             <Icon name="toolbox" />
           </button>
         )}
+        </div>
+        <div className="flex items-center gap-0.5 rounded-full bg-black/40 p-0.5">
         <SoundControl />
         <button
           onClick={() => setShowHelp((v) => !v)}
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-sm text-slate-300 hover:bg-black/60"
+          className="flex h-8 w-8 items-center justify-center rounded-full text-sm text-slate-300 hover:bg-white/10"
           aria-label="Keyboard shortcuts"
         >
           ?
         </button>
-        <button onClick={exitPresentation} className="rounded-full bg-black/40 px-3 py-1.5 text-sm text-slate-300 hover:bg-black/60">
+        </div>
+        <button onClick={exitPresentation} className="rounded-full bg-black/40 px-4 py-1.5 text-sm text-slate-300 hover:bg-black/60">
           <span className="hidden sm:inline">ESC · </span>Exit
         </button>
       </div>
@@ -1759,7 +1763,7 @@ export default function HostController({ gameId }: { gameId: string }) {
 
       {showCheatSheet && (
         <div className="fixed bottom-4 left-4 z-20 max-w-xs rounded-xl border border-hardwood-500/50 bg-black/80 px-4 py-3 text-left shadow-xl">
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-hardwood-400"><Icon name="lock" /> Host only</div>
+          <div className="mb-1 text-xs font-semibold uppercase tracking-widest text-hardwood-400"><Icon name="lock" /> Host only</div>
           <div className="text-sm text-hardwood-100">{cheatSheetText()}</div>
         </div>
       )}
@@ -1958,7 +1962,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                     <div className="truncate font-display text-lg text-white">{round.higherLower.ref.title}</div>
                     <div className="truncate text-xs text-slate-500">{round.higherLower.ref.artist}</div>
                     <div className="font-display text-3xl text-hardwood-400">#{round.higherLower.ref.rank}</div>
-                    {round.higherLower.ref.tierName && <div className="text-[11px] uppercase tracking-widest text-slate-500">Tier {round.higherLower.ref.tierName}</div>}
+                    {round.higherLower.ref.tierName && <div className="text-xs uppercase tracking-widest text-slate-500">Tier {round.higherLower.ref.tierName}</div>}
                   </div>
                   <div className="font-display text-3xl text-slate-600">VS</div>
                   <div className="w-40 space-y-1">
@@ -2222,7 +2226,7 @@ export default function HostController({ gameId }: { gameId: string }) {
                   <div className="font-display text-4xl text-hardwood-400">
                     #<RollReveal value={String(round.higherLower.rank)} />
                   </div>
-                  <div className="text-[11px] uppercase tracking-widest text-slate-500">
+                  <div className="text-xs uppercase tracking-widest text-slate-500">
                     of {round.higherLower.size}
                     {round.higherLower.tierName ? ` · Tier ${round.higherLower.tierName}` : ''}
                   </div>

@@ -530,7 +530,7 @@ export default function GameBuilder() {
 
           {suddenDeathEnabled && (game.tiebreakerRounds?.length ?? 0) > 0 && (
             <div className="mt-3 rounded-lg border border-arena-700 p-2">
-              <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-slate-500"><Icon name="medal-1" /> Tiebreaker reserve</div>
+              <div className="mb-1 text-xs font-semibold uppercase tracking-widest text-slate-500"><Icon name="medal-1" /> Tiebreaker reserve</div>
               {(game.tiebreakerRounds ?? []).map((r) => (
                 <div key={r.id} className="flex items-center gap-2 py-0.5 text-xs text-slate-300">
                   <span className="min-w-0 flex-1 truncate">{r.title || 'Untitled'}</span>
@@ -576,12 +576,12 @@ export default function GameBuilder() {
             )}
             <div className="flex gap-2">
               {!isLyric && !isTierGuess && (
-                <button onClick={() => localFileInput.current?.click()} className="flex-1 rounded-lg border border-arena-600 py-1.5 text-xs text-slate-400 hover:border-arena-500">
+                <button onClick={() => localFileInput.current?.click()} className="flex-1 rounded-full border border-arena-600 py-1.5 text-xs text-slate-400 hover:border-arena-500">
                   + Local audio
                 </button>
               )}
               {game.rounds.length > 1 && (
-                <button onClick={shuffleRounds} className="flex-1 rounded-lg border border-arena-600 py-1.5 text-xs text-slate-400 hover:border-arena-500">
+                <button onClick={shuffleRounds} className="flex-1 rounded-full border border-arena-600 py-1.5 text-xs text-slate-400 hover:border-arena-500">
                   Shuffle
                 </button>
               )}

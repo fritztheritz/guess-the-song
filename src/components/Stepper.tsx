@@ -10,7 +10,7 @@ export default function Stepper({ steps, current, onGo }: { steps: string[]; cur
         const active = i === current
         const dot = (
           <span
-            className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
+            className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
               active ? 'bg-hardwood-500 text-arena-950' : done ? 'bg-hardwood-500/25 text-hardwood-300' : 'border border-arena-600 text-slate-500'
             }`}
             aria-hidden

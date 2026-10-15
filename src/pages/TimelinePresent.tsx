@@ -204,11 +204,11 @@ export default function TimelinePresent() {
           <div className="h-12 w-12 overflow-hidden rounded bg-arena-700">
             {placement.song.artworkUrl && <img src={placement.song.artworkUrl} alt="" className="h-full w-full object-cover" />}
           </div>
-          <div className="w-full truncate text-[11px] text-slate-200" title={placement.song.title}>
+          <div className="w-full truncate text-xs text-slate-200" title={placement.song.title}>
             {placement.song.title}
           </div>
-          <div className="w-full truncate text-[10px] text-slate-500">{placement.song.artist}</div>
-          <div className="truncate text-[10px] font-semibold" style={{ color: team?.color ?? '#64748b' }}>
+          <div className="w-full truncate text-xs text-slate-500">{placement.song.artist}</div>
+          <div className="truncate text-xs font-semibold" style={{ color: team?.color ?? '#64748b' }}>
             {team ? team.name : 'Starting card'}
           </div>
         </div>,

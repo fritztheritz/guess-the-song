@@ -386,7 +386,7 @@ export default function PopularityPresent() {
                     isCurrent ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 bg-arena-800/60'
                   }`}
                 >
-                  <div className="text-[10px] uppercase tracking-widest text-slate-500">#{r.rank}</div>
+                  <div className="text-xs uppercase tracking-widest text-slate-500">#{r.rank}</div>
                   <div className="h-10 w-10 overflow-hidden rounded bg-arena-700">
                     {solved ? (
                       solved.track.artworkUrl ? (
@@ -400,7 +400,7 @@ export default function PopularityPresent() {
                   </div>
                   {solved && (
                     <>
-                      <div className="w-full truncate text-[10px] text-slate-300" title={solved.track.title}>
+                      <div className="w-full truncate text-xs text-slate-300" title={solved.track.title}>
                         {solved.track.title}
                       </div>
                       {team && (

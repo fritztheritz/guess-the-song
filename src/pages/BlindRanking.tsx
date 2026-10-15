@@ -232,7 +232,7 @@ export default function BlindRanking() {
       <div className="mx-auto max-w-4xl px-6 py-8">
         <div className="mb-6 flex items-center justify-between gap-3">
           <BackLink to={`/tierlists/${list.id}/present`}>Tier list</BackLink>
-          <h1 className="title-page"><Icon name="eye-off" /> BLIND RANKING</h1>
+          <h1 className="title-page text-center"><Icon name="eye-off" /> BLIND RANKING</h1>
           <SoundControl />
         </div>
 
@@ -251,7 +251,7 @@ export default function BlindRanking() {
                 </div>
               </div>
               <div>
-                <div className="mb-1 text-[11px] uppercase tracking-widest text-slate-500">On a computer? Use this link</div>
+                <div className="mb-1 text-xs uppercase tracking-widest text-slate-500">On a computer? Use this link</div>
                 <JoinLink code={code} />
               </div>
               <ConnectionBanner status={status} />

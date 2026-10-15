@@ -248,7 +248,7 @@ export default function DraftPresentation() {
               {rosterFor(drafter.id).length}/{session.picksPerDrafter} songs
             </div>
             {rosterFor(drafter.id).length > 0 && (
-              <div className="mt-0.5 truncate text-[11px] text-slate-500">Last: {rosterFor(drafter.id).slice(-1)[0].title}</div>
+              <div className="mt-0.5 truncate text-xs text-slate-500">Last: {rosterFor(drafter.id).slice(-1)[0].title}</div>
             )}
           </div>
         ))}

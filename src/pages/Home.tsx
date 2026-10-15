@@ -59,6 +59,7 @@ import Panel from '../components/ui/Panel'
 import { Icon } from '../components/Icon'
 import { withIcons } from '../lib/with-icons'
 import HeroBall from '../components/HeroBall'
+import ActionMenu from '../components/ActionMenu'
 
 function describeBackupContents(contents: BackupContents): string[] {
   const label = (count: number, singular: string, plural = `${singular}s`) =>
@@ -513,36 +514,19 @@ export default function Home() {
             <ButtonLink to="/quick" size="lg" className="px-8">
               <Icon name="bolt" /> QUICK GAME
             </ButtonLink>
-            {tierListsEnabled && (
-              <ButtonLink to="/tierlists/new" size="lg" className="px-8">
-                + CREATE TIER LIST
-              </ButtonLink>
-            )}
-            {tournamentsEnabled && (
-              <ButtonLink to="/tournaments/new" size="lg" className="px-8">
-                + CREATE TOURNAMENT
-              </ButtonLink>
-            )}
-            {draftEnabled && (
-              <ButtonLink to="/drafts/new" size="lg" className="px-8">
-                + CREATE DRAFT
-              </ButtonLink>
-            )}
-            {popularityEnabled && (
-              <ButtonLink to="/popularity/new" size="lg" className="px-8">
-                + GUESS THE POPULARITY
-              </ButtonLink>
-            )}
-            {timelineEnabled && (
-              <ButtonLink to="/timeline/new" size="lg" className="px-8">
-                + GUESS THE TIMELINE
-              </ButtonLink>
-            )}
-            {seasonsEnabled && (
-              <ButtonLink to="/seasons/new" size="lg" className="px-8">
-                + CREATE SEASON
-              </ButtonLink>
-            )}
+            <ActionMenu
+              label={<><Icon name="plus" /> TIERS, DRAFTS &amp; MORE</>}
+              align="left"
+              triggerClassName="px-8 py-3 text-lg"
+              items={[
+                { key: 'tier', label: 'Tier list', to: '/tierlists/new', hidden: !tierListsEnabled, title: 'Rank songs into tiers' },
+                { key: 'tourn', label: 'Tournament', to: '/tournaments/new', hidden: !tournamentsEnabled, title: 'Chain games into a bracket-style series' },
+                { key: 'season', label: 'Season', to: '/seasons/new', hidden: !seasonsEnabled, title: 'Standings across every game with a tag' },
+                { key: 'draft', label: 'Draft board', to: '/drafts/new', hidden: !draftEnabled, title: 'Take turns drafting songs' },
+                { key: 'pop', label: 'Guess the popularity', to: '/popularity/new', hidden: !popularityEnabled, title: 'Rank an artist\'s songs by popularity' },
+                { key: 'time', label: 'Guess the timeline', to: '/timeline/new', hidden: !timelineEnabled, title: 'Place songs on a timeline' },
+              ]}
+            />
           </div>
         </header>
 
@@ -609,7 +593,7 @@ export default function Home() {
                 >
                   <div className="truncate text-sm font-semibold text-slate-100">{game.name}</div>
                   <div className="truncate text-xs text-scoreboard-green">{withIcons(gameStatus(game).text)}</div>
-                  <div className="text-[11px] text-slate-500">{timeAgo(game.updatedAt)}</div>
+                  <div className="text-xs text-slate-500">{timeAgo(game.updatedAt)}</div>
                 </Link>
               ))}
             </div>
@@ -663,7 +647,7 @@ export default function Home() {
               {visibleGames.map((game) => {
                 const thumbnailUrl = game.rounds.find((r) => r.artworkUrl)?.artworkUrl
                 return (
-                <Panel key={game.id} padding="md" className="flex items-start gap-3 sm:items-center">
+                <Panel key={game.id} padding="md" className="flex items-start gap-3">
                   <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-arena-700">
                     {thumbnailUrl ? (
                       <img src={thumbnailUrl} alt="" className="h-full w-full object-cover" />
@@ -673,7 +657,7 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                  <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 flex-1 flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
                   <div className="min-w-0">
                     <div className="truncate font-semibold text-slate-100">{game.name}</div>
                     <div className="text-sm text-slate-500">
@@ -689,23 +673,23 @@ export default function Home() {
                     {game.tags && game.tags.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {game.tags.map((tag) => (
-                          <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-[10px] text-slate-400">
+                          <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-xs text-slate-400">
                             {tag}
                           </span>
                         ))}
                       </div>
                     )}
                   </div>
-                  <div className="flex shrink-0 gap-2">
+                  <div className="flex shrink-0 flex-wrap gap-2">
                     {(game.history?.length ?? 0) > 0 && game.progress?.completed && (
-                      <Link to={`/games/${game.id}/replay`} className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-200 hover:border-hardwood-500">
+                      <Link to={`/games/${game.id}/replay`} className="rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-200 hover:border-hardwood-500">
                         Replay
                       </Link>
                     )}
-                    <Link to={`/games/${game.id}/edit`} className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-200 hover:border-hardwood-500">
+                    <Link to={`/games/${game.id}/edit`} className="rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-200 hover:border-hardwood-500">
                       Edit
                     </Link>
-                    <Link to={`/games/${game.id}/present`} className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400">
+                    <Link to={`/games/${game.id}/present`} className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400">
                       Present
                     </Link>
                     <button
@@ -764,7 +748,7 @@ export default function Home() {
                       {list.tags && list.tags.length > 0 && (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {list.tags.map((tag) => (
-                            <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-[10px] text-slate-400">
+                            <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-xs text-slate-400">
                               {tag}
                             </span>
                           ))}
@@ -774,13 +758,13 @@ export default function Home() {
                     <div className="ml-auto flex gap-2">
                       <Link
                         to={`/tierlists/${list.id}/edit`}
-                        className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-200 hover:border-hardwood-500"
+                        className="rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-200 hover:border-hardwood-500"
                       >
                         Edit
                       </Link>
                       <Link
                         to={`/tierlists/${list.id}/present`}
-                        className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                        className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
                       >
                         {ranked === 0 ? 'Present' : ranked === list.songs.length ? 'View' : 'Continue'}
                       </Link>
@@ -815,8 +799,8 @@ export default function Home() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {visibleTournaments.map((tournament) => (
-                  <Panel key={tournament.id} className="flex items-center justify-between">
-                    <div>
+                  <Panel key={tournament.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
+                    <div className="min-w-0 flex-1 basis-56">
                       <div className="flex items-start gap-1.5">
                         <span className="mt-[0.3em] text-xs"><Icon name="trophy" /></span>
                         <div className="font-semibold text-slate-100">{tournament.name}</div>
@@ -827,17 +811,17 @@ export default function Home() {
                       {tournament.tags && tournament.tags.length > 0 && (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {tournament.tags.map((tag) => (
-                            <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-[10px] text-slate-400">
+                            <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-xs text-slate-400">
                               {tag}
                             </span>
                           ))}
                         </div>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="ml-auto flex gap-2">
                       <Link
                         to={`/tournaments/${tournament.id}`}
-                        className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                        className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
                       >
                         Open
                       </Link>
@@ -871,20 +855,20 @@ export default function Home() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 {visibleSeasons.map((season) => (
-                  <Panel key={season.id} className="flex items-center justify-between">
-                    <div>
+                  <Panel key={season.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
+                    <div className="min-w-0 flex-1 basis-56">
                       <div className="flex items-start gap-1.5">
                         <span className="mt-[0.3em] text-xs"><Icon name="calendar" /></span>
                         <div className="font-semibold text-slate-100">{season.name}</div>
                       </div>
                       <div className="text-sm text-slate-500">
-                        Tag: <span className="rounded-full bg-arena-700 px-1.5 py-0.5 text-[10px] text-slate-400">{season.tag}</span>
+                        Tag: <span className="rounded-full bg-arena-700 px-1.5 py-0.5 text-xs text-slate-400">{season.tag}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="ml-auto flex gap-2">
                       <Link
                         to={`/seasons/${season.id}`}
-                        className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                        className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
                       >
                         Open
                       </Link>
@@ -920,8 +904,8 @@ export default function Home() {
                 {visibleDraftBoards.map((board) => {
                   const available = board.songPool.filter((s) => !s.takenBySessionId).length
                   return (
-                    <Panel key={board.id} className="flex items-center justify-between">
-                      <div>
+                    <Panel key={board.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
+                      <div className="min-w-0 flex-1 basis-56">
                         <div className="flex items-start gap-1.5">
                           <span className="mt-[0.3em] text-xs"><Icon name="headphones" /></span>
                           <div className="font-semibold text-slate-100">{board.name}</div>
@@ -941,17 +925,17 @@ export default function Home() {
                         {board.tags && board.tags.length > 0 && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {board.tags.map((tag) => (
-                              <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-[10px] text-slate-400">
+                              <span key={tag} className="rounded-full bg-arena-700 px-1.5 py-0.5 text-xs text-slate-400">
                                 {tag}
                               </span>
                             ))}
                           </div>
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="ml-auto flex gap-2">
                         <Link
                           to={`/drafts/${board.id}`}
-                          className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                          className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
                         >
                           Open
                         </Link>
@@ -980,8 +964,8 @@ export default function Home() {
               {visiblePopularityGames.map((game) => {
                 const solvedCount = Object.keys(game.progress.solved).length
                 return (
-                  <Panel key={game.id} className="flex items-center justify-between">
-                    <div>
+                  <Panel key={game.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
+                    <div className="min-w-0 flex-1 basis-56">
                       <div className="flex items-start gap-1.5">
                         <span className="mt-[0.3em] text-xs"><Icon name="trend" /></span>
                         <div className="font-semibold text-slate-100">{game.name}</div>
@@ -990,10 +974,10 @@ export default function Home() {
                         {game.artistName} · {solvedCount}/{game.ranks.length} ranks solved
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="ml-auto flex gap-2">
                       <Link
                         to={`/popularity/${game.id}/present`}
-                        className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                        className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
                       >
                         {game.progress.completed ? 'View' : solvedCount > 0 ? 'Continue' : 'Play'}
                       </Link>
@@ -1022,8 +1006,8 @@ export default function Home() {
               {visibleTimelineGames.map((game) => {
                 const placedCount = game.progress.timeline.length - 1
                 return (
-                  <Panel key={game.id} className="flex items-center justify-between">
-                    <div>
+                  <Panel key={game.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-3">
+                    <div className="min-w-0 flex-1 basis-56">
                       <div className="flex items-start gap-1.5">
                         <span className="mt-[0.3em] text-xs"><Icon name="clock" /></span>
                         <div className="font-semibold text-slate-100">{game.name}</div>
@@ -1032,10 +1016,10 @@ export default function Home() {
                         {game.songs.length} songs · {placedCount} placed
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="ml-auto flex gap-2">
                       <Link
                         to={`/timeline/${game.id}/present`}
-                        className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
+                        className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400"
                       >
                         {game.progress.completed ? 'View' : game.progress.deckIndex > 1 ? 'Continue' : 'Play'}
                       </Link>
@@ -1093,7 +1077,7 @@ export default function Home() {
                   {showCloudCode && (
                     <div className="mt-2 rounded-lg bg-black/30 px-3 py-2">
                       <div className="font-mono text-sm tracking-wider text-white">{formatBackupCode(cloud.code)}</div>
-                      <p className="mt-1 text-[11px] text-slate-500">
+                      <p className="mt-1 text-xs text-slate-500">
                         Write this down — anyone with it can read and replace your backup, and it's the only way to restore on another device.
                         Backups untouched for 90 days are deleted.
                       </p>

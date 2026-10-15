@@ -94,10 +94,13 @@ const SCREENS: Array<[name: string, path: string, before?: (page: Page) => Promi
 for (const [device, viewport] of [
   ['desktop', { width: 1280, height: 800 }],
   ['phone', { width: 390, height: 844 }],
+  ['tablet', { width: 820, height: 1100 }],
 ] as const) {
   test.describe(device, () => {
     test.use({ viewport })
     for (const [name, path, before] of SCREENS) {
+      // The tablet width only needs the screens that lay out differently between phone and desktop.
+      if (device === 'tablet' && !['home', 'stats', 'new-game', 'tier-list', 'season', 'replay'].includes(name)) continue
       test(`${name} looks right`, async ({ page }) => {
         await seed(page)
         await page.goto(path)

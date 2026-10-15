@@ -213,7 +213,7 @@ export default function NewDraftSessionModal({
                         className="absolute left-8 top-11 z-10 w-60 space-y-3 rounded-lg border border-arena-600 bg-arena-900 p-3 shadow-xl"
                       >
                         <div>
-                          <div className="mb-1.5 text-[11px] uppercase tracking-widest text-slate-500">Colour</div>
+                          <div className="mb-1.5 text-xs uppercase tracking-widest text-slate-500">Colour</div>
                           <div className="flex flex-wrap gap-2">
                             {TEAM_COLORS.map((c) => (
                               <button
@@ -229,7 +229,7 @@ export default function NewDraftSessionModal({
                           </div>
                         </div>
                         <div>
-                          <div className="mb-1.5 text-[11px] uppercase tracking-widest text-slate-500">Mascot</div>
+                          <div className="mb-1.5 text-xs uppercase tracking-widest text-slate-500">Mascot</div>
                           <div className="flex flex-wrap gap-1.5">
                             {TEAM_AVATARS.map((a) => (
                               <button
@@ -276,7 +276,7 @@ export default function NewDraftSessionModal({
               <button
                 type="button"
                 onClick={addDrafter}
-                className="mt-2 w-full rounded-lg border border-dashed border-arena-500 py-1.5 text-sm text-slate-400 hover:border-hardwood-500 hover:text-hardwood-400"
+                className="mt-2 w-full rounded-full border border-dashed border-arena-500 py-1.5 text-sm text-slate-400 hover:border-hardwood-500 hover:text-hardwood-400"
               >
                 + Add Drafter
               </button>

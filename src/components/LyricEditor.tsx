@@ -75,7 +75,7 @@ export default function LyricEditor({ round, onChange }: { round: SongRound; onC
             />
             <button
               disabled={resolving || !pasteUrl.trim()}
-              className="shrink-0 rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 disabled:opacity-40 hover:bg-hardwood-400"
+              className="shrink-0 rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 disabled:opacity-40 hover:bg-hardwood-400"
             >
               {resolving ? 'Loading…' : 'Fill in'}
             </button>
@@ -155,7 +155,7 @@ export default function LyricEditor({ round, onChange }: { round: SongRound; onC
                   className="w-12 rounded-md border border-arena-600 bg-arena-800 px-1 py-1 text-center text-sm text-slate-300 outline-none focus:border-hardwood-500"
                   aria-label={`${hint.label} points`}
                 />
-                <div className="mt-0.5 text-center text-[10px] text-slate-500">pts</div>
+                <div className="mt-0.5 text-center text-xs text-slate-500">pts</div>
               </div>
             </div>
           ))}

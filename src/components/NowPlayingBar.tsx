@@ -24,7 +24,7 @@ export default function NowPlayingBar({ song, drafter, index, total, onPrev, onN
         {song.artworkUrl ? <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" /> : <ArtPlaceholder seed={`${song.title} ${song.artist ?? ''}`} />}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[10px] uppercase tracking-[0.3em] text-hardwood-400">
+        <div className="text-xs uppercase tracking-[0.3em] text-hardwood-400">
           Now playing · {index} of {total}
         </div>
         <div className="truncate text-sm font-semibold text-slate-100">{song.title}</div>

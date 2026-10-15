@@ -16,7 +16,7 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
     <Panel padding="sm" className="text-center">
       <div className="scoreboard-digit font-display text-2xl text-hardwood-400">{value}</div>
       <div className="text-xs text-slate-500">{label}</div>
-      {hint && <div className="mt-0.5 text-[11px] text-slate-600">{hint}</div>}
+      {hint && <div className="mt-0.5 text-xs text-slate-600">{hint}</div>}
     </Panel>
   )
 }

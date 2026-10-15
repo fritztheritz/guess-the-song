@@ -61,3 +61,30 @@ export function setStickersOn(on: boolean): void {
     // Best-effort only.
   }
 }
+
+const CALM_KEY = 'gts.calm.v1'
+
+/** "Reduce effects": turns off the page wipe, title slam, shakes, sways and confetti (default off). Separate from the
+ *  OS reduced-motion setting, which is always respected on top of this. */
+export function getCalm(): boolean {
+  try {
+    return localStorage.getItem(CALM_KEY) === 'on'
+  } catch {
+    return false
+  }
+}
+
+export function setCalm(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(CALM_KEY, 'on')
+    else localStorage.removeItem(CALM_KEY)
+  } catch {
+    // Best-effort only.
+  }
+  applyCalm()
+}
+
+/** Reflects the setting on <html> so CSS can key off it. Call at startup and after changing it. */
+export function applyCalm(): void {
+  document.documentElement.toggleAttribute('data-calm', getCalm())
+}

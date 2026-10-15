@@ -585,3 +585,43 @@ html.cursor-ball * {
     100% { opacity: 0; transform: rotate(var(--tilt, 0deg)); }
   }
 }
+
+/* A bottom sheet sliding up. */
+@keyframes tray-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-tray-up {
+  animation: tray-up 220ms cubic-bezier(0.2, 0.9, 0.25, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-tray-up { animation: none; }
+}
+
+/* --- Reduce effects (Settings): one switch for the showy motion. ------------------------------------ */
+html[data-calm] .title-page,
+html[data-calm] .animate-screen-shake,
+html[data-calm] .rafters-sway,
+html[data-calm] .player-card-sheen,
+html[data-calm] .animate-page-in,
+html[data-calm] .animate-banner-swoop,
+html[data-calm] .animate-tray-up {
+  animation: none;
+}
+html[data-calm] .animate-route-wipe,
+html[data-calm] .animate-confetti-fall {
+  display: none;
+}
+
+/* --- One elevation scale, applied by what an element is (unlayered, so it wins over the per-element utilities):
+   panels and popovers carry a 2px border with their hard shadow; text fields get a 2px border too. ------- */
+.border.shadow-lg,
+.border.shadow-xl,
+.border.shadow-2xl {
+  border-width: 2px;
+}
+input.border:not([type='range']):not([type='checkbox']):not([type='radio']),
+textarea.border,
+select.border {
+  border-width: 2px;
+}

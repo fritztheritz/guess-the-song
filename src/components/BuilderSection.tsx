@@ -42,7 +42,7 @@ export default function BuilderSection({ id, title, summary, defaultClosed = fal
       >
         <span>{title}</span>
         <span className="flex items-center gap-2">
-          {closed && summary ? <span className="truncate text-[11px] font-normal normal-case tracking-normal text-slate-500">{summary}</span> : null}
+          {closed && summary ? <span className="truncate text-xs font-normal normal-case tracking-normal text-slate-500">{summary}</span> : null}
           <span aria-hidden>{closed ? '▸' : '▾'}</span>
         </span>
       </button>

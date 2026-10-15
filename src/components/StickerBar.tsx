@@ -8,7 +8,7 @@ const COOLDOWN_MS = 2600
 // A teamed phone's trash-talk drawer: pick who it's aimed at (anyone, or one rival team), then tap a sticker.
 // The cooldown matches the room's own, so a mashed button doesn't look like it worked when the room dropped it.
 export default function StickerBar({ teams, myTeamId, onSend }: { teams: BuzzerTeam[]; myTeamId: string; onSend: (sticker: StickerId, targetTeamId?: string) => void }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   const [target, setTarget] = useState<string | null>(null)
   const [cooling, setCooling] = useState(false)
   const [sent, setSent] = useState<StickerId | null>(null)

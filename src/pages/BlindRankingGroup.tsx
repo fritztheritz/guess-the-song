@@ -310,7 +310,6 @@ export default function BlindRankingGroup() {
     }
   }
   const placedCount = slots.filter((x) => x !== null).length
-  const twoColumns = slots.length > 8
   const ranked = slots.flatMap((s) => (s === null ? [] : [songs[s]]))
 
   return (
@@ -319,7 +318,7 @@ export default function BlindRankingGroup() {
       <div className="mx-auto max-w-4xl px-4 pb-10 sm:px-6">
         <div className="flex items-center justify-between gap-3 py-5">
           <BackLink to={`/tierlists/${list.id}/present`}>Tier list</BackLink>
-          <h1 className="title-page"><Icon name="eye-off" /> BLIND RANKING</h1>
+          <h1 className="title-page text-center"><Icon name="eye-off" /> BLIND RANKING</h1>
           <SoundControl />
         </div>
 
@@ -442,7 +441,7 @@ export default function BlindRankingGroup() {
                     {selected === null ? 'PICK A SLOT' : withIcons(`🔒 LOCK IN #${selected + 1}`)}
                   </Button>
                 )}
-                <span className="text-center text-[11px] text-slate-500">{locked ? 'Enter for next' : '↑ ↓ to choose · Enter to lock'}</span>
+                <span className="text-center text-xs text-slate-500">{locked ? 'Enter for next' : '↑ ↓ to choose · Enter to lock'}</span>
               </div>
               <div
                 className="h-1.5 w-full overflow-hidden rounded-full bg-arena-800"
@@ -509,13 +508,12 @@ export default function BlindRankingGroup() {
             )}
 
             <div>
-              <div className="mb-1 flex justify-between text-[11px] uppercase tracking-widest text-slate-500">
+              <div className="mb-1 flex justify-between text-xs uppercase tracking-widest text-slate-500">
                 <span><Icon name="star-solid" /> favorite</span>
                 <span>Least favorite</span>
               </div>
               <ol
-                className={`gap-1.5 ${twoColumns ? 'grid md:grid-flow-col md:grid-cols-2 md:[grid-template-rows:repeat(var(--rows),auto)]' : 'space-y-1.5'}`}
-                style={twoColumns ? ({ '--rows': Math.ceil(slots.length / 2) } as React.CSSProperties) : undefined}
+                className="space-y-1.5"
                 aria-label="Ranking slots"
               >
                 {slots.map((songIndex, slot) => {

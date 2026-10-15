@@ -274,7 +274,7 @@ export default function TierListBuilder() {
                   value={sort}
                   onChange={(e) => setSort(e.target.value as typeof sort)}
                   aria-label="Sort songs"
-                  className="rounded-lg border border-arena-500 bg-arena-800 px-2 py-1.5 text-sm text-slate-200"
+                  className="rounded-full border border-arena-500 bg-arena-800 px-2 py-1.5 text-sm text-slate-200"
                 >
                   <option value="added">Order added</option>
                   <option value="title">Title A–Z</option>
@@ -310,7 +310,7 @@ export default function TierListBuilder() {
                         {(() => {
                           const tier = list.tiers.find((t) => t.id === song.tierId)
                           return tier ? (
-                            <span className="absolute bottom-1 left-1 max-w-[80%] truncate rounded-md px-1.5 py-0.5 text-[10px] font-bold text-arena-950" style={{ background: tier.color }}>
+                            <span className="absolute bottom-1 left-1 max-w-[80%] truncate rounded-md px-1.5 py-0.5 text-xs font-bold text-arena-950" style={{ background: tier.color }}>
                               {tier.name}
                             </span>
                           ) : null
@@ -320,7 +320,7 @@ export default function TierListBuilder() {
                         <div className="truncate text-xs font-medium text-slate-100" title={song.title}>
                           {song.title}
                         </div>
-                        <div className="truncate text-[11px] text-slate-500" title={song.artist}>
+                        <div className="truncate text-xs text-slate-500" title={song.artist}>
                           {song.artist}
                         </div>
                       </div>

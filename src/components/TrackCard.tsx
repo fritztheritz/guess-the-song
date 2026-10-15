@@ -78,7 +78,7 @@ export default function TrackCard({ track, selected, onToggleSelect, onPreview, 
         {onAdd && (
           <button
             onClick={onAdd}
-            className="mt-2 rounded-lg bg-arena-600 py-1.5 text-sm font-medium text-slate-100 hover:bg-hardwood-500 hover:text-arena-950"
+            className="mt-2 rounded-full bg-arena-600 py-1.5 text-sm font-medium text-slate-100 hover:bg-hardwood-500 hover:text-arena-950"
           >
             + Add to game
           </button>

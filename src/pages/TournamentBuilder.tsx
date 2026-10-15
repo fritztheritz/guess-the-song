@@ -175,10 +175,10 @@ export default function TournamentBuilder() {
                     </div>
                   </div>
                   <div className="flex shrink-0 gap-2">
-                    <Link to={`/games/${game.id}/edit`} className="rounded-lg border border-arena-500 px-3 py-1.5 text-sm text-slate-200 hover:border-hardwood-500">
+                    <Link to={`/games/${game.id}/edit`} className="rounded-full border border-arena-500 px-4 py-1.5 text-sm text-slate-200 hover:border-hardwood-500">
                       Edit
                     </Link>
-                    <Link to={`/games/${game.id}/present`} className="rounded-lg bg-hardwood-500 px-3 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400">
+                    <Link to={`/games/${game.id}/present`} className="rounded-full bg-hardwood-500 px-4 py-1.5 text-sm font-medium text-arena-950 hover:bg-hardwood-400">
                       Present
                     </Link>
                     <button

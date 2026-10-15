@@ -64,7 +64,7 @@ export function ActivityStrip({ weeks }: { weeks: WeekBucket[] }) {
           )
         })}
       </div>
-      <div className="mt-1 flex justify-between text-[10px] text-slate-500">
+      <div className="mt-1 flex justify-between text-xs text-slate-500">
         <span>{weeks[0].start}</span>
         <span>this week</span>
       </div>
@@ -84,11 +84,11 @@ export function PlayerTrend({ lines }: { lines: PlayerGameLine[] }) {
       <div className="flex items-end gap-2 rounded-xl border border-arena-700 bg-arena-900/50 px-4 pb-3 pt-6" role="img" aria-label={`Points per game: ${ordered.map((l) => l.points).join(', ')}`}>
         {ordered.map((l) => (
           <div key={l.gameId} className="flex min-w-0 flex-1 flex-col items-center gap-1" title={`${l.gameName}: ${l.points} pts`}>
-            <span className="text-[10px] text-slate-400">{l.teamWon ? withIcons('🏆') : ''}</span>
+            <span className="text-xs text-slate-400">{l.teamWon ? withIcons('🏆') : ''}</span>
             <div className="flex h-24 w-full items-end">
               <div className={`w-full rounded-t ${l.teamWon ? 'bg-hardwood-400' : 'bg-hardwood-500/60'}`} style={{ height: `${Math.max(4, (l.points / max) * 100)}%` }} />
             </div>
-            <span className="scoreboard-digit text-[11px] text-slate-300">{l.points}</span>
+            <span className="scoreboard-digit text-xs text-slate-300">{l.points}</span>
           </div>
         ))}
       </div>

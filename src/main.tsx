@@ -16,6 +16,7 @@ import { FeatureFlagsProvider } from './state/FeatureFlagsContext.tsx'
 import { ConfirmProvider } from './state/ConfirmContext.tsx'
 import { ToastProvider } from './state/ToastContext.tsx'
 import { applyStoredTheme } from './lib/themes'
+import { applyCalm } from './lib/settings'
 
 // Real paths (no #) on GitHub Pages need the 404.html/index.html SPA-fallback trick
 // (public/404.html + the restore script in index.html) since GH Pages can't do
@@ -36,8 +37,10 @@ if (window.location.search.includes('code=') || window.location.search.includes(
 // Before the first paint so a re-skinned app never flashes the default palette, and again on
 // any storage change so the Public Display tab follows the host tab's picker live.
 applyStoredTheme()
+applyCalm()
 window.addEventListener('storage', (e) => {
   if (e.key === 'gts.theme.v1' || e.key === 'gts.flags.v1') applyStoredTheme()
+  if (e.key === 'gts.calm.v1') applyCalm()
 })
 
 createRoot(document.getElementById('root')!).render(

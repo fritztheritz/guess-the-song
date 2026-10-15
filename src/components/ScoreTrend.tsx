@@ -16,12 +16,12 @@ export default function ScoreTrend({ games }: { games: Game[] }) {
             <div className="flex h-32 items-end gap-1">
               {g.teams.map((t) => (
                 <div key={t.id} className="flex h-full flex-col items-center justify-end" title={`${t.name}: ${t.score}`}>
-                  <span className="mb-0.5 text-[10px] text-slate-400">{t.score}</span>
+                  <span className="mb-0.5 text-xs text-slate-400">{t.score}</span>
                   <div className="w-3 rounded-t" style={{ height: `${Math.max(4, (t.score / max) * 100)}%`, background: t.color }} />
                 </div>
               ))}
             </div>
-            <div className="w-full truncate text-center text-[10px] text-slate-500" title={g.name}>
+            <div className="w-full truncate text-center text-xs text-slate-500" title={g.name}>
               {g.name}
             </div>
           </div>

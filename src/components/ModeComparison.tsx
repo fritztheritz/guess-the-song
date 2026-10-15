@@ -42,7 +42,7 @@ export default function ModeComparison() {
           })}
         </tbody>
       </table>
-      <p className="border-t border-arena-700 px-3 py-2 text-[11px] text-slate-500">
+      <p className="border-t border-arena-700 px-3 py-2 text-xs text-slate-500">
         Best mode is {balanceSpread().toFixed(1)}× the lowest per possession (kept ≤ 2× by a test).
       </p>
     </div>

@@ -1,15 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import { isStageRoute } from '../lib/stage-route'
+import { getCalm } from '../lib/settings'
 
-/** A hardwood-orange stripe that sweeps across the screen when you change page — skipped on first load. */
+/** A hardwood-orange stripe that sweeps across the screen — only when going into or out of a game screen, so
+ *  everyday navigation (forms, lists, settings) stays quiet. Skipped on first load and with Reduce effects on. */
 export default function RouteWipe() {
   const { pathname } = useLocation()
-  const first = useRef(pathname)
+  const prev = useRef(pathname)
   const [wipeKey, setWipeKey] = useState<string | null>(null)
 
   useEffect(() => {
-    if (pathname === first.current) return
-    first.current = pathname
+    const from = prev.current
+    if (pathname === from) return
+    prev.current = pathname
+    if (getCalm() || !(isStageRoute(from) || isStageRoute(pathname))) return
     setWipeKey(pathname)
     const t = setTimeout(() => setWipeKey(null), 560)
     return () => clearTimeout(t)

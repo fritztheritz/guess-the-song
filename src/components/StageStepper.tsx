@@ -11,7 +11,7 @@ interface Props {
 // main button's label changes — this shows the whole path and where the room is on it.
 export default function StageStepper({ steps, current, className = '' }: Props) {
   return (
-    <ol className={`relative z-10 flex flex-wrap items-center justify-center gap-x-1 gap-y-1 text-[11px] uppercase tracking-widest ${className}`} aria-label="Stages">
+    <ol className={`relative z-10 flex flex-wrap items-center justify-center gap-x-1 gap-y-1 text-xs uppercase tracking-widest ${className}`} aria-label="Stages">
       {steps.map((label, i) => (
         <li key={label} className="flex items-center gap-1" aria-current={i === current ? 'step' : undefined}>
           <span

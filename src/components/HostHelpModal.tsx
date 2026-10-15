@@ -51,7 +51,7 @@ export default function HostHelpModal({
           <div className="mt-4 flex flex-wrap gap-2 border-t border-arena-700 pt-3">
             {teams.map((team, i) => (
               <span key={team.id} className="flex items-center gap-1.5 rounded-full bg-arena-800 py-1 pl-1 pr-2.5 text-xs" style={{ color: team.color }}>
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-arena-700 font-mono text-[11px] text-slate-200">{i + 1}</span>
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-arena-700 font-mono text-xs text-slate-200">{i + 1}</span>
                 {team.avatar ? `${team.avatar} ` : ''}
                 {team.name}
               </span>

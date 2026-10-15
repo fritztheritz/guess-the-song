@@ -253,7 +253,7 @@ export default function CreateGame() {
                       className="absolute left-0 top-11 z-10 w-64 space-y-3 rounded-lg border border-arena-600 bg-arena-900 p-3 shadow-xl"
                     >
                       <div>
-                        <div className="mb-1.5 text-[11px] uppercase tracking-widest text-slate-500">Colour</div>
+                        <div className="mb-1.5 text-xs uppercase tracking-widest text-slate-500">Colour</div>
                         <div className="flex flex-wrap gap-2">
                           {TEAM_COLORS.map((c) => (
                             <button
@@ -269,7 +269,7 @@ export default function CreateGame() {
                         </div>
                       </div>
                       <div>
-                        <div className="mb-1.5 text-[11px] uppercase tracking-widest text-slate-500">Mascot</div>
+                        <div className="mb-1.5 text-xs uppercase tracking-widest text-slate-500">Mascot</div>
                         <div className="flex flex-wrap gap-1.5">
                           {TEAM_AVATARS.map((a) => (
                             <button
