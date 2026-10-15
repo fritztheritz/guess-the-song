@@ -26,11 +26,11 @@ export interface RecapCardData {
 
 const SIZE = 1080
 const COLORS = {
-  bgTop: '#0b0e14',
-  bgBottom: '#05060a',
-  cardBg: '#12161f',
-  hardwood: '#e8871e',
-  hardwoodLight: '#f4a13f',
+  bgTop: '#0a1128',
+  bgBottom: '#050a1c',
+  cardBg: '#0f1938',
+  hardwood: '#ff6a13',
+  hardwoodLight: '#ff8a3d',
   slate: '#94a3b8',
   slateDim: '#64748b',
   white: '#f8fafc',

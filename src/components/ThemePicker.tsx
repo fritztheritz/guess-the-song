@@ -34,8 +34,8 @@ export default function ThemePicker({ onClose }: { onClose: () => void }) {
 
         <div className="grid grid-cols-3 gap-2">
           {THEME_PRESETS.map((preset) => {
-            const swatch = preset.vars['--color-hardwood-500'] ?? '#e8871e'
-            const bg = preset.vars['--color-arena-700'] ?? '#1a2030'
+            const swatch = preset.vars['--color-hardwood-500'] ?? '#ff6a13'
+            const bg = preset.vars['--color-arena-700'] ?? '#17234a'
             const active = selection.id === preset.id
             return (
               <button

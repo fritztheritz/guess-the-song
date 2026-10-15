@@ -137,7 +137,7 @@ export default function BlindRanking() {
             : undefined,
       },
     }
-    socket.sendAndRemember({ type: 'sync-teams', teams: [{ id: VOTER_TEAM_ID, name: 'Players', color: '#e8871e', avatar: '🙈' }] })
+    socket.sendAndRemember({ type: 'sync-teams', teams: [{ id: VOTER_TEAM_ID, name: 'Players', color: '#ff6a13', avatar: '🙈' }] })
     socket.sendAndRemember({ type: 'sync-round', state })
     if (stage === 'playing') socket.send({ type: 'open' })
     else socket.send({ type: 'close' })

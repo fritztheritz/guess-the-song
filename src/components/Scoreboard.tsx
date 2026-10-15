@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Team } from '../types'
 import MoveTag from './MoveTag'
+import SegDigits from './SegDigits'
 
 const COUNT_MS = 600
 
@@ -85,12 +86,8 @@ function TeamScoreCard({ team, compact, move }: { team: Team; compact: boolean; 
         {team.name}
         <MoveTag move={move} />
       </div>
-      <div
-        className={`scoreboard-digit font-display ${compact ? 'text-3xl' : 'text-6xl'} leading-none`}
-        style={{ color: team.color }}
-        aria-label={`${team.score} points`}
-      >
-        {shown}
+      <div className="mt-1 rounded-sm bg-black/45 px-2 py-1.5 shadow-[inset_0_2px_6px_rgb(0_0_0/0.6)]" style={{ color: team.color }}>
+        <SegDigits value={shown} cells={2} className={compact ? 'text-2xl' : 'text-5xl'} label={`${team.score} points`} />
       </div>
     </div>
   )

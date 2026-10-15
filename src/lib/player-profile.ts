@@ -80,7 +80,7 @@ export function buildPlayerProfile(games: Game[], name: string): PlayerProfile |
   const favoriteTeam = [...teamCounts.entries()].sort((a, b) => b[1] - a[1])[0][0]
   const timed = lines.filter((l) => l.fastestMs !== undefined).map((l) => l.fastestMs as number)
   const board = aggregatePlayers(games)
-  const color = games.flatMap((g) => g.teams).find((t) => t.name === lines[0].teamName)?.color ?? '#e8871e'
+  const color = games.flatMap((g) => g.teams).find((t) => t.name === lines[0].teamName)?.color ?? '#ff6a13'
   const points = sum((l) => l.points)
 
   return {

@@ -68,7 +68,7 @@ export function aggregatePlayers(sources: AwardSource[]): PlayerRow[] {
     for (const p of g.playerStats ?? []) {
       const key = p.name.trim().toLowerCase()
       if (!key) continue
-      const color = g.teams.find((t) => t.name === p.teamName)?.color ?? '#e8871e'
+      const color = g.teams.find((t) => t.name === p.teamName)?.color ?? '#ff6a13'
       const row = rows.get(key) ?? { name: p.name, teamName: p.teamName, color, games: 0, points: 0, correct: 0, wrong: 0, buzzes: 0 }
       row.teamName = p.teamName
       row.color = color
@@ -98,7 +98,7 @@ export function computeAwards(sources: AwardSource[]): Award[] {
       display.set(key, t.name.trim())
     }
   }
-  const named = (name: string) => ({ teamName: display.get(name.trim().toLowerCase()) ?? name, color: colorOf.get(name.trim().toLowerCase()) ?? '#e8871e' })
+  const named = (name: string) => ({ teamName: display.get(name.trim().toLowerCase()) ?? name, color: colorOf.get(name.trim().toLowerCase()) ?? '#ff6a13' })
 
   // Fastest Finger — quickest recorded buzz-in.
   let fastest: { ms: number; player: string; team: string; game: string } | null = null

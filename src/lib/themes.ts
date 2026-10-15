@@ -75,7 +75,7 @@ export interface ThemeSelection {
   custom?: CustomTheme
 }
 
-export const DEFAULT_CUSTOM: CustomTheme = { base: '#1d2a4a', accent: '#e8871e', serif: false }
+export const DEFAULT_CUSTOM: CustomTheme = { base: '#1d2a4a', accent: '#ff6a13', serif: false }
 
 function hexToHsl(hex: string): [number, number, number] {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())

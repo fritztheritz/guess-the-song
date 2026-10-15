@@ -106,7 +106,7 @@ export default function TierBallot({ state, onSubmit }: { state: TierlistState; 
                       aria-label={`${song.title}: ${tier.name}`}
                       onClick={() => choose(i, t)}
                       className="min-h-10 min-w-10 rounded-full px-3 text-sm font-semibold transition disabled:opacity-50"
-                      style={on ? { background: tier.color, color: '#05060a' } : { background: `${tier.color}22`, color: tier.color }}
+                      style={on ? { background: tier.color, color: '#050a1c' } : { background: `${tier.color}22`, color: tier.color }}
                     >
                       {tier.name}
                     </button>

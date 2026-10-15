@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import BuzzerBeaterBanner from '../components/BuzzerBeaterBanner'
 import { useWakeLock } from '../lib/use-wake-lock'
 import { useNavigate } from 'react-router-dom'
 import {
@@ -2080,10 +2081,7 @@ export default function HostController({ gameId }: { gameId: string }) {
               answer is already known and nothing new has been shown yet, so the flash/banner
               would be misleading here. */}
           {!(isTierGuess && tierGuessStage === 'guessPosition') && !(isYear && yearGuessStage === 'guessMonth') && (
-            <>
-              <div className="pointer-events-none absolute inset-0 bg-hardwood-500/20 animate-buzzer-flash" />
-              <div className="relative z-10 font-display text-4xl tracking-widest text-scoreboard-500">BUZZER BEATER</div>
-            </>
+            <BuzzerBeaterBanner />
           )}
 
           {isLyric ? (

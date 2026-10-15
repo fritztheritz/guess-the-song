@@ -23,7 +23,7 @@ export default function Panel({
 } & HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`rounded-xl border ${highlight ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 bg-arena-800/60'} ${PADDING_CLASSES[padding]} ${className}`}
+      className={`rounded-xl border-2 shadow-lg ${highlight ? 'border-hardwood-500 bg-hardwood-500/10' : 'border-arena-600 bg-arena-800/80'} ${PADDING_CLASSES[padding]} ${className}`}
       {...rest}
     >
       {children}

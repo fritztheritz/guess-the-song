@@ -1,18 +1,42 @@
 @import 'tailwindcss';
 
-@theme {
-  /* Arena palette — deep court navy + charcoal, warm hardwood accent used sparingly,
-     electric teal for secondary team color, scoreboard amber for score/points. */
-  --color-arena-950: #05060a;
-  --color-arena-900: #0b0e14;
-  --color-arena-800: #12161f;
-  --color-arena-700: #1a2030;
-  --color-arena-600: #262e44;
-  --color-arena-500: #3a4361;
+/* Self-hosted type: no third-party font request, and the screenshots render identically everywhere.
+   Big Shoulders Display (a Chicago-signage condensed face) is the headline voice, mapped to its heavy
+   cut for every weight so unstyled headings still land hard. DSEG7 is a real seven-segment face for
+   scoreboard digits. */
+@font-face {
+  font-family: 'Shoulders';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('@fontsource/big-shoulders-display/files/big-shoulders-display-latin-800-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'DSEG7';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url('dseg/fonts/DSEG7-Classic/DSEG7Classic-Bold.woff2') format('woff2');
+}
 
-  --color-hardwood-500: #e8871e;
-  --color-hardwood-400: #f4a13f;
-  --color-hardwood-300: #ffc978;
+@theme {
+  /* Arena palette — deep court navy, leather-orange accent (the ball), scoreboard amber for points,
+     teal for the second team colour, and one off-court "pop" (acid lime, the highlighter on a coach's
+     clipboard) used for stickers and selection only. */
+  --color-arena-950: #050a1c;
+  --color-arena-900: #0a1128;
+  --color-arena-800: #0f1938;
+  --color-arena-700: #17234a;
+  --color-arena-600: #26366a;
+  --color-arena-500: #3b4c86;
+
+  --color-hardwood-500: #ff6a13;
+  --color-hardwood-400: #ff8a3d;
+  --color-hardwood-300: #ffb680;
+
+  --color-pop-500: #c4f000;
+  --color-pop-400: #d8ff3d;
 
   --color-teal-500: #17b8a6;
   --color-teal-400: #3fd4c2;
@@ -24,12 +48,24 @@
   /* Dim text on the dark arena backgrounds: Tailwind's stock slate-500/600 land at ~3.8:1 and ~2.4:1 there,
      which is hard to read for the small labels this app uses a lot. These keep the hierarchy but clear AA (4.5:1) /
      near it for deliberately-muted text. */
-  --color-slate-500: #8391a6;
-  --color-slate-600: #6b7a90;
+  --color-slate-500: #8d9bb3;
+  --color-slate-600: #7482a0;
 
-  --font-display: 'Bebas Neue', 'Oswald', system-ui, sans-serif;
-  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Shoulders', 'Oswald', 'Arial Narrow', system-ui, sans-serif;
+  --font-body: 'Barlow', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-marker: 'Permanent Marker', 'Comic Sans MS', cursive;
+  --font-segment: 'DSEG7', 'JetBrains Mono', ui-monospace, monospace;
+
+  /* One deliberate radius scale (panels are squared-off like a scorer's table; pills stay pills) and
+     hard offset shadows instead of soft blurry glows — a print-poster look, not a SaaS-card one. */
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 0.75rem;
+  --shadow-lg: 3px 3px 0 0 rgb(0 0 0 / 0.45);
+  --shadow-xl: 4px 4px 0 0 rgb(0 0 0 / 0.5);
+  --shadow-2xl: 6px 6px 0 0 rgb(0 0 0 / 0.55);
 }
 
 @layer base {
@@ -39,10 +75,16 @@
 
   body {
     margin: 0;
-    background: radial-gradient(ellipse at top, var(--color-arena-800), var(--color-arena-950) 65%);
+    background: var(--color-arena-900);
     color: #eef0f5;
     font-family: var(--font-body);
+    font-size: 1.0625rem;
     min-height: 100svh;
+  }
+
+  ::selection {
+    background: var(--color-pop-400);
+    color: #050a1c;
   }
 
   #root {
@@ -51,16 +93,103 @@
 }
 
 @layer components {
+  /* The page wrappers all carry .court-lines; the actual court is drawn once, behind everything, by
+     <CourtBackdrop/>. Kept as a no-op hook so screens can opt in to future per-screen treatments. */
   .court-lines {
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-    background-size: 48px 48px;
+    position: relative;
+  }
+
+  /* Display type is set in caps like a jersey / arena signage. */
+  .font-display {
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
   }
 
   .scoreboard-digit {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Seven-segment LED readout: the live digits sit over a ghost "8" of unlit segments. */
+  .seg {
+    position: relative;
+    display: inline-block;
+    font-family: var(--font-segment);
+    font-style: normal;
+    line-height: 1;
+    letter-spacing: 0.06em;
+    white-space: pre;
+    text-transform: none;
+  }
+  .seg-ghost {
+    opacity: 0.1;
+  }
+  .seg-live {
+    position: absolute;
+    inset: 0;
+    text-align: right;
+    text-shadow: 0 0 0.35em currentColor;
+  }
+
+  /* Plank flooring — thin dark seams, a faint grain, in the accent colour. */
+  .hardwood {
+    background-color: #b4541a;
+    background-image:
+      repeating-linear-gradient(90deg, rgb(0 0 0 / 0.38) 0 1.5px, transparent 1.5px 22px),
+      repeating-linear-gradient(0deg, rgb(255 255 255 / 0.07) 0 1px, transparent 1px 5px),
+      linear-gradient(180deg, rgb(255 190 120 / 0.28), rgb(0 0 0 / 0.18));
+  }
+
+  /* A ticket stub: notched sides and a perforated tear line. */
+  .ticket {
+    --notch: 0.6rem;
+    -webkit-mask:
+      radial-gradient(circle var(--notch) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
+    mask:
+      radial-gradient(circle var(--notch) at 0 50%, transparent 98%, #000) left / 51% 100% no-repeat,
+      radial-gradient(circle var(--notch) at 100% 50%, transparent 98%, #000) right / 51% 100% no-repeat;
+  }
+
+  /* Hand-stuck label: tilted, highlighter-yellow, hard shadow. */
+  .sticker {
+    display: inline-block;
+    transform: rotate(-2.5deg);
+    background: var(--color-pop-400);
+    color: #050a1c;
+    font-family: var(--font-display);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.1rem 0.55rem;
+    border-radius: 0.125rem;
+    box-shadow: 2px 2px 0 0 rgb(0 0 0 / 0.55);
+    line-height: 1.25;
+  }
+
+  /* Jersey numeral: heavy, stencil-outlined. */
+  .jersey-num {
+    font-family: var(--font-display);
+    -webkit-text-stroke: 2px currentColor;
+    color: transparent;
+    line-height: 0.8;
+  }
+
+  /* Primary actions feel like a physical key: a hard offset shadow, heavier type. */
+  :is(button, a).bg-hardwood-500:not(:disabled) {
+    box-shadow: 3px 3px 0 0 rgb(0 0 0 / 0.5);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+  :is(button, a).bg-hardwood-500:not(:disabled):active {
+    box-shadow: 1px 1px 0 0 rgb(0 0 0 / 0.5);
+    transform: translate(2px, 2px);
+  }
+
+  /* Coach-on-a-clipboard handwriting, sparingly. */
+  .marker {
+    font-family: var(--font-marker);
+    text-transform: none;
+    letter-spacing: 0;
   }
 }
 
@@ -209,12 +338,28 @@ select:focus-visible {
 /* Type scale — page and section headings, so every screen's titles read the same. */
 @utility title-page {
   font-family: var(--font-display);
-  font-size: 1.875rem;
-  line-height: 1.1;
-  letter-spacing: 0.025em;
+  text-transform: uppercase;
+  font-size: 2.1rem;
+  line-height: 1.05;
+  letter-spacing: 0.03em;
   color: #fff;
+  animation: slam-in 340ms cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
   @media (min-width: 40rem) {
-    font-size: 2.25rem;
+    font-size: 2.6rem;
+  }
+  /* A strip of court floor under every page title. */
+  &::after {
+    content: '';
+    display: block;
+    width: 3.5rem;
+    height: 5px;
+    margin-top: 0.4rem;
+    background-color: #b4541a;
+    background-image:
+      repeating-linear-gradient(90deg, rgb(0 0 0 / 0.45) 0 1.5px, transparent 1.5px 9px),
+      linear-gradient(180deg, rgb(255 190 120 / 0.35), rgb(0 0 0 / 0.2));
+    transform: skewX(-24deg);
+    transform-origin: left;
   }
 }
 @utility title-section {
@@ -234,4 +379,62 @@ select:focus-visible {
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-page-in { animation: none; }
+}
+
+/* Centred headings centre their floor strip too. */
+.text-center > .title-page::after,
+.title-page.text-center::after {
+  margin-inline: auto;
+  transform-origin: center;
+}
+
+/* Titles slam onto the page like a broadcast lower-third. */
+@keyframes slam-in {
+  0% { transform: translateY(-14px) scale(1.14); opacity: 0; }
+  60% { transform: translateY(1px) scale(0.99); opacity: 1; }
+  100% { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .title-page { animation: none; }
+}
+
+/* A lane-line sweeps across the screen between pages. */
+@keyframes route-wipe {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  100% { transform: translateX(120%) skewX(-18deg); }
+}
+.animate-route-wipe {
+  animation: route-wipe 520ms cubic-bezier(0.6, 0, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-route-wipe { animation: none; display: none; }
+}
+
+/* A hard lock-in thud: the whole screen jolts for a beat. */
+@keyframes screen-shake {
+  0%, 100% { transform: translate(0, 0); }
+  15% { transform: translate(-5px, 3px); }
+  30% { transform: translate(4px, -3px); }
+  45% { transform: translate(-3px, -2px); }
+  60% { transform: translate(3px, 2px); }
+  80% { transform: translate(-1px, 1px); }
+}
+.animate-screen-shake {
+  animation: screen-shake 360ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-screen-shake { animation: none; }
+}
+
+/* "BUZZER BEATER" banner. */
+@keyframes banner-swoop {
+  0% { transform: translateX(-110%) skewX(-12deg); }
+  12%, 82% { transform: translateX(0) skewX(-12deg); }
+  100% { transform: translateX(110%) skewX(-12deg); }
+}
+.animate-banner-swoop {
+  animation: banner-swoop 2600ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-banner-swoop { animation: none; }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import BasketballSeams from '../components/BasketballSeams'
 import { useWakeLock } from '../lib/use-wake-lock'
 import { useNavigate, useParams } from 'react-router-dom'
 import { BuzzerSocket, type SocketStatus } from '../lib/buzzer/buzzer-socket'
@@ -755,12 +756,14 @@ function PlayerBuzzerRoom({ activeCode }: { activeCode: string | null }) {
               onClick={handleBuzz}
               disabled={buzzState !== 'open' || socketStatus !== 'open'}
               aria-label={buzzState === 'open' ? 'Buzz in' : 'Waiting for the buzzer to open'}
-              className={`flex size-[min(16rem,68vw)] flex-col items-center justify-center rounded-full bg-scoreboard-500 font-display text-5xl tracking-wide text-white shadow-2xl transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-arena-700 disabled:text-slate-500 disabled:shadow-none ${
-                buzzState === 'open' && socketStatus === 'open' ? 'ring-8 ring-scoreboard-500/30' : ''
+              className={`group relative flex size-[min(16rem,68vw)] flex-col items-center justify-center overflow-hidden rounded-full bg-hardwood-500 font-display text-6xl tracking-wide text-white shadow-2xl transition-transform active:scale-95 disabled:cursor-not-allowed disabled:bg-arena-700 disabled:text-slate-500 disabled:shadow-none ${
+                buzzState === 'open' && socketStatus === 'open' ? 'ring-8 ring-hardwood-500/30' : ''
               }`}
+              style={buzzState === 'open' ? { backgroundImage: 'radial-gradient(circle at 34% 28%, rgb(255 255 255 / 0.3), transparent 52%), radial-gradient(circle at 70% 80%, rgb(0 0 0 / 0.28), transparent 60%)' } : undefined}
             >
-              {buzzState === 'open' ? 'BUZZ!' : 'WAIT…'}
-              {buzzState !== 'open' && <span className="mt-1 font-sans text-xs tracking-normal">the host will open it</span>}
+              <BasketballSeams className="text-black/45 group-disabled:text-slate-500/30" />
+              <span className="relative [text-shadow:0_3px_0_rgb(0_0_0/0.35)]">{buzzState === 'open' ? 'BUZZ!' : 'WAIT…'}</span>
+              {buzzState !== 'open' && <span className="relative mt-1 font-body text-xs tracking-normal">the host will open it</span>}
             </button>
           )}
         </div>

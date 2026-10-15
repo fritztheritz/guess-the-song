@@ -4,8 +4,8 @@ import ThemePicker from '../components/ThemePicker'
 import Panel from '../components/ui/Panel'
 import ButtonLink from '../components/ui/ButtonLink'
 import Button from '../components/ui/Button'
-import { getSoundVolume, isSoundMuted, setSoundMuted, setSoundVolume, playCorrect } from '../lib/sound-effects'
-import { getKeepAwake, setKeepAwake } from '../lib/settings'
+import { getSoundVolume, isSoundMuted, setSoundMuted, setSoundVolume, playCorrect, playHorn } from '../lib/sound-effects'
+import { getArenaFx, getKeepAwake, setArenaFx, setKeepAwake } from '../lib/settings'
 import { THEME_PRESETS, getStoredTheme } from '../lib/themes'
 import { useFeatureFlag } from '../state/feature-flags-context'
 
@@ -42,6 +42,7 @@ export default function Settings() {
   const themesEnabled = useFeatureFlag('themes')
   const [muted, setMuted] = useState(() => isSoundMuted())
   const [volume, setVolume] = useState(() => getSoundVolume())
+  const [arenaFx, setArenaFxState] = useState(() => getArenaFx())
   const [keepAwake, setKeepAwakeState] = useState(() => getKeepAwake())
   const [themeOpen, setThemeOpen] = useState(false)
   const [themeId, setThemeId] = useState(() => getStoredTheme().id)
@@ -71,6 +72,17 @@ export default function Settings() {
                   onChange={(on) => {
                     setSoundMuted(!on)
                     setMuted(!on)
+                  }}
+                />
+              </Row>
+              <Row title="Court & crowd sounds" hint="Sneaker squeaks, net swishes, the lock-in horn and the crowd roar.">
+                <Toggle
+                  label="Court and crowd sounds"
+                  on={arenaFx}
+                  onChange={(on) => {
+                    setArenaFx(on)
+                    setArenaFxState(on)
+                    if (on) playHorn()
                   }}
                 />
               </Row>

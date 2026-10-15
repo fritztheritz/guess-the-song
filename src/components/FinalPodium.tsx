@@ -1,10 +1,11 @@
 import type { Team } from '../types'
 import MoveTag from './MoveTag'
+import SegDigits from './SegDigits'
 
 const PLACE = [
-  { height: 'h-36', medal: '🥇', glow: 'shadow-[0_0_40px_-8px] shadow-scoreboard-amber/60' },
-  { height: 'h-28', medal: '🥈', glow: '' },
-  { height: 'h-20', medal: '🥉', glow: '' },
+  { height: 'h-36', medal: '🥇' },
+  { height: 'h-28', medal: '🥈' },
+  { height: 'h-20', medal: '🥉' },
 ]
 
 // The end-of-game poster: the top three on a podium (winner in the middle and tallest, with a
@@ -25,7 +26,7 @@ export default function FinalPodium({ teams, moves }: { teams: Team[]; moves?: R
           const isWinner = rank === 0 || (tiedForFirst && team.score === sorted[0].score)
           return (
             <div key={team.id} className="flex w-1/3 max-w-[10rem] flex-col items-center gap-1.5 animate-pop-in" style={{ animationDelay: `${(2 - rank) * 150}ms` }}>
-              {isWinner && <div className="text-3xl" aria-hidden>👑</div>}
+              {isWinner && <span className="sticker text-sm">Champs</span>}
               <div className="max-w-full truncate text-center font-display text-xl" style={{ color: team.color }}>
                 {team.avatar ? `${team.avatar} ` : ''}
                 {team.name}
@@ -33,14 +34,17 @@ export default function FinalPodium({ teams, moves }: { teams: Team[]; moves?: R
               </div>
               {(team.streak ?? 0) >= 2 && <div className="text-xs">🔥{team.streak}</div>}
               <div
-                className={`flex w-full flex-col items-center justify-start rounded-t-xl border border-b-0 border-arena-600 bg-arena-800/80 pt-3 ${style.height} ${isWinner ? style.glow : ''}`}
-                style={{ borderTopColor: team.color, borderTopWidth: 4 }}
+                className={`hardwood relative flex w-full flex-col items-center justify-start overflow-hidden rounded-t-xl border-2 border-b-0 border-black/40 pt-3 ${style.height}`}
+                style={{ borderTopColor: team.color, borderTopWidth: 5 }}
               >
                 <div className="text-2xl" aria-hidden>
                   {style.medal}
                 </div>
-                <div className="scoreboard-digit font-display text-3xl text-slate-100" aria-label={`${team.score} points`}>
-                  {team.score}
+                <span aria-hidden className="jersey-num absolute -bottom-2 left-1 select-none text-6xl text-black/45">
+                  {rank + 1}
+                </span>
+                <div className="relative rounded-sm bg-black/60 px-1.5 py-1 text-scoreboard-amber">
+                  <SegDigits value={team.score} cells={2} className="text-2xl" label={`${team.score} points`} />
                 </div>
               </div>
             </div>

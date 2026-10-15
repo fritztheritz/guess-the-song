@@ -17,7 +17,7 @@ async function seed(page: Page) {
       createdAt: now,
     })
     const teams = [
-      { id: 't1', name: 'Alpha', score: 0, color: '#e8871e' },
+      { id: 't1', name: 'Alpha', score: 0, color: '#ff6a13' },
       { id: 't2', name: 'Bravo', score: 0, color: '#17b8a6' },
     ]
     const game = { id: 'g1', name: 'Smoke Game', rounds: [round(1), round(2)], teams, mode: 'song', createdAt: now, updatedAt: now }
@@ -98,7 +98,7 @@ test('a player profile shows career totals from finished games', async ({ page }
   await page.evaluate(() => {
     const now = new Date().toISOString()
     const teams = [
-      { id: 't1', name: 'Alpha', score: 9, color: '#e8871e' },
+      { id: 't1', name: 'Alpha', score: 9, color: '#ff6a13' },
       { id: 't2', name: 'Bravo', score: 3, color: '#17b8a6' },
     ]
     const game = {
@@ -125,7 +125,7 @@ test('play a Higher or Lower game and see the rank reveal', async ({ page }) => 
       higherLower: { rank, size: 8, tierName: 'A', ref: { ...ref, title: i === 1 ? 'Opener' : `Next ${i - 1}`, rank: i === 1 ? 4 : 2 } },
     })
     const teams = [
-      { id: 't1', name: 'Alpha', score: 0, color: '#e8871e' },
+      { id: 't1', name: 'Alpha', score: 0, color: '#ff6a13' },
       { id: 't2', name: 'Bravo', score: 0, color: '#17b8a6' },
     ]
     const game = { id: 'hl', name: 'HL Game', rounds: [round(1, 2), round(2, 6)], teams, mode: 'higherlower', createdAt: now, updatedAt: now }
@@ -138,7 +138,7 @@ test('play a Higher or Lower game and see the rank reveal', async ({ page }) => 
   await page.getByRole('button', { name: /REVEAL RANK/ }).click()
   await expect(page.getByText('HIGHER', { exact: true }).first()).toBeVisible()
   await page.getByRole('button', { name: 'Alpha' }).first().click()
-  await expect(page.locator('.scoreboard-digit').first()).toHaveText('2')
+  await expect(page.getByRole('img', { name: '2 points' }).first()).toBeVisible()
   await page.getByRole('button', { name: /NEXT POSSESSION/ }).click()
   await page.getByRole('button', { name: /REVEAL RANK/ }).click()
   await expect(page.getByText('LOWER', { exact: true }).first()).toBeVisible()

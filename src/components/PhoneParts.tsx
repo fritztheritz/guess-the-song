@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 
 export function PhoneSongCard({ title, artist, artworkUrl }: { title: string; artist: string; artworkUrl?: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-arena-600 bg-arena-800 p-3 text-left">
+    <div className="ticket flex items-center gap-3 rounded-2xl border-2 border-arena-600 bg-arena-800 px-5 py-3 text-left">
       <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-arena-700">
         {artworkUrl ? <img src={artworkUrl} alt="" className="h-full w-full object-cover" /> : null}
       </div>

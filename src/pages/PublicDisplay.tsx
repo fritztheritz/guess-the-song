@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import BuzzerBeaterBanner from '../components/BuzzerBeaterBanner'
 import { useWakeLock } from '../lib/use-wake-lock'
 import { useReactions } from '../lib/use-reactions'
 import ReactionLayer from '../components/ReactionLayer'
@@ -307,10 +308,7 @@ export default function PublicDisplay({ gameId }: { gameId: string }) {
         {phase === 'revealed' && round && (
           <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-5 overflow-y-auto px-6 py-8 text-center">
             {!(isTierGuess && tierGuessStage === 'guessPosition') && !(isYear && yearGuessStage === 'guessMonth') && (
-              <>
-                <div className="pointer-events-none absolute inset-0 bg-hardwood-500/20 animate-buzzer-flash" />
-                <div className="relative z-10 font-display text-4xl tracking-widest text-scoreboard-500">BUZZER BEATER</div>
-              </>
+              <BuzzerBeaterBanner />
             )}
 
             {isLyric ? (

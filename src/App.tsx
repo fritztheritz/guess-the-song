@@ -3,6 +3,8 @@ import { lazyPage } from './lib/lazy-page'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import RouteErrorBoundary from './components/RouteErrorBoundary'
 import CommandPalette from './components/CommandPalette'
+import CourtBackdrop from './components/CourtBackdrop'
+import RouteWipe from './components/RouteWipe'
 import { PageSkeleton } from './components/skeletons'
 import Home from './pages/Home'
 import RequireFlag from './components/RequireFlag'
@@ -42,6 +44,9 @@ const TimelinePresent = lazyPage(() => import('./pages/TimelinePresent'))
 export default function App() {
   const { pathname } = useLocation()
   return (
+    <>
+    <CourtBackdrop />
+    <RouteWipe />
     <RouteErrorBoundary key={pathname}>
     <CommandPalette />
     <Suspense fallback={<PageSkeleton />}>
@@ -210,5 +215,6 @@ export default function App() {
     </div>
     </Suspense>
     </RouteErrorBoundary>
+    </>
   )
 }

@@ -282,7 +282,7 @@ export const DEFAULT_ANSWER_TIMER_SECONDS = 20
 
 // Cycles for team #9+ rather than hard-capping — scoreboard/award UI wrap to handle
 // any team count, so there's no structural reason to cap it.
-export const TEAM_COLORS = ['#e8871e', '#17b8a6', '#a855f7', '#ff3b3b', '#3fa9f5', '#ffd23f', '#22c55e', '#f472b6']
+export const TEAM_COLORS = ['#ff6a13', '#17b8a6', '#a855f7', '#ff3b3b', '#3fa9f5', '#ffd23f', '#22c55e', '#f472b6']
 
 export function teamColorForIndex(index: number): string {
   return TEAM_COLORS[index % TEAM_COLORS.length]

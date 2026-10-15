@@ -89,7 +89,7 @@ export default function TierListGroupRanking({ list, onApply }: { list: TierList
   useEffect(() => {
     const socket = socketRef.current
     if (!socket || !code || !frozen) return
-    socket.sendAndRemember({ type: 'sync-teams', teams: [{ id: VOTER_TEAM_ID, name: 'Voters', color: '#e8871e', avatar: '🗳️' }] })
+    socket.sendAndRemember({ type: 'sync-teams', teams: [{ id: VOTER_TEAM_ID, name: 'Voters', color: '#ff6a13', avatar: '🗳️' }] })
     const state: PhoneRoundState = {
       gameName: list.name,
       possessionIndex: 0,

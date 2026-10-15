@@ -1,5 +1,7 @@
 // Synthesized via Web Audio API rather than a bundled audio file — no asset/licensing
 // to manage, and it's a couple lines of oscillator scheduling either way.
+import { getArenaFx } from './settings'
+
 let sharedContext: AudioContext | null = null
 
 function getContext(): AudioContext {
@@ -145,12 +147,13 @@ export function playBuzzIn() {
   }
 }
 
-/** A bright ascending chime for a confirmed-correct answer. */
+/** A bright ascending chime for a confirmed-correct answer (with a net swish underneath). */
 export function playCorrect() {
   if (silent()) return
   try {
     const ctx = getContext()
     const now = ctx.currentTime
+    if (getArenaFx()) noiseBurst(ctx, now, 0.32, 0.16, 4200)
 
     ;[523.25, 659.25].forEach((freq, i) => {
       const start = now + i * 0.09
@@ -172,12 +175,13 @@ export function playCorrect() {
   }
 }
 
-/** A triumphant rising arpeggio for the final-score/winner reveal. */
+/** A triumphant rising arpeggio for the final-score/winner reveal (with the crowd on its feet). */
 export function playFanfare() {
   if (silent()) return
   try {
     const ctx = getContext()
     const now = ctx.currentTime
+    if (getArenaFx()) crowdRoar(ctx, now)
 
     ;[523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
       const start = now + i * 0.12
@@ -396,6 +400,53 @@ export function playSoundboard(sound: SoundboardSound) {
       noiseBurst(ctx, now + 0.28, 0.1, 0.25, 400)
       noiseBurst(ctx, now + 0.5, 0.45, 0.2, 7000)
     }
+  } catch {
+    // Best-effort, same as playBuzzer().
+  }
+}
+
+// --- Court & crowd flourishes (gated by the "Court & crowd sounds" setting on top of the main switch).
+
+/** A swelling bandpassed-noise wash with scattered claps — a crowd rising. */
+function crowdRoar(ctx: AudioContext, start: number) {
+  noiseBurst(ctx, start, 1.9, 0.11, 650)
+  noiseBurst(ctx, start + 0.15, 1.6, 0.08, 1500)
+  for (let i = 0; i < 18; i++) noiseBurst(ctx, start + 0.3 + Math.random() * 1.4, 0.04, 0.08, 2200 + Math.random() * 2200)
+}
+
+/** Rubber on hardwood: two quick rising/falling chirps. */
+export function playSqueak() {
+  if (silent() || !getArenaFx()) return
+  try {
+    const ctx = getContext()
+    const now = ctx.currentTime
+    tone(ctx, 'sine', 1700, now, 0.08, 0.07, 2500)
+    tone(ctx, 'sine', 2300, now + 0.1, 0.07, 0.05, 1800)
+  } catch {
+    // Best-effort, same as playBuzzer().
+  }
+}
+
+/** A short arena horn — a decision locked in, with a little squeak before it. */
+export function playHorn() {
+  if (silent() || !getArenaFx()) return
+  try {
+    const ctx = getContext()
+    const now = ctx.currentTime
+    tone(ctx, 'sawtooth', 233, now, 0.55, 0.12, 226)
+    tone(ctx, 'sawtooth', 117, now, 0.55, 0.14, 113)
+    tone(ctx, 'square', 351, now, 0.5, 0.04, 340)
+  } catch {
+    // Best-effort, same as playBuzzer().
+  }
+}
+
+/** Just the crowd, for moments that want a roar without the fanfare. */
+export function playCrowd() {
+  if (silent() || !getArenaFx()) return
+  try {
+    const ctx = getContext()
+    crowdRoar(ctx, ctx.currentTime)
   } catch {
     // Best-effort, same as playBuzzer().
   }

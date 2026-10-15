@@ -557,7 +557,7 @@ export default function Home() {
             >
               <span className="text-2xl">{resumeItem.icon}</span>
               <div className="min-w-0 flex-1">
-                <div className="text-xs uppercase tracking-widest text-hardwood-400">Continue where you left off</div>
+                <div className="marker -rotate-1 text-base text-pop-400">Continue where you left off</div>
                 <div className="truncate font-semibold text-slate-100">{resumeItem.name}</div>
               </div>
               <span className="shrink-0 text-sm text-hardwood-400">{resumeItem.label} →</span>
@@ -590,7 +590,7 @@ export default function Home() {
 
         {recentFinished.length > 0 && searchQuery.trim() === '' && (
           <div className="mx-auto mt-10 max-w-3xl">
-            <div className="mb-2 text-xs uppercase tracking-widest text-slate-500">Recently finished</div>
+            <div className="marker mb-2 -rotate-1 text-base text-slate-400">Recently finished</div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {recentFinished.map((game) => (
                 <Link

@@ -15,8 +15,8 @@ export async function downloadRankingImage(listName: string, ranked: Array<{ tit
   if (!ctx) return
 
   const bg = ctx.createLinearGradient(0, 0, 0, height)
-  bg.addColorStop(0, '#0b0e14')
-  bg.addColorStop(1, '#05060a')
+  bg.addColorStop(0, '#0a1128')
+  bg.addColorStop(1, '#050a1c')
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, W, height)
 
@@ -24,16 +24,16 @@ export async function downloadRankingImage(listName: string, ranked: Array<{ tit
   ctx.fillStyle = '#f8fafc'
   ctx.font = '56px "Bebas Neue"'
   ctx.fillText(listName.toUpperCase(), W / 2, 90, W - PAD * 2)
-  ctx.fillStyle = '#e8871e'
+  ctx.fillStyle = '#ff6a13'
   ctx.font = '20px Inter'
   ctx.fillText('BLIND RANKING', W / 2, 125)
 
   const medals = ['#facc15', '#cbd5e1', '#d97706']
   ranked.forEach((song, i) => {
     const y = 170 + i * ROW
-    ctx.fillStyle = '#12161f'
+    ctx.fillStyle = '#0f1938'
     ctx.fillRect(PAD, y, W - PAD * 2, ROW - 8)
-    ctx.fillStyle = medals[i] ?? '#e8871e'
+    ctx.fillStyle = medals[i] ?? '#ff6a13'
     ctx.font = '40px "Bebas Neue"'
     ctx.textAlign = 'center'
     ctx.fillText(String(i + 1), PAD + 36, y + 40)

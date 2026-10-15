@@ -10,7 +10,7 @@ async function seed(page: Page) {
   await page.goto('./')
   await page.evaluate((stamp) => {
     const round = (i: number) => ({ id: `r${i}`, source: 'soundcloud', title: `Song ${i}`, artist: `Artist ${i}`, clipStart: 0, clipDurations: [5, 10], points: [4, 3, 2, 1], createdAt: stamp })
-    const teams = ['Alpha', 'Bravo', 'Charlie', 'Delta'].map((n, i) => ({ id: `t${i}`, name: n, score: [7, 5, 3, 0][i], color: ['#e8871e', '#17b8a6', '#3b82f6', '#ec4899'][i] }))
+    const teams = ['Alpha', 'Bravo', 'Charlie', 'Delta'].map((n, i) => ({ id: `t${i}`, name: n, score: [7, 5, 3, 0][i], color: ['#ff6a13', '#17b8a6', '#3b82f6', '#ec4899'][i] }))
     const live = { id: 'g1', name: 'Friday Night', rounds: [1, 2, 3].map(round), teams, mode: 'song', createdAt: stamp, updatedAt: stamp, tags: ['friday'] }
     const done = { ...live, id: 'g2', name: 'Last Week', progress: { possessionIndex: 2, completed: true } }
     localStorage.setItem('gts.games.v1', JSON.stringify({ g1: live, g2: done }))
@@ -29,6 +29,29 @@ const SCREENS: Array<[name: string, path: string, before?: (page: Page) => Promi
   ['stats', 'stats'],
   ['tier-list', 'tierlists/tl1/present'],
   ['blind-lobby', 'tierlists/tl1/rank-together'],
+  [
+    'blind-playing',
+    'tierlists/tl1/rank-together',
+    async (page) => {
+      await page.getByRole('button', { name: /START/ }).click()
+      await page.getByRole('button', { name: /^Slot 1, empty/ }).click()
+      await page.getByRole('button', { name: /LOCK IN/ }).click()
+      await page.getByRole('button', { name: /NEXT SONG/ }).click()
+      await page.getByRole('button', { name: /^Slot 3, empty/ }).click()
+    },
+  ],
+  [
+    'blind-results',
+    'tierlists/tl1/rank-together',
+    async (page) => {
+      await page.getByRole('button', { name: /START/ }).click()
+      for (let i = 1; i <= 8; i++) {
+        await page.getByRole('button', { name: new RegExp(`^Slot ${i}, empty`) }).click()
+        await page.getByRole('button', { name: /LOCK IN/ }).click()
+        await page.getByRole('button', { name: /NEXT SONG|SEE RESULTS/ }).click()
+      }
+    },
+  ],
   [
     'host-clue',
     'games/g1/present',

@@ -1,4 +1,5 @@
 import BackLink from '../components/BackLink'
+import SegDigits from '../components/SegDigits'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getTimelineGame, saveTimelineGame } from '../lib/storage/timeline-repository'
@@ -283,8 +284,8 @@ export default function TimelinePresent() {
                   {currentTeam.name}'s turn
                 </div>
                 {secondsLeft !== null && (
-                  <div className={`scoreboard-digit font-display text-3xl ${secondsLeft <= 5 ? 'animate-pulse text-scoreboard-500' : 'text-slate-300'}`}>
-                    {secondsLeft}s
+                  <div className={secondsLeft <= 5 ? 'animate-pulse text-scoreboard-500' : 'text-scoreboard-amber'}>
+                    <SegDigits value={secondsLeft} cells={2} className="text-4xl" label={`${secondsLeft} seconds left`} />
                   </div>
                 )}
                 {(prog.streaks?.[currentTeam.id] ?? 0) >= 2 && (

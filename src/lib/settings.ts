@@ -20,3 +20,24 @@ export function setKeepAwake(on: boolean): void {
     // Best-effort only.
   }
 }
+
+const ARENA_FX_KEY = 'gts.arenaFx.v1'
+
+/** Court & crowd flourishes — sneaker squeaks, net swishes, the lock-in horn and the crowd roar (default on).
+ *  Separate from the main sound switch so a host can keep buzzers but drop the extras. */
+export function getArenaFx(): boolean {
+  try {
+    return localStorage.getItem(ARENA_FX_KEY) !== 'off'
+  } catch {
+    return true
+  }
+}
+
+export function setArenaFx(on: boolean): void {
+  try {
+    if (on) localStorage.removeItem(ARENA_FX_KEY)
+    else localStorage.setItem(ARENA_FX_KEY, 'off')
+  } catch {
+    // Best-effort only.
+  }
+}

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-const COLORS = ['#e8871e', '#f4a13f', '#17b8a6', '#3fd4c2', '#ffb703', '#2bd47d', '#ff3b3b']
+const COLORS = ['#ff6a13', '#ff8a3d', '#17b8a6', '#3fd4c2', '#ffb703', '#2bd47d', '#ff3b3b', '#d8ff3d']
 const PIECE_COUNT = 60
 
 interface Piece {

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import SegDigits from './SegDigits'
 import type { PhoneRoundState } from '../lib/buzzer/protocol'
 
 type PopularityState = NonNullable<PhoneRoundState['popularity']>
@@ -63,8 +64,8 @@ export default function PopularityPicker({
           {myTurn ? "It's your team's turn!" : `${turnTeam?.avatar ? `${turnTeam.avatar} ` : ''}${turnTeam?.name ?? '…'}'s turn`}
         </div>
         {secondsLeft !== null && (
-          <div className={`scoreboard-digit font-display text-2xl ${secondsLeft <= 5 ? 'text-scoreboard-500' : 'text-slate-300'}`}>
-            {secondsLeft}s
+          <div className={`${secondsLeft <= 5 ? 'text-scoreboard-500' : 'text-scoreboard-amber'}`}>
+            <SegDigits value={secondsLeft} cells={2} className="text-3xl" label={`${secondsLeft} seconds left`} />
           </div>
         )}
       </div>

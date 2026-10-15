@@ -46,8 +46,8 @@ export async function downloadTierListImage(list: TierList): Promise<void> {
   if (!ctx) return
 
   const bg = ctx.createLinearGradient(0, 0, 0, height)
-  bg.addColorStop(0, '#0b0e14')
-  bg.addColorStop(1, '#05060a')
+  bg.addColorStop(0, '#0a1128')
+  bg.addColorStop(1, '#050a1c')
   ctx.fillStyle = bg
   ctx.fillRect(0, 0, W, height)
 
@@ -55,18 +55,18 @@ export async function downloadTierListImage(list: TierList): Promise<void> {
   ctx.fillStyle = '#f8fafc'
   ctx.font = '56px "Bebas Neue"'
   ctx.fillText(list.name.toUpperCase(), W / 2, 85, W - PAD * 2)
-  ctx.fillStyle = '#e8871e'
+  ctx.fillStyle = '#ff6a13'
   ctx.font = '20px Inter'
   ctx.fillText('TIER LIST', W / 2, 118)
 
   let y = 150
   for (const { tier, lines } of rows) {
     const h = lines.length * LINE + ROW_PAD * 2
-    ctx.fillStyle = '#12161f'
+    ctx.fillStyle = '#0f1938'
     ctx.fillRect(PAD, y, W - PAD * 2, h)
     ctx.fillStyle = tier.color
     ctx.fillRect(PAD, y, LABEL_W, h)
-    ctx.fillStyle = '#05060a'
+    ctx.fillStyle = '#050a1c'
     ctx.font = '44px "Bebas Neue"'
     ctx.textAlign = 'center'
     ctx.fillText(tier.name, PAD + LABEL_W / 2, y + h / 2 + 15, LABEL_W - 16)

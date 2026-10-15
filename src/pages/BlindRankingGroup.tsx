@@ -1,4 +1,5 @@
 import BackLink from '../components/BackLink'
+import SegDigits from '../components/SegDigits'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { getTierList, saveTierList } from '../lib/storage/tierlist-repository'
@@ -12,7 +13,7 @@ import ConnectionBanner from '../components/ConnectionBanner'
 import JoinLink from '../components/JoinLink'
 import JoinQrCode from '../components/JoinQrCode'
 import { shuffled } from '../lib/quick-game'
-import { playCorrect, playFanfare } from '../lib/sound-effects'
+import { playCorrect, playFanfare, playHorn, playSqueak } from '../lib/sound-effects'
 import { useToast } from '../state/toast-context'
 import { useWakeLock } from '../lib/use-wake-lock'
 import { downloadRankingImage } from '../lib/ranking-image'
@@ -90,6 +91,12 @@ export default function BlindRankingGroup() {
   const [slots, setSlots] = useState<Slots>(saved?.slots ?? [])
   const [selected, setSelected] = useState<number | null>(null)
   const [justPlaced, setJustPlaced] = useState<number | null>(saved?.justPlaced ?? null)
+  const [shaking, setShaking] = useState(false)
+  useEffect(() => {
+    if (!shaking) return
+    const t = setTimeout(() => setShaking(false), 380)
+    return () => clearTimeout(t)
+  }, [shaking])
   // Phones are optional: they join a room and *suggest* a slot for each song; the host still makes the call.
   const phonesAvailable = useFeatureFlag('phone-buzzer') && isBuzzerConfigured()
   const [phonesOn, setPhonesOn] = useState(saved?.phonesOn ?? false)
@@ -192,7 +199,7 @@ export default function BlindRankingGroup() {
         },
       },
     }
-    socket.sendAndRemember({ type: 'sync-teams', teams: [{ id: VOTER_TEAM_ID, name: 'Players', color: '#e8871e', avatar: '🙈' }] })
+    socket.sendAndRemember({ type: 'sync-teams', teams: [{ id: VOTER_TEAM_ID, name: 'Players', color: '#ff6a13', avatar: '🙈' }] })
     socket.sendAndRemember({ type: 'sync-round', state })
     if (stage === 'playing') socket.send({ type: 'open' })
     else socket.send({ type: 'close' })
@@ -206,7 +213,9 @@ export default function BlindRankingGroup() {
     setSlots(next)
     setJustPlaced(slot)
     setSelected(null)
+    playHorn()
     playCorrect()
+    setShaking(true)
   }, [])
 
   const advance = useCallback(() => {
@@ -302,7 +311,7 @@ export default function BlindRankingGroup() {
   const ranked = slots.flatMap((s) => (s === null ? [] : [songs[s]]))
 
   return (
-    <div className="min-h-svh court-lines">
+    <div className={`min-h-svh court-lines ${shaking ? 'animate-screen-shake' : ''}`}>
       {stage === 'results' && <Confetti />}
       <div className="mx-auto max-w-4xl px-4 pb-10 sm:px-6">
         <div className="flex items-center justify-between gap-3 py-5">
@@ -402,13 +411,15 @@ export default function BlindRankingGroup() {
         {stage === 'playing' && current && (
           // Stays put while the slot list scrolls, so the song being placed is always in view.
           <div className="sticky top-0 z-10 -mx-4 mb-4 border-b border-arena-700 bg-arena-950/90 px-4 pb-3 pt-2 backdrop-blur sm:-mx-6 sm:px-6">
-            <Panel padding="sm" className="flex flex-wrap items-center gap-4">
+            <Panel padding="sm" className="ticket flex flex-wrap items-center gap-4 px-6">
               <div key={current.id} className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-arena-800 animate-pop-in sm:h-24 sm:w-24">
                 {current.artworkUrl ? <img src={current.artworkUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-4xl text-arena-500">♪</div>}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs uppercase tracking-widest text-slate-500">
-                  Song {index + 1} of {total} · {total - placedCount} {total - placedCount === 1 ? 'slot' : 'slots'} left
+                  Song {index + 1} of {total} ·{' '}
+                  <SegDigits value={total - placedCount} cells={2} className="align-middle text-sm text-scoreboard-amber" label={`${total - placedCount}`} />{' '}
+                  {total - placedCount === 1 ? 'slot' : 'slots'} left
                 </div>
                 <div className="truncate font-display text-3xl text-white sm:text-4xl">{current.title}</div>
                 <div className="truncate text-lg text-slate-400">{current.artist}</div>
@@ -418,7 +429,7 @@ export default function BlindRankingGroup() {
                   </a>
                 )}
               </div>
-              <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto">
+              <div className="flex w-full flex-col items-stretch gap-1 sm:w-auto sm:border-l-2 sm:border-dashed sm:border-arena-500 sm:pl-4">
                 {locked ? (
                   <Button size="lg" onClick={advance}>
                     {index >= total - 1 ? 'SEE RESULTS →' : 'NEXT SONG →'}
@@ -517,10 +528,13 @@ export default function BlindRankingGroup() {
                       <button
                         type="button"
                         disabled={!clickable}
-                        onClick={() => setSelected(isSelected ? null : slot)}
+                        onClick={() => {
+                          if (!isSelected) playSqueak()
+                          setSelected(isSelected ? null : slot)
+                        }}
                         aria-label={song ? `Slot ${slot + 1}: ${song.title}` : `Slot ${slot + 1}, empty`}
                         aria-pressed={clickable ? isSelected : undefined}
-                        className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left transition ${
+                        className={`relative flex w-full items-center gap-3 overflow-hidden rounded-xl border-2 py-2 pl-14 pr-3 text-left transition ${
                           fresh
                             ? 'animate-pop-in border-hardwood-400 bg-hardwood-500/20'
                             : isSelected
@@ -532,7 +546,12 @@ export default function BlindRankingGroup() {
                                   : 'border-arena-600 bg-arena-800'
                         }`}
                       >
-                        <span className="w-8 shrink-0 text-center font-display text-2xl text-hardwood-400">{slot + 1}</span>
+                        <span
+                          aria-hidden
+                          className={`jersey-num pointer-events-none absolute -bottom-2 left-1 select-none text-[3.6rem] ${empty ? 'text-hardwood-500/40' : 'text-hardwood-400'}`}
+                        >
+                          {slot + 1}
+                        </span>
                         {song ? (
                           <>
                             <span className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-arena-700">
@@ -548,7 +567,7 @@ export default function BlindRankingGroup() {
                         )}
                         {chips && (
                           <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
-                            {agree && <span className="text-xs text-scoreboard-green">🤝 {chips.length} agree</span>}
+                            {agree && <span className="marker text-sm text-scoreboard-green">🤝 {chips.length} agree</span>}
                             {chips.map((n) => (
                               <span key={n} className="rounded-full px-2.5 py-1 text-sm font-semibold" style={{ background: `${chipColor(n)}33`, color: chipColor(n) }}>
                                 {n}
@@ -582,14 +601,17 @@ function Podium({ songs }: { songs: TierListSong[] }) {
         const song = top[rank]
         return (
           <div key={song.id} className="flex w-1/3 max-w-[11rem] flex-col items-center gap-1.5 animate-pop-in" style={{ animationDelay: `${(2 - rank) * 150}ms` }}>
-            {rank === 0 && <div className="text-3xl" aria-hidden>👑</div>}
+            {rank === 0 && <span className="sticker -mb-0.5 text-sm">Champ</span>}
             <div className="h-16 w-16 overflow-hidden rounded-xl bg-arena-800">
               {song.artworkUrl ? <img src={song.artworkUrl} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-2xl text-arena-500">♪</div>}
             </div>
             <div className="max-w-full truncate text-center font-display text-lg text-slate-100">{song.title}</div>
-            <div className={`flex w-full items-start justify-center rounded-t-xl border border-b-0 border-arena-600 bg-arena-800/80 pt-2 ${heights[rank]}`}>
+            <div className={`hardwood relative flex w-full items-start justify-center overflow-hidden rounded-t-xl border-2 border-b-0 border-black/40 pt-2 ${heights[rank]}`}>
               <span className="text-2xl" aria-hidden>
                 {medals[rank]}
+              </span>
+              <span aria-hidden className="jersey-num absolute -bottom-2 right-1 select-none text-6xl text-black/45">
+                {rank + 1}
               </span>
             </div>
           </div>
