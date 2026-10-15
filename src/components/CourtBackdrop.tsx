@@ -14,11 +14,11 @@ interface Crop {
 
 const CROPS: Record<string, Crop> = {
   home: { x: 500, y: 470, zoom: 1 },
-  key: { x: 500, y: 250, zoom: 2.1 },
-  arc: { x: 500, y: 520, zoom: 1.7 },
-  center: { x: 500, y: 900, zoom: 2.3 },
-  corner: { x: 130, y: 170, zoom: 2.6 },
-  rim: { x: 500, y: 110, zoom: 3 },
+  key: { x: 500, y: 300, zoom: 1.5 },
+  arc: { x: 500, y: 520, zoom: 1.3 },
+  center: { x: 500, y: 800, zoom: 1.6 },
+  corner: { x: 220, y: 240, zoom: 1.6 },
+  rim: { x: 500, y: 330, zoom: 1.2 },
 }
 
 function cropFor(pathname: string): Crop {

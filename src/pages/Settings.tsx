@@ -14,7 +14,7 @@ import { Icon } from '../components/Icon'
 function Row({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 py-3">
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1 basis-60">
         <div className="text-sm font-semibold text-slate-100">{title}</div>
         {hint && <div className="text-xs text-slate-500">{hint}</div>}
       </div>
